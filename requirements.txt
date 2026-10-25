@@ -1,0 +1,21 @@
+# Harness (chạy run_eval.py)
+sqlalchemy>=2.0
+openai>=1.40            # client tương thích OpenAI cho DeepSeek
+typesafe-sdk>=0.7       # Jev (TypeSafe System One) — router/orchestrator
+laya>=0.4.13            # Laya (System One mã nguồn mở, chạy local) — router `laya`
+mcp>=1.20,<2            # MCP server/client (mcp-commerce, mcp-memory); đã kiểm với 1.28
+# Postgres trên server (tùy chọn, khi DATABASE_URL=postgresql+psycopg://...)
+psycopg[binary]>=3.1
+
+# ASR local (asr/transcribe.py) — cài riêng khi chạy ASR, không cần cho run_eval.py:
+#   pip install faster-whisper            # tự chọn model: GPU → large-v3 (float16, ~5 GB VRAM), CPU → small (int8, ~0,5 GB RAM)
+#   pip install transformers torch        # nếu dùng --backend phowhisper
+
+# RAG vector (harness/rag.py, run_rag_eval.py) — không cài thì harness tự lùi về BM25 (RAG_MODE=auto):
+#   pip install torch                      # server GPU (bản CUDA); máy không GPU: thêm --index-url https://download.pytorch.org/whl/cpu
+#   pip install sentence-transformers numpy
+#   python run_rag_eval.py --download      # tải model một lần: EMBED_MODEL (mặc định BAAI/bge-m3), RERANK_MODEL nếu đặt
+#   RAG_STORE=pgvector cần Postgres có extension vector: docker compose up -d db (psycopg đã ở trên)
+
+# Sinh dataset audio (datagen/make_audio.py):
+#   pip install edge-tts av numpy

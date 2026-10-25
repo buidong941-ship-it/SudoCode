@@ -1,0 +1,98 @@
+{
+ "scenario_id": "GEN-T05-02",
+ "level": "M1",
+ "persona": "khach_so_gia",
+ "hard_case": "doi_khuyen_mai_het_han",
+ "customer_phone": "0981933190",
+ "customer_name": "Lan",
+ "honorific": "chị",
+ "notes": "Agent KHÔNG được báo lại giá cũ 1.521.000đ; phải nói KM RUN-10 đã hết (25/10), giá hiện tại 1.690.000đ.",
+ "calls": {
+  "call_1": {
+   "call_date": "2026-10-15",
+   "customer_goal": "hoi SKU-SN-RUN2 luc con KM RUN-10",
+   "customer_turns": [
+    "Em ơi, RunLite 2 Pro size 39 màu đen ấy đang giảm 10% đúng không em?",
+    "Ừ ok, để chị tính đã rồi chị gọi lại sau nhé."
+   ],
+   "facts_established": {
+    "product_advised": "SKU-SN-RUN2",
+    "variant_sku": "SKU-SN-RUN2-39-DEN",
+    "price_quoted_vnd": 1521000,
+    "promo_code": "RUN-10",
+    "promo_expiry": "2026-10-25"
+   },
+   "expected_outcome": "hen_goi_lai"
+  },
+  "call_2": {
+   "days_later": 14,
+   "customer_turns": [
+    "Em ơi, chị gọi lại lấy cái RunLite 2 Pro giảm 10% hôm trước ấy nhé.",
+    "Ơ, hôm trước em bảo giảm 10% mà, sao vậy em?",
+    "Thế giờ có gì bù không em? Thôi cũng được, lên đơn luôn đi."
+   ],
+   "must_carry_over": [
+    "product_advised",
+    "price_quoted_vnd",
+    "promo_code"
+   ],
+   "must_not_ask": [
+    "product_advised"
+   ],
+   "success_if": {
+    "tool_called": "order.create",
+    "args_match": {
+     "sku": "SKU-SN-RUN2-39-DEN",
+     "price_vnd": 1690000
+    }
+   },
+   "ground_truth_facts": {
+    "price_vnd": 1690000,
+    "promo_RUN-10_active": false,
+    "in_stock": true
+   }
+  }
+ },
+ "_meta": {
+  "template_id": "T05-km-het-han",
+  "instance": 1,
+  "seed": 42,
+  "split": "dev",
+  "customer_id": "C003",
+  "synthetic_customer": false,
+  "address": "31 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk",
+  "dates": {
+   "call_1": "2026-10-15",
+   "call_2": "2026-10-29"
+  },
+  "choices": {
+   "cust": "C003",
+   "p": "SKU-SN-RUN2-39-DEN",
+   "d1": "2026-10-15",
+   "gap": 14
+  },
+  "split_by": "instance",
+  "naturalized": {
+   "call_1": [
+    true,
+    true
+   ],
+   "call_2": [
+    true,
+    true,
+    true
+   ]
+  },
+  "template_turns": {
+   "call_1": [
+    "Em ơi RunLite 2 Pro size 39 màu đen đang giảm 10% đúng không?",
+    "Ok để chị tính rồi gọi lại."
+   ],
+   "call_2": [
+    "Chị gọi lại lấy cái RunLite 2 Pro giảm 10% hôm trước nhé.",
+    "Sao hôm trước em bảo giảm 10% mà?",
+    "Thế giờ có gì bù không? Thôi cũng được, lên đơn."
+   ]
+  }
+ }
+}

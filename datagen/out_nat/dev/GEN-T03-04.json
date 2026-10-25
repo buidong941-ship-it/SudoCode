@@ -1,0 +1,109 @@
+{
+ "scenario_id": "GEN-T03-04",
+ "level": "M1",
+ "persona": "khach_da_mua_doi_size",
+ "hard_case": null,
+ "customer_phone": "0956517883",
+ "customer_name": "Thủy",
+ "honorific": "chị",
+ "notes": "Cuộc 2 (Case 3): hệ thống phải biết đơn nào, size/màu nào; áp chính sách đổi trả 7 ngày miễn phí đổi size lần đầu (DT-03).",
+ "calls": {
+  "call_1": {
+   "call_date": "2026-10-16",
+   "customer_goal": "mua SKU-JK-WND size S mau den",
+   "customer_turns": [
+    "Em ơi, cho chị hỏi cái Áo khoác gió Windbreak mình còn size S màu đen không em?",
+    "Giá bao nhiêu vậy em, có giảm gì không em?",
+    "Ừ ok em, em lên đơn cho chị nhé, thanh toán COD nha em."
+   ],
+   "facts_established": {
+    "product_advised": "SKU-JK-WND",
+    "variant_sku": "SKU-JK-WND-S-DEN",
+    "size": "S",
+    "color": "den",
+    "price_quoted_vnd": 690000,
+    "order_id": "OD600001",
+    "payment": "COD"
+   },
+   "expected_outcome": "chot_don"
+  },
+  "call_2": {
+   "days_later": 5,
+   "customer_turns": [
+    "Alo em, chị mới nhận cái áo hôm qua mà size S hơi bé.",
+    "Em ơi, chị đổi lên size M được không, với lại có mất phí gì không em?",
+    "Ừ, vậy em làm thủ tục đổi cho chị nhé."
+   ],
+   "must_carry_over": [
+    "order_id",
+    "variant_sku",
+    "size",
+    "color"
+   ],
+   "must_not_ask": [
+    "product_advised",
+    "order_id",
+    "color",
+    "payment"
+   ],
+   "success_if": {
+    "tool_called": "order.update",
+    "args_match": {
+     "order_id": "OD600001",
+     "new_variant_sku": "SKU-JK-WND-M-DEN",
+     "action": "exchange_size"
+    }
+   },
+   "ground_truth_facts": {
+    "return_days": 7,
+    "exchange_fee_vnd": 0,
+    "new_size_in_stock": true,
+    "price_vnd": 690000
+   }
+  }
+ },
+ "_meta": {
+  "template_id": "T03-doi-size",
+  "instance": 3,
+  "seed": 42,
+  "split": "dev",
+  "customer_id": "C050",
+  "synthetic_customer": false,
+  "address": "189 Hùng Vương, Tam Kỳ, Quảng Nam",
+  "dates": {
+   "call_1": "2026-10-16",
+   "call_2": "2026-10-21"
+  },
+  "choices": {
+   "cust": "C050",
+   "p": "SKU-JK-WND-S-DEN",
+   "d1": "2026-10-16",
+   "gap": 5
+  },
+  "split_by": "template",
+  "naturalized": {
+   "call_1": [
+    true,
+    true,
+    true
+   ],
+   "call_2": [
+    true,
+    true,
+    true
+   ]
+  },
+  "template_turns": {
+   "call_1": [
+    "Em ơi Áo khoác gió Windbreak còn size S màu đen không?",
+    "Giá bao nhiêu, có giảm gì không em?",
+    "Ok em lên đơn cho chị, thanh toán COD nhé."
+   ],
+   "call_2": [
+    "Alo, chị mới nhận áo hôm qua mà size S hơi bé.",
+    "Đổi lên size M được không em? Mất phí gì không?",
+    "Ừ em làm thủ tục đổi cho chị nhé."
+   ]
+  }
+ }
+}

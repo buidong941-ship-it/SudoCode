@@ -1,0 +1,110 @@
+{
+ "scenario_id": "GEN-T26-01",
+ "level": "M1",
+ "persona": "khach_do_du_hoi_nguoi_nha",
+ "hard_case": null,
+ "customer_phone": "0901304118",
+ "customer_name": "Yến",
+ "honorific": "chị",
+ "notes": "Mẹ & bé: KM freeship MOM-FREESHIP (đơn ≥500k) cộng dồn; không tư vấn y tế. Cuộc 2 không hỏi lại tuổi bé / sản phẩm.",
+ "calls": {
+  "call_1": {
+   "call_date": "2026-10-13",
+   "customer_goal": "hoi Xe đẩy gấp gọn Joie Pact cho be 4 tháng",
+   "customer_turns": [
+    "Em ơi, chị đang tìm Xe đẩy gấp gọn Joie Pact ấy, bé nhà chị 4 tháng.",
+    "Cho chị hỏi giá bao nhiêu vậy em, có được miễn ship không?",
+    "Bảo hành thì bao lâu hả em?",
+    "Để tối nay chị bàn với chồng rồi chị nhắn lại nhé."
+   ],
+   "facts_established": {
+    "product_advised": "SKU-MB-STR1",
+    "baby_age": "4 tháng",
+    "price_quoted_vnd": 3490000,
+    "blocker": "can hoi chong"
+   },
+   "expected_outcome": "hen_goi_lai",
+   "ground_truth_facts": {
+    "price_vnd": 3490000,
+    "warranty_months": 12,
+    "freeship": true
+   }
+  },
+  "call_2": {
+   "days_later": 1,
+   "customer_turns": [
+    "Alo em ạ, hôm trước chị có hỏi em cái Joie Pact cho bé đấy.",
+    "Chồng chị ok rồi, em lên đơn giao về 162 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng giúp chị nhé.",
+    "Chị thanh toán khi nhận hàng nhé em."
+   ],
+   "must_carry_over": [
+    "product_advised",
+    "price_quoted_vnd",
+    "baby_age"
+   ],
+   "must_not_ask": [
+    "product_advised",
+    "baby_age"
+   ],
+   "success_if": {
+    "tool_called": "order.create",
+    "args_match": {
+     "sku": "SKU-MB-STR1",
+     "price_vnd": 3490000,
+     "payment": "COD"
+    }
+   },
+   "ground_truth_facts": {
+    "price_vnd": 3490000,
+    "in_stock": true,
+    "freeship": true
+   }
+  }
+ },
+ "_meta": {
+  "template_id": "T26-me-be-qua-tang",
+  "instance": 0,
+  "seed": 42,
+  "split": "test",
+  "customer_id": "C021",
+  "synthetic_customer": false,
+  "address": "162 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng",
+  "dates": {
+   "call_1": "2026-10-13",
+   "call_2": "2026-10-14"
+  },
+  "choices": {
+   "cust": "C021",
+   "p": "SKU-MB-STR1",
+   "d1": "2026-10-13",
+   "gap": 1
+  },
+  "split_by": "template",
+  "naturalized": {
+   "call_1": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "call_2": [
+    true,
+    true,
+    true
+   ]
+  },
+  "template_turns": {
+   "call_1": [
+    "Em ơi chị đang tìm Xe đẩy gấp gọn Joie Pact, bé nhà chị 4 tháng.",
+    "Giá bao nhiêu em, có được miễn ship không?",
+    "Bảo hành bao lâu em?",
+    "Để chị bàn với chồng tối nay rồi chị nhắn lại."
+   ],
+   "call_2": [
+    "Alo em, hôm trước chị hỏi Joie Pact cho bé đó.",
+    "Chồng chị ok rồi, em lên đơn giao về 162 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng nhé.",
+    "Thanh toán khi nhận hàng nhé em."
+   ]
+  }
+ }
+}

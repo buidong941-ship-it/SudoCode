@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.env
+data/
+report.json
+venv/
+.venv/
+
+# Kết quả chạy và dataset: lưu ở máy / Drive, không commit (README.md, mục "Dữ liệu ngoài repo")
+runs/
+dataset/
+_upload/
+_download/
+*.report.json
+asr/audio/
+asr/hypotheses*.json
+datagen/out_nat/*_report.json
+
+# Gói đẩy lên Kaggle (scripts/kaggle_job.py) và venv vLLM
+build/
+.vllm-venv/
+kaggle.json
+BUILD_INFO.json

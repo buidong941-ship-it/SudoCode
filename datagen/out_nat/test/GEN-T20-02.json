@@ -1,0 +1,109 @@
+{
+ "scenario_id": "GEN-T20-02",
+ "level": "M1",
+ "persona": "khach_da_mua_doi_size",
+ "hard_case": "doi_san_pham_hoan_chenh_lech",
+ "customer_phone": "0907525158",
+ "customer_name": "Ngọc",
+ "honorific": "chị",
+ "notes": "Đổi SKU-XM-4P (5.490.000đ) sang SKU-AP-X (4.890.000đ) trong 7 ngày → hoàn chênh lệch 600.000đ, 3–5 ngày làm việc (DT-04).",
+ "calls": {
+  "call_1": {
+   "call_date": "2026-10-19",
+   "customer_goal": "mua SKU-XM-4P",
+   "customer_turns": [
+    "Em ơi, chị hỏi xíu, Máy lọc không khí Xiaomi Smart 4 Pro giá bao nhiêu vậy em?",
+    "Ừ ok em, lên đơn cho chị nha, COD, giao về 21 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu."
+   ],
+   "facts_established": {
+    "product_advised": "SKU-XM-4P",
+    "price_quoted_vnd": 5490000,
+    "order_id": "OD600001",
+    "payment": "COD",
+    "address": "21 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu"
+   },
+   "expected_outcome": "chot_don"
+  },
+  "call_2": {
+   "days_later": 5,
+   "customer_turns": [
+    "Alo em, chị nhận Xiaomi Smart 4 Pro rồi, nhưng chưa dùng, thấy nó to quá, nên chị muốn đổi sang AirPure X.",
+    "Mà đổi thì bên em hoàn lại tiền chênh cho chị đúng không, bao nhiêu vậy em?",
+    "Ok, em làm giúp chị nhé."
+   ],
+   "must_carry_over": [
+    "order_id",
+    "product_advised",
+    "price_quoted_vnd"
+   ],
+   "must_not_ask": [
+    "order_id",
+    "product_advised",
+    "address"
+   ],
+   "success_if": {
+    "tool_called": "order.update",
+    "args_match": {
+     "order_id": "OD600001",
+     "action": "exchange_product",
+     "new_variant_sku": "SKU-AP-X"
+    },
+    "must_say_any": [
+     "600,000",
+     "600.000",
+     "600000",
+     "600k"
+    ]
+   },
+   "ground_truth_facts": {
+    "refund_vnd": 600000,
+    "refund_days": "3-5 ngày làm việc",
+    "exchange_fee_vnd": 0,
+    "price_vnd": 4890000
+   }
+  }
+ },
+ "_meta": {
+  "template_id": "T20-doi-san-pham-hoan-chenh-lech",
+  "instance": 1,
+  "seed": 42,
+  "split": "test",
+  "customer_id": "N056",
+  "synthetic_customer": true,
+  "address": "21 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu",
+  "dates": {
+   "call_1": "2026-10-19",
+   "call_2": "2026-10-24"
+  },
+  "choices": {
+   "cust": "N056",
+   "p": "SKU-XM-4P",
+   "p2": "SKU-AP-X",
+   "d1": "2026-10-19",
+   "gap": 5
+  },
+  "split_by": "instance",
+  "naturalized": {
+   "call_1": [
+    true,
+    true
+   ],
+   "call_2": [
+    true,
+    true,
+    true
+   ]
+  },
+  "template_turns": {
+   "call_1": [
+    "Em ơi Máy lọc không khí Xiaomi Smart 4 Pro giá bao nhiêu?",
+    "Ok lên đơn cho chị, COD, giao về 21 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu."
+   ],
+   "call_2": [
+    "Alo em, chị nhận Xiaomi Smart 4 Pro rồi, chưa dùng, nhưng thấy to quá, chị muốn đổi sang AirPure X.",
+    "Đổi thì bên em hoàn lại tiền chênh cho chị đúng không, bao nhiêu em?",
+    "Ok em làm giúp chị."
+   ]
+  }
+ }
+}

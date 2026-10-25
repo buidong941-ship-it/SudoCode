@@ -1,0 +1,89 @@
+{
+  "scenario_id": "GEN-T08-02",
+  "level": "M1",
+  "persona": "khach_do_du_hoi_nguoi_nha",
+  "hard_case": "het_hang_luc_khach_quyet",
+  "customer_phone": "0929486628",
+  "customer_name": "Nam",
+  "honorific": "anh",
+  "notes": "Call_1 còn hàng; call_2 (2026-10-27) SKU-MB-STR1 đã HẾT, chưa có ngày về (NB-02: không được lộ lý do nhà cung cấp). Agent phải kiểm tra tồn kho theo ngày gọi, không được tạo đơn, không hứa giao.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-24",
+      "customer_goal": "hoi SKU-MB-STR1, can nhac",
+      "customer_turns": [
+        "Em ơi Xe đẩy gấp gọn Joie Pact giá bao nhiêu, còn hàng không?",
+        "Giao về 139 Quang Trung, Hà Đông, Hà Nội mất mấy ngày em?",
+        "Để anh cân nhắc, vài hôm nữa anh gọi lại chốt nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-MB-STR1",
+        "price_quoted_vnd": 3490000,
+        "address": "139 Quang Trung, Hà Đông, Hà Nội",
+        "blocker": "can nhac"
+      },
+      "expected_outcome": "hen_goi_lai",
+      "ground_truth_facts": {
+        "price_vnd": 3490000,
+        "in_stock": true
+      }
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_turns": [
+        "Alo em, anh gọi lại lấy Xe đẩy gấp gọn Joie Pact hôm trước đây.",
+        "Em lên đơn luôn cho anh nhé.",
+        "Thế bao giờ có hàng lại em? Có thì báo anh nhé."
+      ],
+      "must_carry_over": [
+        "product_advised",
+        "price_quoted_vnd"
+      ],
+      "must_not_ask": [
+        "product_advised",
+        "address"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "hết hàng",
+          "tạm hết",
+          "hết mất"
+        ],
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "forbidden_claims": [
+          {
+            "field": "in_stock",
+            "value": true
+          }
+        ]
+      },
+      "ground_truth_facts": {
+        "in_stock": false
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "T08-het-hang-luc-quyet",
+    "instance": 1,
+    "seed": 42,
+    "split": "dev",
+    "customer_id": "C006",
+    "synthetic_customer": false,
+    "address": "139 Quang Trung, Hà Đông, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-24",
+      "call_2": "2026-10-27"
+    },
+    "choices": {
+      "cust": "C006",
+      "p": "SKU-MB-STR1",
+      "d1": "2026-10-24",
+      "gap": 3
+    },
+    "split_by": "instance"
+  }
+}

@@ -1,0 +1,120 @@
+{"id": "A000", "source": "GEN-T07-01", "sentence": "Dạ, đổi size lần đầu tiên là miễn phí, không phải trả 20 nghìn.", "ask": null, "qtype": null, "claims": []}
+{"id": "A001", "source": "GEN-T04-01", "sentence": "Em đã tạo đơn OD600001, tổng 1.521.000đ, giao 23/10.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}]}
+{"id": "A002", "source": "GEN-T04-02", "sentence": "Anh Bảo ơi, anh có thể gọi lại theo số 0957990659 được ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A003", "source": "GEN-T23-02", "sentence": "Ngoài ra, khách có thể mua gói bảo hành mở rộng thêm 12 tháng với giá 8% giá sản phẩm đúng không ạ?", "ask": "other", "qtype": "confirm", "claims": []}
+{"id": "A004", "source": "GEN-T16-01", "sentence": "Tổng đơn hàng hiện tại là 8.680.000đ, chưa vượt ngân sách 10 triệu nhé.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 8680000}]}
+{"id": "A005", "source": "GEN-T01-04", "sentence": "Dạ, anh Cường ạ, máy lọc không khí Xiaomi Smart 4 Pro đang bán với giá 5.490.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5490000}]}
+{"id": "A006", "source": "GEN-T01-01", "sentence": "Anh có thể dùng mã khuyến mãi AIR-OCT để giảm 300.000đ nhé.", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": true}]}
+{"id": "A007", "source": "GEN-T10-01", "sentence": "Giá máy mới là 4.490.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 4490000}]}
+{"id": "A008", "source": "GEN-T05-02", "sentence": "Sản phẩm RunLite 2 Pro size 39 màu den hiện giá 1.690.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1690000}]}
+{"id": "A009", "source": "GEN-T03-01", "sentence": "Dạ, chị đã tạo yêu cầu đổi size 42 den nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A010", "source": "GEN-T02-03", "sentence": "Em gọi lại về Máy lọc không khí Samsung AX40 chị mua hôm trước, giá 6.490.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_quoted_vnd", "value": 6490000}]}
+{"id": "A011", "source": "GEN-T23-02", "sentence": "Đang có khuyến mãi: mua sản phẩm tặng màng lọc đến 14/11 ạ.", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": true}]}
+{"id": "A012", "source": "GEN-T23-01", "sentence": "Dạ, thông số chính của máy là HEPA H13 + than hoạt tính, có app điều khiển và khóa trẻ em.", "ask": null, "qtype": null, "claims": []}
+{"id": "A013", "source": "GEN-T02-04", "sentence": "Giá máy lọc nước RO Karofi 9 lõi là 5.990.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5990000}]}
+{"id": "A014", "source": "GEN-T02-02", "sentence": "Giá nồi chiên không dầu Xiaomi 4.5L là 1.590.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1590000}]}
+{"id": "A015", "source": "GEN-T16-01", "sentence": "Dạ, máy lọc không khí AirPure X có giá 4.890.000 đồng.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 4890000}]}
+{"id": "A016", "source": "GEN-T06-01", "sentence": "Dự kiến sẽ về hàng vào ngày 21/10 nha.", "ask": null, "qtype": null, "claims": []}
+{"id": "A017", "source": "GEN-T16-01", "sentence": "Giá hiện tại là 7.690.000đ.ạ", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 7690000}]}
+{"id": "A018", "source": "GEN-T03-03", "sentence": "Tổng tiền 1.990.000đ, giao vào 2026-10-17.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1990000}]}
+{"id": "A019", "source": "GEN-T14-01", "sentence": "Dạ, giá bán sản phẩm này là 2.450.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 2450000}]}
+{"id": "A020", "source": "GEN-T27-02", "sentence": "Với 2 người dùng thì hợp lý nhé chị.", "ask": null, "qtype": null, "claims": []}
+{"id": "A021", "source": "GEN-T05-01", "sentence": "Giày chạy bộ RunLite 42 màu den hiện giá 1.290.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1290000}]}
+{"id": "A022", "source": "GEN-T20-01", "sentence": "Thời gian hoàn là 3-5 ngày làm việc.ạ", "ask": null, "qtype": null, "claims": []}
+{"id": "A023", "source": "GEN-T01-03", "sentence": "Giá niêm yết 5.200.000đ, hiện đang bán 5.200.000đ.ạ", "ask": null, "qtype": null, "claims": [{"field": "list_price_vnd", "value": 5200000}, {"field": "price_vnd", "value": 5200000}]}
+{"id": "A024", "source": "GEN-T01-02", "sentence": "Dạ, giá máy lọc không khí AirPure X là 4.890.000 đồng.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 4890000}]}
+{"id": "A025", "source": "GEN-T12-01", "sentence": "Dạ, anh đã tạo yêu cầu trả hàng cho đơn OD600001.", "ask": null, "qtype": null, "claims": []}
+{"id": "A026", "source": "GEN-T15-01", "sentence": "Ngày 26/10 bên em nghỉ, nên chuyển sang thứ Ba nhé ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A027", "source": "GEN-T03-02", "sentence": "Chị đã mua giày trekking HikePro size 41 màu xam vào ngày 21/10 ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A028", "source": "GEN-T04-05", "sentence": "Giày RunLite 2 Pro hiện giá 1.521.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}]}
+{"id": "A029", "source": "GEN-T02-04", "sentence": "Dạ, Máy lọc nước RO Karofi 9 lõi hiện đang bán giá 5.990.000 đồng ạ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5990000}]}
+{"id": "A030", "source": "GEN-T01-03", "sentence": "Dạ, máy lọc không khí AirPure Y giá 5.200.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5200000}]}
+{"id": "A031", "source": "GEN-T23-01", "sentence": "Ngoài ra, khách có thể mua thêm gói bảo hành mở rộng 12 tháng với giá 8% sản phẩm.", "ask": null, "qtype": null, "claims": []}
+{"id": "A032", "source": "GEN-T01-02", "sentence": "Giá niêm yết 4.890.000đ, hiện đang bán 4.890.000đ.ạ", "ask": null, "qtype": null, "claims": [{"field": "list_price_vnd", "value": 4890000}, {"field": "price_vnd", "value": 4890000}]}
+{"id": "A033", "source": "GEN-T22-01", "sentence": "Giá máy lọc nước RO Kangaroo 10 lõi là 6.890.000 đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 6890000}]}
+{"id": "A034", "source": "GEN-T03-02", "sentence": "Dạ, chị Ngọc ạ, em đã tạo đơn thành công với mã đơn OD600001.", "ask": null, "qtype": null, "claims": []}
+{"id": "A035", "source": "GEN-T16-01", "sentence": "Tổng tiền là 11.125.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 11125000}]}
+{"id": "A036", "source": "GEN-T01-02", "sentence": "Tổng tiền là 4.890.000 đồng, giao về 2026-10-21 nhé.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 4890000}]}
+{"id": "A037", "source": "GEN-T02-04", "sentence": "Dạ chị ạ, em gọi lại việc Máy lọc nước RO Karofi 9 lõi hôm trước 20/10, giá 5.990.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_quoted_vnd", "value": 5990000}]}
+{"id": "A038", "source": "GEN-T05-01", "sentence": "Cái RunLite 1 size 42 màu den hôm trước có chương trình giảm 10% đã hết hạn rồi ạ.", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": false}]}
+{"id": "A039", "source": "GEN-T05-02", "sentence": "Giá sản phẩm hiện tại là 1.690.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1690000}]}
+{"id": "A040", "source": "GEN-T04-01", "sentence": "Dạ, anh Đức ạ, đơn đã được tạo với mã OD600001, tổng 1.521.000đ, giao vào 23/10.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}]}
+{"id": "A041", "source": "GEN-T12-01", "sentence": "Em đã tạo yêu cầu trả hàng cho đơn hàng OD600001.", "ask": null, "qtype": null, "claims": []}
+{"id": "A042", "source": "GEN-T01-03", "sentence": "Giá máy AirPure Y là 5.200.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5200000}]}
+{"id": "A043", "source": "GEN-T04-01", "sentence": "Giá đã báo là 1.521.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_quoted_vnd", "value": 1521000}]}
+{"id": "A044", "source": "GEN-T03-02", "sentence": "Không mất phí và hoàn tiền trong 3-5 ngày làm việc ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A045", "source": "GEN-T04-01", "sentence": "Dạ, giá 1521k đúng như anh nói ạ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}]}
+{"id": "A046", "source": "GEN-T12-01", "sentence": "Em xin xác nhận đã tạo yêu cầu trả hàng, số tiền hoàn lại là 1.161.000đ, sẽ hoàn trong 3–5 ngày làm việc nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A047", "source": "GEN-T01-03", "sentence": "Hiện có khuyến mãi tặng màng lọc đến 22/10.ạ", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": true}]}
+{"id": "A048", "source": "GEN-T23-02", "sentence": "Ngoài ra, khách có thể mua thêm gói bảo hành mở rộng 12 tháng với giá 8% giá sản phẩm.", "ask": null, "qtype": null, "claims": []}
+{"id": "A049", "source": "GEN-T27-03", "sentence": "Dạ, máy nồi chiên không dầu Xiaomi 4.5L có bảo hành 12 tháng.", "ask": null, "qtype": null, "claims": [{"field": "warranty_months", "value": 12}]}
+{"id": "A050", "source": "GEN-T01-01", "sentence": "Dạ, anh Trung ạ, em đã lên đơn cho anh với mã đơn OD600001.", "ask": null, "qtype": null, "claims": []}
+{"id": "A051", "source": "GEN-T27-02", "sentence": "Dạ, quạt đứng Senko TS16 có 3 mức gió, không có remote.", "ask": null, "qtype": null, "claims": []}
+{"id": "A052", "source": "GEN-T25-01", "sentence": "Tổng tiền 1.290.000đ, giao vào 2026-11-04.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1290000}]}
+{"id": "A053", "source": "GEN-T04-04", "sentence": "Em vừa nhận được tin chị đã nhắn Facebook hỏi giày RunLite 1 ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A054", "source": "GEN-T01-04", "sentence": "Dạ, anh Cường ạ, em đã gọi anh hôm trước về máy lọc không khí Xiaomi Smart 4 Pro ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A055", "source": "GEN-T22-01", "sentence": "Em đã tạo đơn RO Kangaroo 10 lõi, mã đơn OD600001, tổng 6.890.000đ, giao 20/10.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 6890000}]}
+{"id": "A056", "source": "GEN-T04-02", "sentence": "Dạ, anh đã đặt được mã đơn OD600001, tổng 1.521.000đ, giao 30/10.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}]}
+{"id": "A057", "source": "GEN-T21-01", "sentence": "Ngày giao dự kiến là 20/10 nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A058", "source": "GEN-T16-01", "sentence": "Giá là 990.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 990000}]}
+{"id": "A059", "source": "GEN-T03-02", "sentence": "Em đã tạo yêu cầu đổi size 42 cho đơn hàng OD600001.", "ask": null, "qtype": null, "claims": []}
+{"id": "A060", "source": "GEN-T16-01", "sentence": "Đơn đã được tạo với mã OD600001, tổng 11.125.000đ, giao vào 2026-10-27.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 11125000}]}
+{"id": "A061", "source": "GEN-T06-02", "sentence": "Tổng tiền 5.490.000đ, giao hàng dự kiến 2026-10-28.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 5490000}]}
+{"id": "A062", "source": "GEN-T04-05", "sentence": "Dạ, giá 1.521.000đ đã bao gồm khuyến mãi RUN-10 đến 25/10.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1521000}, {"field": "promo_active", "value": true}]}
+{"id": "A063", "source": "GEN-T07-01", "sentence": "Dạ, hoàn tiền mất 3–5 ngày làm việc sau khi shop nhận hàng và kiểm tra.", "ask": null, "qtype": null, "claims": []}
+{"id": "A064", "source": "GEN-T03-04", "sentence": "Không mất phí đâu ạ, hoàn tiền trong 3-5 ngày làm việc.", "ask": null, "qtype": null, "claims": []}
+{"id": "A065", "source": "GEN-T01-01", "sentence": "Dạ, máy lọc không khí AirPure Pro có giá 7.690.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 7690000}]}
+{"id": "A066", "source": "GEN-T12-01", "sentence": "Dạ, giá giày RunLite size 39 màu trắng là 1.161.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 1161000}]}
+{"id": "A067", "source": "GEN-T07-01", "sentence": "Nếu có lỗi kỹ thuật, thời hạn là 30 ngày nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A068", "source": "GEN-T06-02", "sentence": "Dự kiến sẽ có lại vào ngày 19/10/2026.", "ask": null, "qtype": null, "claims": []}
+{"id": "A069", "source": "GEN-T11-01", "sentence": "Giá sản phẩm là 2.450.000đ.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 2450000}]}
+{"id": "A070", "source": "GEN-T01-04", "sentence": "Hiện đang có khuyến mãi tặng màng lọc đến 14/11 ạ.", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": true}]}
+{"id": "A071", "source": "GEN-T02-03", "sentence": "Dạ, Máy lọc không khí Samsung AX40 hiện đang bán với giá 6.490.000 đồng.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 6490000}]}
+{"id": "A072", "source": "GEN-T10-01", "sentence": "Mã đơn là OD600001, tổng tiền 7.590.000đ, ngày giao dự kiến 20/10/2026.", "ask": null, "qtype": null, "claims": [{"field": "price_vnd", "value": 7590000}]}
+{"id": "A073", "source": "GEN-T01-02", "sentence": "Cho phòng 20m² ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A074", "source": "GEN-T06-01", "sentence": "Nếu phát hiện lỗi sau khi nhận, bạn cần chụp ảnh/video gửi Zalo OA trong 48 giờ nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A075", "source": "GEN-T17-01", "sentence": "Nếu chị không muốn lưu thông tin, em sẽ xóa dữ liệu của chị ngay.", "ask": null, "qtype": null, "claims": []}
+{"id": "A076", "source": "GEN-T10-01", "sentence": "Dạ, chị Oanh ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A077", "source": "GEN-T04-03", "sentence": "Em đã ghi số điện thoại anh rồi.", "ask": null, "qtype": null, "claims": []}
+{"id": "A078", "source": "GEN-T03-02", "sentence": "Chị muốn đổi size không ạ?", "ask": "size", "qtype": "open", "claims": []}
+{"id": "A079", "source": "GEN-T11-01", "sentence": "Em đã nhận được tin cô đã hỏi về máy lọc nước cho Cần Thơ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A080", "source": "GEN-T01-03", "sentence": "Anh gọi lại khi nào удоб nhé.", "ask": "callback_time", "qtype": "open", "claims": []}
+{"id": "A081", "source": "GEN-T01-02", "sentence": "Anh gọi lại em sau nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A082", "source": "GEN-T13-01", "sentence": "Anh/chị có thể cân nhắc thêm nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A083", "source": "GEN-T04-03", "sentence": "Anh có thể lên địa chỉ nhé.", "ask": "address", "qtype": "open", "claims": []}
+{"id": "A084", "source": "GEN-T02-04", "sentence": "Về bảo hành mở rộng, chị có thể tham khảo chính sách như đã nói nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A085", "source": "GEN-T27-03", "sentence": "Em chưa có thông tin về bảo hành mở rộng.", "ask": null, "qtype": null, "claims": []}
+{"id": "A086", "source": "GEN-T05-01", "sentence": "Em chưa có thông tin về chương trình giảm giá hôm trước ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A087", "source": "GEN-T05-01", "sentence": "Dạ, anh Đạt ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A088", "source": "GEN-T03-03", "sentence": "Anh có muốn đổi size khác không ạ?", "ask": "size", "qtype": "open", "claims": []}
+{"id": "A089", "source": "GEN-T04-04", "sentence": "Chị gọi hotline sau nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A090", "source": "GEN-T08-01", "sentence": "Dạ, chị ơi, sản phẩm này hiện đang hết hàng.", "ask": null, "qtype": null, "claims": [{"field": "in_stock", "value": false}]}
+{"id": "A091", "source": "GEN-T15-01", "sentence": "Dạ, Giày sneaker Urban Classic còn hàng.", "ask": null, "qtype": null, "claims": [{"field": "in_stock", "value": true}]}
+{"id": "A092", "source": "GEN-T05-02", "sentence": "Chị lên địa chỉ đi ạ.", "ask": "address", "qtype": "open", "claims": []}
+{"id": "A093", "source": "GEN-T01-04", "sentence": "Em sẽ gọi lại sau khi bà xã nhận được.", "ask": null, "qtype": null, "claims": []}
+{"id": "A094", "source": "GEN-T16-01", "sentence": "Chị có cần hỗ trợ gì thêm không ạ?", "ask": "other", "qtype": "open", "claims": []}
+{"id": "A095", "source": "GEN-T27-01", "sentence": "Chị có cần thêm thông tin gì không ạ?", "ask": "other", "qtype": "open", "claims": []}
+{"id": "A096", "source": "GEN-T04-05", "sentence": "Anh có thể lên địa chỉ để nhận hàng nha.", "ask": "address", "qtype": "open", "claims": []}
+{"id": "A097", "source": "GEN-T04-02", "sentence": "Anh có thể cung cấp size giày anh đang dùng được không ạ?", "ask": "size", "qtype": "open", "claims": []}
+{"id": "A098", "source": "GEN-T07-01", "sentence": "Đơn COD hoàn qua chuyển khoản ngân hàng khách cung cấp ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A099", "source": "GEN-T08-02", "sentence": "Em gọi lại để báo sản phẩm Xe đẩy gấp gọn Joie Pact hôm trước ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A100", "source": "GEN-T04-02", "sentence": "Anh Bảo ơi, anh gọi lại khi nào удоб nhé.", "ask": "callback_time", "qtype": "open", "claims": []}
+{"id": "A101", "source": "GEN-T04-04", "sentence": "Em chưa có thông tin về việc giảm thêm nữa ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A102", "source": "GEN-T04-04", "sentence": "Dạ, chị đã đúng.", "ask": null, "qtype": null, "claims": []}
+{"id": "A103", "source": "GEN-T07-01", "sentence": "Cảm ơn anh đã ủng hộ em nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A104", "source": "GEN-T06-02", "sentence": "Chị có còn băn khoăn gì không?", "ask": "blocker", "qtype": "open", "claims": []}
+{"id": "A105", "source": "GEN-T08-02", "sentence": "Em chưa có thông tin về sản phẩm thay thế ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A106", "source": "GEN-T04-04", "sentence": "Chị có thể lên địa chỉ để nhận hàng nha.", "ask": "address", "qtype": "open", "claims": []}
+{"id": "A107", "source": "GEN-T13-01", "sentence": "Dạ, em xin lỗi vì đã làm chị chờ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A108", "source": "GEN-T03-02", "sentence": "Hiện không có chương trình khuyến mãi nào nhé ạ.", "ask": null, "qtype": null, "claims": [{"field": "promo_active", "value": false}]}
+{"id": "A109", "source": "GEN-T18-01", "sentence": "Em có thể tư vấn thêm về sản phẩm hỗ trợ hút sữa không ạ?", "ask": "other", "qtype": "open", "claims": []}
+{"id": "A110", "source": "GEN-T08-01", "sentence": "Em có thể giúp chị đặt hàng nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A111", "source": "GEN-T23-01", "sentence": "Dạ, anh/chị vẫn đang phân vân về AirPure Y đúng không ạ?", "ask": "product_advised", "qtype": "confirm", "claims": []}
+{"id": "A112", "source": "GEN-T22-01", "sentence": "Dạ, em xin phép anh xem thêm nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A113", "source": "GEN-T01-02", "sentence": "Em có thể đặt hàng ngay nếu anh đồng ý nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A114", "source": "GEN-T10-01", "sentence": "Mẫu cũ đã ngừng bán, chị có thể đổi sang máy mới AirPure X.", "ask": null, "qtype": null, "claims": []}
+{"id": "A115", "source": "GEN-T04-05", "sentence": "Em xin phép anh để lại số điện thoại để anh gọi lại nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A116", "source": "GEN-T04-02", "sentence": "Em cảm ơn anh nhé.", "ask": null, "qtype": null, "claims": []}
+{"id": "A117", "source": "GEN-T03-02", "sentence": "Em có thể giúp chị đổi size được ạ.", "ask": null, "qtype": null, "claims": []}
+{"id": "A118", "source": "GEN-T25-01", "sentence": "Em mong chị có thể cân nhắc và gọi lại khi tiện.", "ask": null, "qtype": null, "claims": []}
+{"id": "A119", "source": "GEN-T04-02", "sentence": "Em có thể hỗ trợ bảo hành và đổi trả cho khách nếu cần ạ.", "ask": null, "qtype": null, "claims": []}

@@ -1,0 +1,37 @@
+project-includes = ["**/*.py"]
+project-excludes = [
+    "**/venv/**",
+    "**/.venv/**",
+    "**/.vllm-venv/**",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "data/**",
+    "dataset/**",
+    "runs/**",
+    "build/**",
+    "_upload/**",
+    "_download/**",
+]
+
+replace-imports-with-any = [
+    "torch",
+    "torch.*",
+    "torchgen.*",
+    "transformers",
+    "transformers.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
+    "faster_whisper",
+    "faster_whisper.*",
+    "vllm",
+    "vllm.*",
+    "scipy",
+    "scipy.*",
+    "sklearn",
+    "sklearn.*",
+    "sympy",
+    "sympy.*",
+    "onnxruntime",
+    "onnxruntime.*",
+]
