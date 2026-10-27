@@ -58,6 +58,19 @@ got2 = llm_extract.customer_slots(text2, "2026-10-15", rules2, "hybrid", {})
 check(got2.get("size") == rules2.get("size") == "38", "hybrid: luật thắng khi cùng slot (span 'size 39' không có trong câu)")
 check(got2.get("payment") == "COD" and got2.get("address") == rules2.get("address"), "hybrid: LLM bổ sung slot luật bỏ sót")
 
+for t, reply, want, msg in [
+        ("Giá bao nhiêu em?", [{"slot": "objection", "span": "Giá bao nhiêu", "label": "ep_gia"}], {}, "hỏi giá thường không phải ép giá"),
+        ("Chị thấy giá 5.790.000đ cũng được.", [{"slot": "competitor_price_vnd", "span": "5.790.000đ"}], {},
+         "không có nơi bán khác thì không phải giá đối thủ"),
+        ("Bên Shopee bán 5.790.000đ thôi em.", [{"slot": "competitor_price_vnd", "span": "5.790.000đ"}],
+         {"competitor_price_vnd": 5_790_000}, "có nơi bán khác thì giữ giá đối thủ"),
+        ("Thôi kệ em, chị vẫn lấy đủ.", [{"slot": "blocker", "span": "Thôi kệ em", "label": "can hoi chong"}], {},
+         "không có người nhà, không có cân nhắc thì không phải rào cản")]:
+    fake({"slots": reply})
+    m = {}
+    got = llm_extract.customer_slots(t, "2026-10-15", {}, "llm", m)
+    check(got == want and m.get("dropped_spans") == (0 if want else 1), f"{msg}: {got}")
+
 fake(TimeoutError("vllm chậm"))
 m = {}
 check(llm_extract.customer_slots(text, "2026-10-15", rules, "llm", m) == rules and "TimeoutError" in m.get("fallback", ""),

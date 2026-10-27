@@ -132,7 +132,8 @@ def push(k, a):
     if a.generator == "deepseek" or a.router == "llm":
         needs.append("DEEPSEEK_API_KEY")
     job = {"job": a.job, "suite_args": suite, "needs_qwen": needs_qwen, "needs_secrets": needs,
-           "max_seconds": int(a.max_hours * 3600), "env": dict(x.split("=", 1) for x in a.env)}
+           "max_seconds": int(a.max_hours * 3600), "env": dict(x.split("=", 1) for x in a.env),
+           "setup": not a.no_setup}
     if a.pre:
         import shlex
         job["pre"] = [shlex.split(x) for x in a.pre]
@@ -247,6 +248,7 @@ def main():
     p.add_argument("--accelerator", default="T4", choices=list(ACCEL))
     p.add_argument("--timeout", type=int, help="truyền cho `kernels push -t` (Kaggle KHÔNG tôn trọng — đo 14/10); dùng --max-hours")
     p.add_argument("--max-hours", type=float, default=3.0, help="hạn chót do runner.py tự giữ: quá giờ thì dừng mọi bước và thoát")
+    p.add_argument("--no-setup", action="store_true", help="bỏ setup_env.sh; dùng khi pre tự cài dependencies tối thiểu")
     p.add_argument("--dataset", help="dùng dataset có sẵn <user>/<slug>, không đóng gói lại")
     p.add_argument("--variant", action="append", default=[],
                    help="TAG:KEY=V;KEY=V — chạy lần lượt nhiều biến thể trong một phiên (kết quả <job>/<job>-<TAG>/)")

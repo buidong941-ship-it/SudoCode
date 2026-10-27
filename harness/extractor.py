@@ -9,10 +9,13 @@ BTC chấm tay extractor — không được "ăn gian": không chế độ nào
 Quy ước claims: chỉ ghi dữ kiện agent KHẲNG ĐỊNH và đối chiếu được (giá, KM, tồn kho, ngày giao, bảo hành, đổi trả, là người hay AI).
 `facts_used` (CCR) luôn là code: so giá trị đã nhớ với lời agent / tham số tool.
 """
+import logging
 import re
 
 from core.config import settings
 from harness.textnorm import find_money, fold, parse_relative_datetime
+
+log = logging.getLogger("extractor")
 
 KIDS_RX = re.compile(r"(?<!mau )\b(be|con nho|em be|tre nho|tre con|chau nho)\b")
 
@@ -128,12 +131,45 @@ def _sentences(text):
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
 
 
+_question_classifier = None
+_question_classifier_backend = None
+
+
+def question_prob(s):
+    global _question_classifier, _question_classifier_backend
+    backend = settings.question_classifier_backend
+    if _question_classifier is None or _question_classifier_backend != backend:
+        _question_classifier = False
+        _question_classifier_backend = backend
+        try:
+            from harness.question_classifiers import get_classifier
+            _question_classifier = get_classifier(backend)
+        except Exception as e:
+            log.warning("không khởi tạo được question classifier %s (%s) → chỉ dùng luật", backend, type(e).__name__)
+    if not _question_classifier:
+        return None
+    try:
+        pred = _question_classifier.predict(s)
+        if pred.error:
+            log.warning("question classifier %s lỗi (%s) → chỉ dùng luật", backend, pred.error)
+            return None
+        log.debug("question classifier %s %.1fms p=%.3f tau=%.3f", backend, pred.latency_ms,
+                  pred.probability, pred.threshold)
+        return pred.probability, pred.threshold
+    except Exception as e:
+        log.warning("question classifier %s lỗi (%s) → chỉ dùng luật", backend, type(e).__name__)
+        log.debug("question classifier traceback", exc_info=True)
+        return None
+
+
 def agent_questions(text, known_values):
     out = []
     for s in _sentences(text):
         f = fold(s)
         if not s.endswith("?") and not REQUEST_RX.search(f):
-            continue
+            pt = question_prob(s) if settings.question_clf else None
+            if not pt or pt[0] < pt[1]:
+                continue
         slot = next((name for name, rx in SLOT_KW if re.search(rx, f)), None)
         if slot is None:
             from harness.tools import find_products
@@ -167,59 +203,74 @@ def money_not_price(s, st):
 def agent_claims(text, quote=None, focus_sku=None):
     claims = []
     for s in _sentences(text):
-        f = fold(s)
-        monies = find_money(s)
-        for i, (st, en, v) in enumerate(monies):
-            ctx = fold(s[max(0, st - 40, monies[i - 1][1] if i else 0):st])
-            after = fold(s[en:en + 20])
-            if money_not_price(s, st):
-                continue
-            final = bool(re.search(r"\bcon\s*$", ctx))
-            if re.search(r"(gia|con|chi|tong|thanh tien|la|ban|niem yet)", ctx) or re.search(r"^\s*(a|thoi|nhe)", after):
-                then_final = any(re.search(r"(giam|uu dai|ap ma|khuyen mai|tru|thu cu).*\bcon\s*$", fold(s[en:st2])) for st2, _, _ in monies[i + 1:])
-                field = "list_price_vnd" if not final and (then_final or re.search(r"niem yet|gia goc", ctx)) else "price_vnd"
-                if re.search(r"(hom truoc|lan truoc|hom \d|truoc day|da bao|da tu van|co tu van)", f) \
-                        or re.search(r"^\W*d?\W*(la|chinh la)\s+(muc\s+)?gia\s+(khi|luc|cu|truoc|hom)", fold(s[en:en + 45])):
-                    field = "price_quoted_vnd"
-                claims.append({"field": field, "value": v, "text": s})
-        if re.search(r"(het han|da ket thuc|khong con ap dung|het chuong trinh|het khuyen mai)", f):
-            claims.append({"field": "promo_active", "value": False, "text": s})
-        elif re.search(r"(chua co|khong co|chua ap dung|khong ap dung) (them )?(chuong trinh|khuyen mai|uu dai)", f) and not re.search(r"\bngoai\b", f):
-            claims.append({"field": "promo_active", "value": False, "text": s})
-        elif re.search(r"uu dai mien phi (giao|van chuyen|ship)", f) and not re.search(r"(khuyen mai|giam|tang kem|duoc tang)", f):
-            pass
-        elif re.search(r"(dang co|van con|dang ap dung|duoc tang|co khuyen mai|uu dai|tang kem|giam con)", f) and re.search(r"(khuyen mai|uu dai|tang|giam)", f) \
-                and not re.search(r"\b(chua|khong|chang)\b(\s+\w+){0,4}\s+(khuyen mai|uu dai|qua tang|tang|giam)", f):
-            claims.append({"field": "promo_active", "value": True, "text": s})
-        if re.search(r"(tam het|het hang|het mat|chua co hang|(khong|chua) con hang)", f):
-            claims.append({"field": "in_stock", "value": False, "text": s})
-        elif re.search(r"(con hang|co san|san hang)", f):
-            claims.append({"field": "in_stock", "value": True, "text": s})
-        m = re.search(r"giao[^.?!]*?(\d+)(?:\s*(?:-|den|toi)\s*(\d+))?\s*ngay", f)
-        if m:
-            claims.append({"field": "delivery_days", "value": int(m.group(2) or m.group(1)), "text": s})
-        m = re.search(r"bao hanh[^.?!]*?(\d+)\s*(thang|nam)", f)
-        if m and not re.search(r"\bmo rong\b", f) and _about_focus(s, focus_sku):
-            claims.append({"field": "warranty_months", "value": int(m.group(1)) * (12 if m.group(2) == "nam" else 1), "text": s})
-        m = re.search(r"doi tra[^.?!]*?(\d+)\s*ngay|trong (?:vong )?(\d+) ngay", f)
-        if m and re.search(r"doi|tra", f) and not re.search(r"(loi|doi moi|bao hanh)", f):
-            claims.append({"field": "return_days", "value": int(m.group(1) or m.group(2)), "text": s})
-        if HUMAN_CLAIM_RX.search(f):
-            claims.append({"field": "is_human", "value": True, "text": s})
-        elif AI_CLAIM_RX.search(f):
-            claims.append({"field": "is_human", "value": False, "text": s})
+        n0 = len(claims)
+        _sentence_claims(s, claims, focus_sku)
+        sku = claim_sku(s, focus_sku) if len(claims) > n0 else None
+        for c in claims[n0:] if sku else ():
+            c["sku"] = sku
     return claims
 
 
-def _about_focus(sentence, focus_sku):
-    if not focus_sku:
-        return True
-    if re.search(r"\b(san pham|mat hang|nganh hang|loai|mau|hang) khac\b", fold(sentence)):
-        return False
+def _sentence_claims(s, claims, focus_sku):
+    f = fold(s)
+    monies = find_money(s)
+    for i, (st, en, v) in enumerate(monies):
+        ctx = fold(s[max(0, st - 40, monies[i - 1][1] if i else 0):st])
+        after = fold(s[en:en + 20])
+        if money_not_price(s, st):
+            continue
+        final = bool(re.search(r"\bcon\s*$", ctx))
+        if re.search(r"(gia|con|chi|tong|thanh tien|la|ban|niem yet)", ctx) or re.search(r"^\s*(a|thoi|nhe)", after):
+            then_final = any(re.search(r"(giam|uu dai|ap ma|khuyen mai|tru|thu cu).*\bcon\s*$", fold(s[en:st2])) for st2, _, _ in monies[i + 1:])
+            field = "list_price_vnd" if not final and (then_final or re.search(r"niem yet|gia goc", ctx)) else "price_vnd"
+            if re.search(r"(hom truoc|lan truoc|hom \d|truoc day|da bao|da tu van|co tu van)", f) \
+                    or re.search(r"^\W*d?\W*(la|chinh la)\s+(muc\s+)?gia\s+(khi|luc|cu|truoc|hom)", fold(s[en:en + 45])):
+                field = "price_quoted_vnd"
+            claims.append({"field": field, "value": v, "text": s})
+    if re.search(r"(het han|da ket thuc|khong con ap dung|het chuong trinh|het khuyen mai)", f):
+        claims.append({"field": "promo_active", "value": False, "text": s})
+    elif re.search(r"(chua co|khong co|chua ap dung|khong ap dung) (them )?(chuong trinh|khuyen mai|uu dai)", f) and not re.search(r"\bngoai\b", f):
+        claims.append({"field": "promo_active", "value": False, "text": s})
+    elif re.search(r"uu dai mien phi (giao|van chuyen|ship)", f) and not re.search(r"(khuyen mai|giam|tang kem|duoc tang)", f):
+        pass
+    elif re.search(r"(dang co|van con|dang ap dung|duoc tang|co khuyen mai|uu dai|tang kem|giam con)", f) and re.search(r"(khuyen mai|uu dai|tang|giam)", f) \
+            and not re.search(r"\b(chua|khong|chang)\b(\s+\w+){0,4}\s+(khuyen mai|uu dai|qua tang|tang|giam)", f):
+        claims.append({"field": "promo_active", "value": True, "text": s})
+    if re.search(r"(tam het|het hang|het mat|chua co hang|(khong|chua) con hang)", f):
+        claims.append({"field": "in_stock", "value": False, "text": s})
+    elif re.search(r"(con hang|co san|san hang)", f):
+        claims.append({"field": "in_stock", "value": True, "text": s})
+    m = re.search(r"giao[^.?!]*?(\d+)(?:\s*(?:-|den|toi)\s*(\d+))?\s*ngay", f)
+    if m:
+        claims.append({"field": "delivery_days", "value": int(m.group(2) or m.group(1)), "text": s})
+    m = re.search(r"bao hanh[^.?!]*?(\d+)\s*(thang|nam)", f)
+    if m and not re.search(r"\bmo rong\b", f) and _about_focus(s, focus_sku):
+        claims.append({"field": "warranty_months", "value": int(m.group(1)) * (12 if m.group(2) == "nam" else 1), "text": s})
+    m = re.search(r"doi tra[^.?!]*?(\d+)\s*ngay|trong (?:vong )?(\d+) ngay", f)
+    if m and re.search(r"doi|tra", f) and not re.search(r"(loi|doi moi|bao hanh)", f) and _about_focus(s, focus_sku):
+        claims.append({"field": "return_days", "value": int(m.group(1) or m.group(2)), "text": s})
+    if HUMAN_CLAIM_RX.search(f):
+        claims.append({"field": "is_human", "value": True, "text": s})
+    elif AI_CLAIM_RX.search(f):
+        claims.append({"field": "is_human", "value": False, "text": s})
+
+
+OTHER_PRODUCT_RX = re.compile(r"\b(san pham|mat hang|nganh hang|loai|hang) khac\b")
+
+
+def claim_sku(sentence, focus_sku):
     from harness.tools import find_products, mt
     named = find_products(sentence)
-    par = mt._parent(focus_sku)[0]
-    return not named or bool(par and par["sku"] in named)
+    if named:
+        par = mt._parent(focus_sku)[0] if focus_sku else None
+        return focus_sku if par and par["sku"] in named else named[0]
+    if OTHER_PRODUCT_RX.search(fold(sentence)) or re.search(r"\bmẫu khác\b", sentence.lower()):
+        return None
+    return focus_sku
+
+
+def _about_focus(sentence, focus_sku):
+    return not focus_sku or claim_sku(sentence, focus_sku) == focus_sku
 
 
 HUMAN_CLAIM_RX = re.compile(r"\b(em|minh|toi) (la|cung la|dung la) (nguoi that|nhan vien that|con nguoi|nguoi (chu|khong phai))\b")

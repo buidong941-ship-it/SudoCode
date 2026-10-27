@@ -12,9 +12,10 @@ from datetime import date, datetime, timedelta
 
 from core import log as cclog
 from core.config import settings
-from core.llm.generator import Generator
+from core.llm.generator import Generator, question_slot
 from core.llm.router import Router
 from harness import extractor, guardrails, knowledge
+from harness.coverage import coverage
 from harness.textnorm import find_money, fold, perceive
 from harness.tools import (ToolBox, find_by_model_token, find_products, find_variant, mt, product_name, public_view)
 
@@ -272,7 +273,8 @@ class CallSession:
         plan = {"honorific": (self.customer or {}).get("honorific") or "anh/chị", "customer_name": (self.customer or {}).get("name"),
                 "call": self.call_name, "is_returning": bool(self.brief and self.brief["is_returning"]),
                 "customer_said": text, "intent": route["intent"], "goals": goals, "facts": facts,
-                "KNOWN": {k: v for k, v in self.known.items() if k not in ("self_name",)}}
+                "KNOWN": {k: v for k, v in self.known.items() if k not in ("self_name",)},
+                "question_slot": question_slot(goals, facts)}
         allowed = set(p["money"]) | {v for v in self.known.values() if isinstance(v, int)}
         internal = set()
         for tc in tool_log:
@@ -293,7 +295,31 @@ class CallSession:
         guard = {"problems": [], "action": None}
         t_gen = time.perf_counter()
         try:
-            text_out, ttft, total_gen, usage = self.gen.generate(plan)
+            candidates = self.gen.generate_candidates(plan)
+            total_gen = candidates[0].get("parallel_total", candidates[0]["total"])
+            ttft = min(c["ttft"] for c in candidates)
+            usage = candidates[0]["usage"]
+            text_out = candidates[0]["text"]
+            problems = cov = None
+            for i, candidate in enumerate(candidates):
+                self.gen.fill_problems = candidate["fill_problems"]
+                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+                c = coverage(candidate["text"], plan)
+                if not p and not c:
+                    text_out, problems, cov = candidate["text"], p, c
+                    usage = candidate["usage"]
+                    if i:
+                        guard["action"] = "parallel_candidate"
+                    break
+            if problems is None:
+                self.gen.fill_problems = candidates[0]["fill_problems"]
+                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+                cov = coverage(text_out, plan)
+                if len(candidates) > 1:
+                    guard["candidate_rejections"] = [{"temperature": c["temperature"],
+                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals)
+                                                       + c["fill_problems"], "coverage": coverage(c["text"], plan)}
+                                                      for c in candidates]
         except Exception as e:
             log.error("generator %s lỗi → câu mẫu: %s: %s", self.gen.backend, type(e).__name__, str(e)[:160])
             text_out, usage = render_offline(plan), None
@@ -301,24 +327,28 @@ class CallSession:
             guard["action"] = "llm_error_template"
         t_gen1 = time.perf_counter()
         llm1_ttft, llm1_total = ttft, int((t_gen1 - t_gen) * 1000)
-        problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals)
+        if problems is None:
+            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+            cov = coverage(text_out, plan)
         t_guard = time.perf_counter()
-        guard["problems"] = problems
-        if problems:
+        guard["problems"], guard["coverage"] = problems, cov
+        if problems or cov:
             guard["rejected"] = [text_out[:400]]
             bad = sorted({v for _, _, v in find_money(text_out)} - (allowed - forbidden))
-            note = "; ".join(problems) + ("" if not bad else ". Viết lại và KHÔNG được có các số: "
-                                         + ", ".join(f"{v:,}đ".replace(",", ".") for v in bad))
+            note = "; ".join(problems + cov) + ("" if not bad else ". Viết lại và KHÔNG được có các số: "
+                                               + ", ".join(f"{v:,}đ".replace(",", ".") for v in bad))
             try:
                 text2, ttft2, tot2, _ = self.gen.generate(plan, retry_note=note)
             except Exception as e:
                 log.error("generator %s lỗi khi sinh lại → câu mẫu: %s", self.gen.backend, type(e).__name__)
                 text2, tot2 = render_offline(plan), 0
-            if not guardrails.check(text2, allowed, internal, forbidden, stale, goals):
+            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+            c2 = [] if p2 else coverage(text2, plan)
+            if not p2 and not c2:
                 text_out, guard["action"] = text2, "regenerated"
             else:
                 guard["rejected"].append(text2[:400])
-                text_out, guard["action"] = render_offline(plan), "safe_template"
+                text_out, guard["action"] = render_offline(plan), "safe_template" if p2 else "coverage_template"
             total_gen += tot2
         t_ready = time.perf_counter()
         if pending is not None:
@@ -349,7 +379,7 @@ class CallSession:
                "memory_writes": mem_writes,
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},
-               "goals": goals, "guardrail": guard, "llm_usage": usage,
+               "goals": goals, "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", "rules"), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
         if self.turn_no == 1:
@@ -699,6 +729,7 @@ class CallSession:
         if not new:
             o = self.orders_created[-1]
             facts["order"] = {"order_id": o["order_id"], "total_vnd": o["total_vnd"], "estimated_delivery": o.get("estimated_delivery"),
+                              "estimated_delivery_ddmm": _ddmm(o["estimated_delivery"]) if o.get("estimated_delivery") else None,
                               "payment": self.known.get("payment", "COD"), "address": self.known.get("address"), "items": [product_name(o["sku"])]}
             return ["order_exists"]
         if not self.known.get("address") and self.expired.get("address") and re.search(r"(dia chi cu|cho cu|nhu cu)", fold(text)):
@@ -733,7 +764,9 @@ class CallSession:
             made.append({**r, "sku": q["sku"], "price_vnd": args["price_vnd"], "payment": payment})
         self.orders_created += made
         facts["order"] = {"order_id": ", ".join(o["order_id"] for o in made), "total_vnd": sum(o["total_vnd"] for o in made),
-                          "estimated_delivery": made[0].get("estimated_delivery"), "payment": payment,
+                          "estimated_delivery": made[0].get("estimated_delivery"),
+                          "estimated_delivery_ddmm": _ddmm(made[0]["estimated_delivery"]) if made[0].get("estimated_delivery") else None,
+                          "payment": payment,
                           "address": self.known.get("address"), "items": [product_name(o["sku"]) for o in made]}
         sku = made[0]["sku"]
         self.known["product_chosen"] = sku

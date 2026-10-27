@@ -34,11 +34,15 @@ assert all(r["extractor"]["backend"].startswith("hybrid") and not r["extractor"]
 print(f"qwen OK: {len(rows)} lượt, router + generator + bộ trích hybrid qua API kiểu vLLM (giả lập)")
 PY
 python tests/llm_extract_check.py | tail -1
+python tests/coverage_check.py | tail -1
+python tests/placeholder_check.py | tail -1
+python tests/generator_parallel_check.py
+python tests/logprobs_check.py
 
 # MCP: 2 server đúng giao thức + trace qua MCP == gọi trực tiếp
 python tests/mcp_check.py | tail -1
 python tests/mcp_parity.py --out-dir "$OUT/parity" | tail -1
 # PII không ra ngoài / không vào log (7 kịch bản mẫu)
-python tests/pii_check.py --scenarios test_set/public_sample | tail -1
+GEN_PLACEHOLDERS=0 python tests/pii_check.py --scenarios test_set/public_sample | tail -1
 # hậu xử lý ASR (không cần audio)
 python asr/transcribe.py --from-ground-truth --out "$OUT/hypotheses.json" | sed -n 2,3p

@@ -114,7 +114,10 @@ def main():
     for cmd in (JOB.get("pre") or []) if rc == 0 else []:
         cmd = [c.replace("{out}", os.path.join(OUT, JOB.get("job", "job"))).replace("{python}", sys.executable) for c in cmd]
         log(f"=== bước trước: {' '.join(cmd)}")
-        run(cmd, env, limit=60 * 60)
+        rc = run(cmd, env, limit=60 * 60)
+        if rc:
+            log(f"bước trước thất bại mã {rc}; dừng các bước sau")
+            break
     if rc == 0 and not JOB.get("pre_only"):
         variants = JOB.get("variants") or [{"tag": None, "env": {}}]
         for v in variants:

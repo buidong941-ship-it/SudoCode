@@ -53,7 +53,7 @@ def same(slot, gold, pred):
 
 def eval_agent(items):
     q = {"tp": 0, "fp": 0, "fn": 0, "slot_ok": 0, "type_ok": 0}
-    fields, errors, ms = {}, [], []
+    fields, errors, ms, logprob_samples = {}, [], [], []
     for it in items:
         meta = {}
         t0 = time.perf_counter()
@@ -72,6 +72,9 @@ def eval_agent(items):
             q["fn"] += 1; errors.append({"id": it["id"], "kind": "question_fn", "gold": it["ask"], "text": it["sentence"]})
         gold = {(c["field"], json.dumps(c["value"])) for c in it["claims"]}
         pred = {(c["field"], json.dumps(c["value"])) for c in cs}
+        for sample in meta.get("field_logprobs") or []:
+            logprob_samples.append({**sample, "id": it["id"],
+                                    "correct": (sample["field"], json.dumps(sample["value"])) in gold})
         for f, v in gold | pred:
             st = fields.setdefault(f, {"tp": 0, "fp": 0, "fn": 0})
             if (f, v) in gold and (f, v) in pred:
@@ -86,17 +89,23 @@ def eval_agent(items):
     return {"questions": {**prf(q["tp"], q["fp"], q["fn"]), "slot_acc": q["slot_ok"] / q["tp"] if q["tp"] else None,
                           "type_acc": q["type_ok"] / q["tp"] if q["tp"] else None},
             "claims": {f: prf(**s) for f, s in sorted(fields.items())}, "claims_all": prf(**tot),
-            "ms_p50": sorted(ms)[len(ms) // 2] if ms else None, "errors": errors}
+            "ms_p50": sorted(ms)[len(ms) // 2] if ms else None, "errors": errors,
+            "logprob_samples": logprob_samples}
 
 
 def eval_customer(items):
-    slots, errors, ms = {}, [], []
+    slots, errors, ms, logprob_samples = {}, [], [], []
     for it in items:
         meta = {}
         t0 = time.perf_counter()
         pred = extractor.customer_slots(it["text"], TODAY, meta, it.get("context"))
         ms.append((time.perf_counter() - t0) * 1000)
         gold, skip = it["slots"], set(it.get("skip") or [])
+        for sample in meta.get("field_logprobs") or []:
+            if sample["field"] not in skip:
+                expected = gold.get(sample["field"])
+                correct = same(sample["field"], expected, sample["value"]) if expected is not None else False
+                logprob_samples.append({**sample, "id": it["id"], "correct": correct})
         for k in (set(gold) | set(pred)) - skip:
             st = slots.setdefault(k, {"tp": 0, "fp": 0, "fn": 0})
             if k == "claimed_prices":
@@ -116,7 +125,8 @@ def eval_customer(items):
             errors.append({"id": it["id"], "kind": "llm_fallback", "why": meta["fallback"]})
     tot = {k: sum(s[k] for s in slots.values()) for k in ("tp", "fp", "fn")}
     return {"slots": {k: prf(**s) for k, s in sorted(slots.items())}, "slots_all": prf(**tot),
-            "ms_p50": sorted(ms)[len(ms) // 2] if ms else None, "errors": errors}
+            "ms_p50": sorted(ms)[len(ms) // 2] if ms else None, "errors": errors,
+            "logprob_samples": logprob_samples}
 
 
 def fmt(x):

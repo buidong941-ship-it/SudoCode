@@ -16,7 +16,8 @@ SYSTEM = """Bạn là nhân viên telesale (trợ lý AI) của shop bán lẻ o
 QUY TẮC BẮT BUỘC:
 1. Mọi giá tiền, khuyến mãi, tồn kho, ngày giao, mã đơn chỉ được lấy đúng từ FACTS. Không tự tính, không làm tròn khác, không bịa. Viết tiền bằng chữ số, dấu chấm ngăn hàng nghìn, kết thúc bằng "đ".
 2. Thực hiện đúng các GOALS theo thứ tự; không tự hứa thêm điều gì ngoài FACTS.
-3. Tối đa 1 câu hỏi mỗi lượt. Không hỏi lại thông tin trong KNOWN (chỉ được hỏi xác nhận kiểu "... đúng không ạ?").
+3. Câu hỏi do `question_slot` quyết định: null thì KHÔNG đặt câu hỏi nào (kể cả "cần gì thêm không ạ"); khác null thì đúng 1 câu
+   hỏi, về đúng slot đó. Không hỏi lại thông tin trong KNOWN (chỉ được hỏi xác nhận kiểu "... đúng không ạ?").
 4. Nếu FACTS không có thông tin khách hỏi (chứng nhận, thông số, điện năng, chính sách không có trong FACTS…): nói đúng cụm
    "em chưa có thông tin" về điều đó. Không tự suy ra có hay không, không đoán con số.
 5. Không bao giờ nói mình là người thật. Không nhắc giá nhập, giá vốn, nhà cung cấp. Không bình luận hay chê bên khác.
@@ -44,7 +45,7 @@ GOAL_NOTES = {
     "refuse_internal": "Nói rõ giá nhập / giá vốn / nhà cung cấp là thông tin nội bộ, em không cung cấp được. Không nêu con số nào "
                        "ngoài giá bán trong FACTS.",
     "is_bot": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn.",
-    "order_created": "Báo mã đơn, tổng tiền, ngày giao dự kiến. Không hỏi xác nhận lại đơn.",
+    "order_created": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn.",
     "order_updated": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
     "address_updated": "Xác nhận đã cập nhật địa chỉ giao mới cho đơn. Không hỏi lại.",
     "order_status": "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có.",
@@ -63,34 +64,56 @@ GOAL_NOTES = {
 }
 
 
+QUESTION_GOALS = {
+    "greet": "other", "ask_identity": "customer_name", "ask_product": "product_advised", "ask_variant": "size",
+    "ask_address": "address", "ask_new_size": "size", "ask_size_for_price": "size", "exchange_offer": "confirm_order",
+    "confirm_old_address": "address", "confirm_order": "confirm_order", "confirm_new_price": "confirm_order",
+    "cod_limit": "payment", "ask_repeat": "other", "order_not_found": "order_id",
+}
+
+
+def question_slot(goals, facts):
+    slot = None
+    for g in goals:
+        if g == "opening_returning" and (facts.get("brief") or {}).get("blocker"):
+            slot = "blocker"
+        elif g == "ask_need":
+            miss = facts.get("need_slots_missing") or []
+            slot = "has_children" if "has_children" in miss else "budget_vnd"
+        elif g in QUESTION_GOALS:
+            slot = QUESTION_GOALS[g]
+    return slot
+
+
 class Generator:
     def __init__(self, backend=None):
         self.backend = backend or settings.generator_backend
+        self.fill_problems = []
 
-    def generate(self, plan, retry_note=None):
+    def generate(self, plan, retry_note=None, temperature=None):
+        self.fill_problems = []
         if self.backend in ("deepseek", "qwen"):
             from core.llm.deepseek import LLM
             from core.pii import TOKEN_RX, Redactor
             llm = LLM(self.backend)
-            notes = {g: GOAL_NOTES[g] for g in plan.get("goals", []) if g in GOAL_NOTES}
-            data = json.loads(json.dumps({**plan, "GOAL_NOTES": notes}, ensure_ascii=False, default=str))
             red = Redactor() if llm.external else None
-            safe = red.redact(data) if red else data
-            user = ("DỮ LIỆU LƯỢT NÀY (JSON):\n" + json.dumps(safe, ensure_ascii=False)
-                    + "\n\nViết câu trả lời của nhân viên cho lượt này.")
+            slots = build_slots(plan) if settings.gen_placeholders else None
+            user = payload(plan, red, slots=slots)
             if retry_note:
                 user += f"\nLƯU Ý: bản trước bị chặn vì: {retry_note}. Sửa lại, chỉ dùng số trong FACTS."
             system = SYSTEM + ("\n15. Trả lời ngắn: tối đa 2 câu, mỗi câu dưới 25 từ. Vẫn mở đầu bằng \"Dạ\" và giữ \"ạ\" như nói chuyện "
                                "với khách; trả lời đúng điều khách vừa hỏi trước; đủ mọi ý bắt buộc trong GOAL_NOTES (giá, mã đơn, "
                                "ngày giao, tiền hoàn…); điều FACTS không có thì vẫn phải nói \"em chưa có thông tin\". Chỉ bỏ câu lặp ý."
-                               if settings.reply_style == "short" else "")
+                               if settings.reply_style == "short" else "") + (PLACEHOLDER_RULE if slots else "")
             msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-            text, ttft, total, usage = llm.chat(msgs)
+            text, ttft, total, usage = llm.chat(msgs, temperature=temperature)
             text = _strip_think(text)
             if not text.strip():
                 return render_offline(plan), ttft, total, usage
             if red:
                 text = red.restore(text)
+            if slots:
+                text, self.fill_problems = fill(text, slots)
             if TOKEN_RX.search(text) or MASK_TOKEN_RX.search(text):
                 return render_offline(plan), ttft, total, usage
             return text, ttft, total, usage
@@ -99,8 +122,126 @@ class Generator:
         ms = int((time.perf_counter() - t0) * 1000)
         return text, ms, ms, None
 
+    def generate_candidates(self, plan, retry_note=None):
+        n = settings.gen_parallel_n if self.backend in ("deepseek", "qwen") else 1
+        if n < 2:
+            text, ttft, total, usage = self.generate(plan, retry_note)
+            return [{"text": text, "ttft": ttft, "total": total, "usage": usage,
+                     "fill_problems": list(self.fill_problems), "temperature": None}]
+        from concurrent.futures import ThreadPoolExecutor
+        import time
+
+        temps = [0.0, 0.7][:n]
+
+        def run(temp):
+            worker = Generator(self.backend)
+            text, ttft, total, usage = worker.generate(plan, retry_note, temperature=temp)
+            return {"text": text, "ttft": ttft, "total": total, "usage": usage,
+                    "fill_problems": list(worker.fill_problems), "temperature": temp}
+
+        t0 = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=n, thread_name_prefix="gen") as pool:
+            candidates = list(pool.map(run, temps))
+        elapsed = int((time.perf_counter() - t0) * 1000)
+        for candidate in candidates:
+            candidate["parallel_total"] = elapsed
+        return candidates
+
 
 MASK_TOKEN_RX = __import__("re").compile(r"\[[^\]\n]{1,30}_\d+\]")
+KEEP_EMPTY = set(__import__("re").findall(r"\b[a-z]+_[a-z_]+\b", SYSTEM + " ".join(GOAL_NOTES.values()))) | {"question_slot"}
+
+
+def _prune(x):
+    if isinstance(x, dict):
+        out = {}
+        for k, v in x.items():
+            v = _prune(v)
+            if k in KEEP_EMPTY or v not in (None, "", [], {}):
+                out[k] = v
+        return out
+    if isinstance(x, list):
+        return [_prune(v) for v in x]
+    return x
+
+
+PLACEHOLDER_RULE = ("\n16. Giá, tổng tiền, mã đơn, ngày giao, giờ hẹn… trong FACTS đã được thay bằng mã trong PLACEHOLDERS (vd {GIA_BAN}). "
+                    "Khi nói các thông tin đó chỉ viết đúng mã, giữ nguyên dấu ngoặc nhọn, không viết con số, không tự đặt mã khác "
+                    "(quy tắc này thay cho quy tắc 1 và 14 với các thông tin trên). {GIA_DA_BAO} chỉ nói kèm 'hôm trước' / 'đã hết hạn'.")
+PLACEHOLDER_SPEC = [
+    ("GIA_BAN", "giá bán hiện tại", [("quote", "final_price_vnd")], "vnd"),
+    ("GIA_NIEM_YET", "giá niêm yết, trước khuyến mãi", [("quote", "list_price_vnd")], "vnd"),
+    ("GIA_DA_BAO", "giá đã báo lần trước", [("brief", "price_quoted_vnd")], "vnd"),
+    ("GIA_THAY_THE", "giá mẫu thay thế", [("alternative", "final_price_vnd")], "vnd"),
+    ("TONG_TIEN", "tổng tiền", [("order", "total_vnd"), ("cart", "total_vnd"), ("cod_total_vnd",)], "vnd"),
+    ("MA_DON", "mã đơn", [("order", "order_id")], "str"),
+    ("NGAY_GIAO", "ngày giao dự kiến (ngày/tháng)", [("order", "estimated_delivery"), ("order", "estimated_delivery_ddmm")], "dm"),
+    ("TIEN_HOAN", "số tiền hoàn lại cho khách", [("update", "refund_vnd")], "vnd"),
+    ("TIEN_BU", "số tiền khách bù thêm", [("update", "extra_payment_vnd")], "vnd"),
+    ("GIO_HEN", "giờ hẹn gọi lại", [("callback", "callback_at")], "hm"),
+    ("NGAY_CO_HANG", "ngày dự kiến có hàng lại", [("restock_expected",)], "dm"),
+]
+
+
+def _get(d, path):
+    for k in path:
+        d = d.get(k) if isinstance(d, dict) else None
+    return d
+
+
+def build_slots(plan):
+    F = plan.get("facts", {})
+    out = {}
+    for code, desc, paths, kind in PLACEHOLDER_SPEC:
+        found = [p for p in paths if _get(F, p) not in (None, "", 0)]
+        if not found or code in out:
+            continue
+        v = _get(F, found[0])
+        if code == "GIA_NIEM_YET" and v == _get(F, ("quote", "final_price_vnd")):
+            out["GIA_BAN"]["paths"].append(found[0])
+            continue
+        value = _vnd(v) if kind == "vnd" else _dm(v) if kind == "dm" else str(v)[11:16] if kind == "hm" else str(v)
+        out[code] = {"value": value, "desc": desc, "paths": found, "money": v if kind == "vnd" else None}
+    return out
+
+
+def _set(d, path, v):
+    for k in path[:-1]:
+        d = d.get(k)
+    d[path[-1]] = v
+
+
+def fill(text, slots):
+    import re
+    from harness.textnorm import find_money
+    problems = []
+    money = {}
+    for c, s in slots.items():
+        if s["money"]:
+            money.setdefault(s["money"], c)
+    for _, _, v in find_money(text):
+        if v in money:
+            problems.append(f"viết tay số tiền {_vnd(v)}, phải dùng mã {{{money[v]}}}")
+    text = re.sub(r"\{\s*([A-Z_]+)\s*\}", lambda m: slots[m.group(1)]["value"] if m.group(1) in slots else m.group(0), text)
+    text = re.sub(r"\b(" + "|".join(map(re.escape, slots)) + r")\b", lambda m: slots[m.group(1)]["value"], text) if slots else text
+    for c in re.findall(r"\{[^{}\n]{0,30}\}", text):
+        problems.append(f"mã {c} không có trong PLACEHOLDERS")
+    return text, problems
+
+
+def payload(plan, red=None, compact=True, slots=None):
+    notes = {g: GOAL_NOTES[g] for g in plan.get("goals", []) if g in GOAL_NOTES}
+    data = json.loads(json.dumps({**plan, "GOAL_NOTES": notes}, ensure_ascii=False, default=str))
+    if slots:
+        for code, s in slots.items():
+            for p in s["paths"]:
+                _set(data["facts"], p, "{" + code + "}")
+        data["PLACEHOLDERS"] = {code: s["desc"] for code, s in slots.items()}
+    if compact:
+        data = _prune(data)
+    safe = red.redact(data) if red else data
+    return ("DỮ LIỆU LƯỢT NÀY (JSON):\n" + json.dumps(safe, ensure_ascii=False, separators=(",", ":") if compact else None)
+            + "\n\nViết câu trả lời của nhân viên cho lượt này.")
 
 
 def _strip_think(text):

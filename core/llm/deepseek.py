@@ -75,17 +75,23 @@ class LLM:
         log.debug("%s.chat %dms ttft=%dms usage=%s", self.provider, (t1 - t0) * 1000, ((ttft or t1) - t0) * 1000, usage)
         return "".join(parts).strip(), int(((ttft or t1) - t0) * 1000), int((t1 - t0) * 1000), usage
 
-    def json(self, prompt, max_tokens=300, schema=None, system="Chỉ trả về JSON hợp lệ.", timeout=None, cache=True):
+    def json(self, prompt, max_tokens=300, schema=None, system="Chỉ trả về JSON hợp lệ.", timeout=None, cache=True,
+             logprobs=False, top_logprobs=5, metadata=None):
         from core.llm import cache as llm_cache
         if schema is not None and self.provider != "qwen":
             prompt += "\n\nJSON phải đúng schema sau:\n" + json.dumps(schema, ensure_ascii=False)
         msgs = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
         rf = {"type": "json_schema", "json_schema": {"name": "out", "schema": schema}} if schema is not None and self.provider == "qwen" \
             else {"type": "json_object"}
-        key = llm_cache.make_key(self.model, msgs, max_tokens=max_tokens, response_format=rf, extra=self.extra) if cache else None
+        key = llm_cache.make_key(self.model, msgs, max_tokens=max_tokens, response_format=rf, extra=self.extra,
+                                 logprobs=bool(logprobs), top_logprobs=top_logprobs if logprobs else None) if cache else None
         if key:
             hit = llm_cache.get(key)
             if hit is not None:
+                if logprobs and isinstance(hit, dict) and "_llm_json_result" in hit:
+                    if metadata is not None:
+                        metadata.update(hit.get("_llm_json_metadata") or {})
+                    return hit["_llm_json_result"]
                 return hit
         t0 = time.perf_counter()
         c = self.c.with_options(timeout=timeout) if timeout else self.c
@@ -96,11 +102,23 @@ class LLM:
                                         + json.dumps(schema, ensure_ascii=False)}]))
         for i, (fmt, m) in enumerate(attempts):
             try:
-                r = c.chat.completions.create(model=self.model, temperature=0, max_tokens=max_tokens, response_format=fmt,
-                                              extra_body=self.extra, messages=m)
+                args = {"model": self.model, "temperature": 0, "max_tokens": max_tokens, "response_format": fmt,
+                        "extra_body": self.extra, "messages": m}
+                if logprobs:
+                    args.update(logprobs=True, top_logprobs=top_logprobs)
+                try:
+                    r = c.chat.completions.create(**args)
+                except Exception as e:
+                    status = getattr(e, "status_code", None)
+                    unsupported = status in (400, 404, 422) or "logprob" in str(e).lower()
+                    if not logprobs or not unsupported:
+                        raise
+                    args.pop("logprobs", None); args.pop("top_logprobs", None)
+                    r = c.chat.completions.create(**args)
                 out = r.choices[0].message.content or "{}"
                 log.debug("%s.json %dms → %s", self.provider, (time.perf_counter() - t0) * 1000, out[:500])
                 d = json.loads(out)
+                lp = _label_logprobs(out, getattr(getattr(r.choices[0], "logprobs", None), "content", None)) if logprobs else {}
                 break
             except json.JSONDecodeError as e:
                 if i + 1 < len(attempts):
@@ -111,8 +129,10 @@ class LLM:
             except Exception as e:
                 log.error("%s.json lỗi sau %dms: %s", self.provider, (time.perf_counter() - t0) * 1000, _api_error(e))
                 raise
+        if metadata is not None and lp:
+            metadata["label_logprobs"] = lp
         if key:
-            llm_cache.put(key, self.model, d)
+            llm_cache.put(key, self.model, {"_llm_json_result": d, "_llm_json_metadata": {"label_logprobs": lp}} if logprobs else d)
         return d
 
 
@@ -124,3 +144,29 @@ class DeepSeek(LLM):
 def _api_error(e):
     status = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None)
     return f"{type(e).__name__}" + (f" HTTP {status}" if status else "") + f": {str(e)[:300]}"
+
+
+def _label_logprobs(text, tokens):
+    if not tokens:
+        return {}
+    offsets, cursor = [], 0
+    for item in tokens:
+        token = getattr(item, "token", None) if not isinstance(item, dict) else item.get("token")
+        lp = getattr(item, "logprob", None) if not isinstance(item, dict) else item.get("logprob")
+        if token is None or lp is None:
+            continue
+        token = str(token)
+        offsets.append((cursor, cursor + len(token), float(lp)))
+        cursor += len(token)
+    joined = "".join((getattr(x, "token", None) if not isinstance(x, dict) else x.get("token")) or "" for x in tokens)
+    if joined != text:
+        return {}
+    import math
+    out = {}
+    for match in __import__("re").finditer(r'"([^"\\]{1,80})"', text):
+        label = match.group(1)
+        pos = match.start(1)
+        token = next((lp for start, end, lp in offsets if start <= pos < end), None)
+        if token is not None:
+            out.setdefault(label, []).append(math.exp(token))
+    return out

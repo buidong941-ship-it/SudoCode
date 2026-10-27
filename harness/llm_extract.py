@@ -29,20 +29,23 @@ log = cclog.get("extract")
 CUSTOMER_SLOTS = {
     "room_area_m2": "diện tích phòng khách nói (m², mét vuông)",
     "has_children": "khách khẳng định nhà có trẻ nhỏ / em bé (label=co) hoặc không có (label=khong)",
-    "budget_vnd": "số tiền khách định chi / ngân sách của khách",
-    "competitor_price_vnd": "giá khách nói thấy ở cửa hàng, sàn, trang khác (Shopee, Lazada, bên kia…)",
-    "claimed_price_vnd": "giá khách nói shop ĐÃ báo trước đó hoặc giá khách nhớ từ lần trước (không phải ngân sách)",
+    "budget_vnd": "số tiền khách định chi / ngân sách của khách. KHÔNG phải khi khách nhắc giá shop báo hay giá nơi khác",
+    "competitor_price_vnd": "giá khách nói thấy ở cửa hàng, sàn, trang khác (Shopee, Lazada, bên kia…). KHÔNG phải khi không nêu "
+                            "nơi bán khác, và không phải giá trên fanpage / Zalo của chính shop",
+    "claimed_price_vnd": "giá khách nói shop ĐÃ báo trước đó hoặc giá khách nhớ từ lần trước (không phải ngân sách, không phải giá nơi khác)",
     "size": "size / cỡ / số giày, áo khách chọn",
     "color": "màu khách chọn",
-    "address": "địa chỉ giao hàng khách đọc (span = nguyên địa chỉ, không kèm 'giao về')",
+    "address": "địa chỉ giao hàng khách đọc (span = nguyên địa chỉ, không kèm 'giao về'). KHÔNG phải khi khách chỉ nhắc nơi ở chung chung ('nhà ở Huế')",
     "payment": "cách thanh toán khách chọn (label=COD: tiền mặt khi nhận; label=bank: chuyển khoản, momo, zalopay)",
-    "blocker": "rào cản khiến khách chưa quyết (label: can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac)",
+    "blocker": "rào cản khiến khách chưa quyết (label: can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac). "
+               "'can hoi …' chỉ khi khách nhắc rõ người nhà. KHÔNG phải khi khách đã chốt mua, chỉ hỏi thông tin, hoặc từ chối dứt khoát",
     "callback_requested": "thời điểm khách hẹn shop gọi lại / liên lạc lại (span = cụm chỉ thời gian)",
     "self_name": "tên khách tự xưng (span = cụm chứa tên, vd 'chị Dung đây')",
     "household_size": "số người trong nhà / số người dùng khách nói (span = cụm có con số, vd 'nhà chị 3 người')",
     "baby_age": "tuổi của bé khách nói (span = cụm có số tháng/tuổi, vd 'bé nhà chị 6 tháng')",
-    "objection": "phản đối về giá (label: dat_qua = chê đắt / thấy chênh so với bên khác; ep_gia = đòi bớt, ép giá)",
-    "owned_product": "sản phẩm khách nói đang dùng / đã có (span = tên sản phẩm)",
+    "objection": "phản đối về giá (label: dat_qua = chê đắt / thấy chênh so với bên khác; ep_gia = đòi bớt, ép giá). "
+                 "KHÔNG phải khi khách chỉ hỏi giá, hỏi có khuyến mãi không, hỏi tiền hoàn / tiền chênh khi đổi hàng",
+    "owned_product": "sản phẩm khách nói đang dùng / đã có (span = tên sản phẩm). KHÔNG phải sản phẩm khách đang xem / hỏi mua",
 }
 LABELS = ["co", "khong", "COD", "bank", "can hoi chong", "can hoi vo", "can hoi nguoi nha", "so sanh gia", "can nhac",
           "dat_qua", "ep_gia"]
@@ -75,16 +78,64 @@ def _call(prompt, schema, texts, meta):
         for a, b in zip(texts, safe):
             prompt = prompt.replace(a, b)
     t0 = time.perf_counter()
+    log_meta = {}
     d = llm.json(prompt, max_tokens=500, schema=schema, timeout=settings.extractor_timeout_s,
-                 system="Bạn là bộ trích xuất thông tin cho cuộc gọi bán hàng tiếng Việt. Chỉ trả JSON hợp lệ.")
+                 system="Bạn là bộ trích xuất thông tin cho cuộc gọi bán hàng tiếng Việt. Chỉ trả JSON hợp lệ.",
+                 logprobs=settings.extract_logprobs and not llm.external,
+                 top_logprobs=settings.extract_logprob_top_n, metadata=log_meta)
     if meta is not None:
         meta["ms"] = meta.get("ms", 0) + int((time.perf_counter() - t0) * 1000)
         meta["backend"] = f"{settings.extractor_backend}:{settings.extractor_llm}"
+        if log_meta.get("label_logprobs"):
+            meta.setdefault("label_logprobs", {}).update(log_meta["label_logprobs"])
     return d, red
+
+
+def _take_label_prob(meta, label, used):
+    vals = (meta or {}).get("label_logprobs", {}).get(str(label), [])
+    i = used.get(str(label), 0)
+    used[str(label)] = i + 1
+    return vals[i] if i < len(vals) else None
+
+
+def _logprob_ok(field, confidence):
+    threshold = settings.extract_logprob_thresholds.get(field)
+    return threshold is None or confidence is None or confidence >= float(threshold)
 
 
 def _span_ok(span, text):
     return bool(span) and fold(span) in fold(text)
+
+
+COMPETITOR_RX = re.compile(r"\b(ben (kia|khac)|shopee|lazada|tiki|tiktok|cho khac|(cua hang|shop|tiem|sieu thi|noi) khac|tren mang|dien may|san (thuong mai|tmdt)|tmdt)\b")
+CUSTOMER_CUE = {
+    ("objection", "dat_qua"): re.compile(r"\b(dat|mac|chat|re hon|chenh (lech )?(qua|nhieu|hon|the)|cao (qua|hon|the|vay))\b"),
+    ("objection", "ep_gia"): re.compile(r"\b(bot|ep|thap nhat|giam (them|cho|duoc|nua|chut|it)|con giam|re hon (duoc|chut|nua))\b"),
+    "blocker": re.compile(r"\b(hoi|ban (voi|lai|bac)|trao doi|can nhac|suy nghi|so sanh|tham khao|xem (them|lai|da)|quyet|tinh (them|da|sau)|de (anh|chi|em|minh|toi)\b)"),
+    "has_children": None,
+    "owned_product": re.compile(r"\b(dang (dung|xai)|da co|co san|nha (co|dang)|mua (roi|tu|hoi)|cai cu|hien (dung|xai)|dung (roi|lau))\b"),
+}
+RELATIVE_RX = re.compile(r"\b(chong|vo|ong xa|ba xa|nguoi nha|gia dinh|bo me|ong ba|ba nha|nha (anh|chi|em|minh|toi))\b")
+
+
+def _customer_slot_ok(slot, value, text, context=None):
+    from harness.extractor import KIDS_RX, SLOT_KW
+    f = fold(text)
+    if slot == "competitor_price_vnd":
+        return bool(COMPETITOR_RX.search(f) and find_money(text))
+    if slot == "claimed_price_vnd":
+        return not COMPETITOR_RX.search(f)
+    if slot == "has_children":
+        return bool(KIDS_RX.search(f))
+    if slot == "budget_vnd":
+        return bool(re.search(r"\b(ngan sach|tam|khoang|toi da|duoi|du dinh|chi (tam|khoang|duoc|co)|\d+\s*cu)\b", f)
+                    or (context and re.search(dict(SLOT_KW)["budget_vnd"], fold(context))))
+    if slot == "address":
+        return bool(re.search(r"\d|,", str(value)))
+    if slot == "blocker" and str(value).startswith("can hoi") and not RELATIVE_RX.search(f):
+        return False
+    cue = CUSTOMER_CUE.get((slot, value)) or CUSTOMER_CUE.get(slot)
+    return cue is None or bool(cue.search(f))
 
 
 def _slot_value(slot, span, label, text, today):
@@ -139,6 +190,10 @@ def customer_slots(text, today, rules, mode, meta=None, context=None):
               "Khách trả lời ngắn ('dạ 3', 'tầm 5 củ') thì dựa vào câu nhân viên vừa hỏi để biết đó là thông tin gì.\n"
               f"Các loại thông tin:\n{_defs(CUSTOMER_SLOTS)}\n"
               "Mỗi kết quả: slot, span (đoạn chữ NGUYÊN VĂN trong câu chứa thông tin), label (chỉ cho has_children, payment, blocker, objection).\n"
+              "Ví dụ đối chứng:\n"
+              "- 'Máy AirPure X giá bao nhiêu em?' → slots rỗng (hỏi giá, không phải phản đối).\n"
+              "- 'Trên Lazada có 4tr2 thôi, sao bên em đắt thế?' → competitor_price_vnd ('4tr2') + objection dat_qua.\n"
+              "- 'Để chị hỏi lại ông xã đã nhé.' → blocker can hoi chong. 'Ừ chị lấy luôn nhé.' → slots rỗng.\n"
               f"Không có thông tin nào thì trả slots rỗng.\n\n{prev}Câu khách: {text}")
     try:
         d, red = _call(prompt, CUSTOMER_SCHEMA, [text], meta)
@@ -146,14 +201,26 @@ def customer_slots(text, today, rules, mode, meta=None, context=None):
         meta["fallback"] = f"{type(e).__name__}: {str(e)[:120]}"
         log.warning("bộ trích LLM (lời khách) lỗi → dùng luật: %s", meta["fallback"])
         return rules
-    got, dropped = {}, 0
+    got, dropped, used = {}, 0, {}
+    meta["field_logprobs"] = []
     for it in d.get("slots") or []:
         span = red.restore(it.get("span") or "") if red else (it.get("span") or "")
         if not _span_ok(span, text):
             dropped += 1; continue
-        v = _slot_value(it.get("slot"), span, it.get("label"), text, today)
+        slot = it.get("slot")
+        v = _slot_value(slot, span, it.get("label"), text, today)
         if v is None:
             continue
+        if slot in ("objection", "blocker", "competitor_price_vnd") and settings.extract_logprobs:
+            probs = [_take_label_prob(meta, x, used) for x in (slot, it.get("label")) if x]
+            probs = [p for p in probs if p is not None]
+            confidence = min(probs) if probs else None
+            if not _logprob_ok(slot, confidence):
+                dropped += 1; continue
+        if not _customer_slot_ok(slot, v, text, context):
+            dropped += 1; continue
+        if slot in ("objection", "blocker", "competitor_price_vnd"):
+            meta["field_logprobs"].append({"field": slot, "value": v, "confidence": confidence if settings.extract_logprobs else None})
         if it["slot"] == "claimed_price_vnd":
             got.setdefault("claimed_prices", []).append(v)
         else:
@@ -301,12 +368,15 @@ def _claim_ok(field, value, s, focus_sku):
 
 
 NUMBER_ROLES = {
-    "gia_ban": ("price_vnd", "giá bán HIỆN TẠI agent khẳng định, giá khách sẽ trả ('giá bán là 1.340.000đ', 'còn 2.990.000đ')"),
-    "gia_niem_yet": ("list_price_vnd", "giá niêm yết / giá gốc trước khuyến mãi ('giá niêm yết 3.490.000đ')"),
+    "gia_ban": ("price_vnd", "giá bán HIỆN TẠI agent khẳng định, giá khách sẽ trả ('giá bán là 1.340.000đ', 'còn 2.990.000đ'). "
+                             "KHÔNG phải số tiền giảm, tiền hoàn, phí, tổng tiền khách nêu lại"),
+    "gia_niem_yet": ("list_price_vnd", "giá niêm yết / giá gốc trước khuyến mãi ('giá niêm yết 3.490.000đ'). KHÔNG phải số đứng sau "
+                                       "'đang bán' / 'còn' trong cùng câu, không phải mức khuyến mãi ('khuyến mãi 400.000đ')"),
     "gia_da_bao_truoc": ("price_quoted_vnd", "agent nhắc lại giá đã báo trong quá khứ, không khẳng định là giá hiện tại ('hôm trước em báo 5.200.000đ')"),
     "so_ngay_giao": ("delivery_days", "số ngày giao hàng ('giao trong 2–3 ngày')"),
-    "so_ngay_doi_tra": ("return_days", "hạn đổi trả bằng ngày ('đổi trả trong 7 ngày')"),
-    "thoi_han_bao_hanh": ("warranty_months", "thời gian bảo hành chính hãng của sản phẩm ('bảo hành 24 tháng')"),
+    "so_ngay_doi_tra": ("return_days", "hạn đổi trả bằng ngày ('đổi trả trong 7 ngày'). KHÔNG phải hạn đổi mới khi lỗi nhà sản xuất"),
+    "thoi_han_bao_hanh": ("warranty_months", "thời gian bảo hành chính hãng của sản phẩm ('bảo hành 24 tháng'). KHÔNG phải bảo hành "
+                                             "của sản phẩm / ngành hàng khác được nhắc để so sánh"),
     "tien_hoan": (None, "tiền shop hoàn / trả lại / bù cho khách ('được hoàn 500.000đ')"),
     "phu_thu_phi": (None, "phụ thu, phí ship, phí lắp đặt, phí dịch vụ ('phụ thu 50.000đ', 'phí ship 30.000đ')"),
     "so_tien_giam": (None, "số tiền được giảm / tiết kiệm ('giảm 300.000đ')"),
@@ -317,11 +387,12 @@ NUMBER_ROLES = {
     "so_khac": (None, "số khác: số lượng, kích thước, size, công suất, mã đơn, số điện thoại, số mức ('3 mức gió', 'size 42')"),
 }
 FACTS = {
-    "dang_co_khuyen_mai": ("promo_active", True, "agent khẳng định ĐANG có khuyến mãi / quà tặng (miễn phí giao hàng không tính)"),
-    "khong_co_khuyen_mai": ("promo_active", False, "agent khẳng định không có / đã hết khuyến mãi"),
-    "con_hang": ("in_stock", True, "agent khẳng định còn hàng"),
+    "dang_co_khuyen_mai": ("promo_active", True, "agent khẳng định ĐANG có khuyến mãi / quà tặng (miễn phí giao hàng không tính). "
+                                                 "KHÔNG phải khi nói 'chưa có thông tin về quà tặng', khuyến mãi đã hết hạn"),
+    "khong_co_khuyen_mai": ("promo_active", False, "agent khẳng định không có / đã hết khuyến mãi. KHÔNG phải khi chỉ nói hết hàng"),
+    "con_hang": ("in_stock", True, "agent khẳng định còn hàng. KHÔNG phải 'không còn hàng'"),
     "het_hang": ("in_stock", False, "agent khẳng định hết hàng"),
-    "nhan_la_nguoi_that": ("is_human", True, "agent tự nhận MÌNH là người thật"),
+    "nhan_la_nguoi_that": ("is_human", True, "agent tự nhận MÌNH là người thật. KHÔNG gán cho câu báo giá, chào hỏi, xác nhận đơn"),
     "nhan_la_tro_ly_ai": ("is_human", False, "agent tự nhận MÌNH là trợ lý ảo / AI / máy"),
 }
 
@@ -340,7 +411,7 @@ def _sentence_schema(cand):
 
 
 def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None):
-    from harness.extractor import CONFIRM_RX, mentions_known
+    from harness.extractor import CONFIRM_RX, claim_sku, mentions_known
     meta = meta if meta is not None else {}
     sents = _sentences(text)
     ask = {i for i, s in enumerate(sents) if _is_question(s)}
@@ -364,7 +435,11 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
               "- numbers: MỌI con số trong câu, span = đoạn chữ NGUYÊN VĂN chứa con số, role = vai trò của con số:\n"
               f"{_defs({k: v[1] for k, v in NUMBER_ROLES.items()})}\n"
               "- facts: khẳng định không có con số mà câu NÓI RÕ (không suy đoán; không có thì để rỗng):\n"
-              f"{_defs({k: v[2] for k, v in FACTS.items()})}\n\n"
+              f"{_defs({k: v[2] for k, v in FACTS.items()})}\n"
+              "Ví dụ đối chứng:\n"
+              "- 'Giá gốc 2.190.000đ, giờ bán 1.990.000đ ạ.' → 2.190.000đ gia_niem_yet, 1.990.000đ gia_ban.\n"
+              "- 'Mang máy cũ tới được trợ giá 250.000đ ạ.' → so_tien_giam (không phải giá).\n"
+              "- 'Hoàn tiền trong 3–5 ngày làm việc ạ.' → so_ngay_khac; 'Đổi trả trong 7 ngày ạ.' → so_ngay_doi_tra.\n\n"
               f"{focus}Lời nhân viên:\n{numbered}")
     try:
         d, red = _call(prompt, _sentence_schema(cand), [sents[i] for i in cand], meta)
@@ -372,7 +447,8 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
         meta["fallback"] = f"{type(e).__name__}: {str(e)[:120]}"
         log.warning("bộ trích LLM (lời agent) lỗi → dùng luật: %s", meta["fallback"])
         return q_rules, c_rules
-    dropped = 0
+    dropped, used = 0, {}
+    meta["field_logprobs"] = []
     q_llm, items = {}, []
     for it in d.get("sentences") or []:
         i = it.get("i")
@@ -389,14 +465,19 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
         for n in it.get("numbers") or []:
             field = NUMBER_ROLES.get(n.get("role"), (None,))[0]
             if field:
-                items.append((i, field, n.get("span") or "", None))
+                items.append((i, field, n.get("span") or "", None, None))
         for fct in it.get("facts") or []:
             if fct in FACTS:
-                items.append((i, FACTS[fct][0], "", FACTS[fct][1]))
+                field = FACTS[fct][0]
+                confidence = _take_label_prob(meta, fct, used) if settings.extract_logprobs and field in ("is_human", "promo_active") else None
+                if field in ("is_human", "promo_active") and settings.extract_logprobs:
+                    if not _logprob_ok(field, confidence):
+                        dropped += 1; continue
+                items.append((i, field, "", FACTS[fct][1], confidence))
     rules_fields = {(c["field"], c.get("text")) for c in c_rules}
     rules_money = {(c["value"], c.get("text")) for c in c_rules if c["field"] in MONEY_FIELDS}
     c_llm = []
-    for i, field, span, polarity in items:
+    for i, field, span, polarity, confidence in items:
         s = sents[i]
         if i not in hint:
             dropped += 1; continue
@@ -408,7 +489,11 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
             dropped += 1; continue
         if mode != "llm" and ((field, s) in rules_fields or (field in MONEY_FIELDS and (v, s) in rules_money)):
             continue
-        c_llm.append({"field": field, "value": v, "text": s})
+        sku = claim_sku(s, focus_sku)
+        c_llm.append({"field": field, "value": v, "text": s, **({"sku": sku} if sku else {})})
+        if field in ("is_human", "promo_active"):
+            meta["field_logprobs"].append({"field": field, "value": v,
+                                           "confidence": confidence if settings.extract_logprobs else None})
     meta["dropped_spans"] = meta.get("dropped_spans", 0) + dropped
     if mode == "llm":
         return [q_llm[i] for i in sorted(q_llm)], c_llm

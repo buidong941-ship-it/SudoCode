@@ -235,8 +235,10 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 
    Có thể bắt đầu bằng (a) và để luật/`SLOT_KW` lo (b).
 5. **Huấn luyện:** fine-tune trên CPU hoặc Kaggle (vài phút, **hỏi trước khi đẩy job**). Lưu model ở `models/question_clf/`, và thêm thư mục này vào `.gitignore` nếu nặng.
-6. **Tích hợp:** `agent_questions()` thêm nhánh `QUESTION_CLF=1`: câu được bộ phân loại cho là câu hỏi với p ≥ τ thì vào danh sách; slot lấy theo `SLOT_KW` như cũ, hoặc lấy đầu (b). Luật `?` vẫn luôn bắt (hợp). τ chọn trên một nửa `agent.jsonl`, báo số trên nửa còn lại.
+6. **Tích hợp:** `agent_questions()` thêm nhánh `QUESTION_CLF=1`: câu được bộ phân loại cho là câu hỏi với p ≥ τ thì vào danh sách; slot lấy theo `SLOT_KW` như cũ, hoặc lấy đầu (b). Luật `?` vẫn luôn bắt (hợp). τ chọn trên một nửa `agent.jsonl`, báo số trên nửa còn lại. Backend có thể chuyển bằng `QUESTION_CLF_BACKEND=local|jev`; cả hai dùng chung giao diện `predict(text)`, còn `QUESTION_CLF=0` giữ nguyên chỉ dùng luật. Guardrail nội dung là bước độc lập, luôn tiếp tục chạy.
 7. **Gán tay thêm:** cần khoảng 200 câu có nhãn để đo tin cậy. Lấy thêm từ câu dev và **nhờ người dùng kiểm** nhãn (`agent.jsonl` hiện do Claude gán, chưa người kiểm).
+
+Để so sánh công bằng hai backend, chạy shadow benchmark trên cùng split fit/tune/test và cùng ground truth; benchmark không dùng dự đoán để điều khiển câu trả lời. Với Jev, che PII trước khi gửi, lưu lỗi/latency riêng và fallback về luật khi request lỗi. Không chọn backend mặc định chỉ theo độ chính xác: báo cả latency CPU/API, độ phủ, số lỗi và ví dụ nhầm/bỏ sót.
 
 **Tiêu chí đạt:** trên nửa giữ lại, recall ≥ 85% và precision ≥ 95%. Latency CPU p95 < 20 ms mỗi lượt. Smoke OK khi không có model (tự tắt, dùng luật).
 
