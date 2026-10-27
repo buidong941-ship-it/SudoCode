@@ -242,6 +242,17 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 
 **Tiêu chí đạt:** trên nửa giữ lại, recall ≥ 85% và precision ≥ 95%. Latency CPU p95 < 20 ms mỗi lượt. Smoke OK khi không có model (tự tắt, dùng luật).
 
+#### Kế hoạch mở rộng sau benchmark
+
+Không cần gán nhãn tay mọi câu. Dùng luật và Jev để tạo nhãn yếu/gợi ý; ưu tiên đưa cho người rà các câu mà hai backend bất đồng, classifier có độ tin cậy thấp, và một mẫu ngẫu nhiên để phát hiện lỗi mà cả hai cùng mắc. Mỗi đợt có thể rà một lô nhỏ (ví dụ 50–200 câu), sau đó thêm **chỉ nhãn đã xác nhận** vào train và huấn luyện lại trên Kaggle.
+
+- Giữ một tập test có nhãn người rà riêng, không đưa vào train hay chọn ngưỡng; khi có thêm dữ liệu, bổ sung một holdout mới để kiểm tra độ tổng quát.
+- Theo dõi precision, recall, F1, độ trễ p50/p95, tỷ lệ Jev lỗi và các nhóm câu thường bị bỏ sót/nhận nhầm. Phiên bản mới chỉ được dùng khi cải thiện trên holdout người rà và vẫn đạt các ngưỡng ở trên; lưu model, ngưỡng và mã phiên bản để có thể rollback.
+- Giữ TF-IDF + Logistic Regression làm baseline nhẹ. Khi dữ liệu nhãn đã đủ đa dạng mà baseline không tiến bộ, mới thử sentence embedding + classifier tuyến tính hoặc fine-tune encoder tiếng Việt trên Kaggle; so sánh trên cùng holdout trước khi thay backend mặc định.
+- Jev có thể hỗ trợ gán nhãn/đối chiếu nhưng nhãn Jev vẫn là nhãn yếu, không thay thế ground truth người rà trong báo cáo cuối.
+
+Lần benchmark ngày 27/10 dùng 120 nhãn người rà để fit, 40 tune và 40 test; classifier local chưa tăng recall trên holdout (60%), còn Jev đạt 80% recall với độ trễ API cao hơn nhiều. Đây là số ban đầu trên test nhỏ; tiếp tục thu thập nhãn theo quy trình trên trước khi chọn backend mặc định. Chi tiết ở [NHAT-KY-2026-10-27.md](NHAT-KY-2026-10-27.md).
+
 ---
 
 ### Nhiệm vụ 7 (A6): gắn claim với sản phẩm
