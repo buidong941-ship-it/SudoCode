@@ -1,5 +1,7 @@
 # Chạy đánh giá trên Kaggle hoặc server thuê
 
+> **Đính chính 28/10:** Các dòng job cũ có `QUESTION_CLF=1`/model local chỉ mô tả lần chạy lịch sử. Code hiện hành không còn backend local hoặc artifact đã huấn luyện; `QUESTION_CLF=1` chỉ dùng Jev có sẵn để trích metric sau khi chọn lời agent.
+
 Một lệnh chạy trọn bộ là `scripts/run_suite.py`: bật vLLM nếu cần, chạy `run_eval.py` hai cấu hình trên từng bộ kịch bản, chấm bằng `eval/reference_eval.py` của BTC, ghi bảng tổng hợp. Lệnh này giống hệt nhau trên Kaggle, server thuê (SSH/Termius) và máy cá nhân. Khác biệt theo nơi chạy nằm trong một file profile:
 
 | Profile | File | Dùng khi | GPU |

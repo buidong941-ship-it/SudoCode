@@ -28,8 +28,6 @@ replace-imports-with-any = [
     "vllm.*",
     "scipy",
     "scipy.*",
-    "sklearn",
-    "sklearn.*",
     "sympy",
     "sympy.*",
     "onnxruntime",

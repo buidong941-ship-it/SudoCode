@@ -1,5 +1,7 @@
 # Hướng dẫn thực thi: cải tiến extractor và generator (25/10/2026)
 
+> **Đính chính 28/10/2026:** Đề thi mục C.5 và giải đáp mentor cấm huấn luyện lại/fine-tune mô hình. Các đề xuất cũ về Snorkel, TF-IDF + Logistic Regression, LoRA và SFT đã được thay bằng luật, model có sẵn, prompt và dữ liệu. Kết quả Kaggle của model local trước đây chỉ là lịch sử thử nghiệm, không thuộc cấu hình nộp bài. `QUESTION_CLF=1` chỉ bổ sung phép trích `questions` sau khi đã chọn lời agent; `coverage` dùng luật riêng.
+
 Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xuất do phiên "kỹ sư đề xuất" soạn ngày 25/10/2026 sau khi đọc code và tìm tài liệu. Làm theo thứ tự các giai đoạn. Mỗi nhiệm vụ có: mục tiêu, file cần sửa, các bước, tiêu chí đạt, cách kiểm.
 
 ---
@@ -49,7 +51,7 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 ### 0.3 Quy tắc bắt buộc
 1. **Không sửa thư mục của BTC:** `eval/`, `catalog/`, `policy/`, `test_set/`, `schemas/`, `rag/`.
 2. **Không "ăn gian" extractor.** Không được bỏ claim hay câu hỏi chỉ để làm đẹp RQR/HR. Claims và questions phải phản ánh đúng điều agent nói trong văn bản. Plan chỉ được dùng làm gợi ý, kết luận cuối cùng phải dựa trên chữ.
-3. **Không lấy câu nào từ bộ test** (`datagen/out/test/` và trace test) để chỉnh luật, viết ví dụ cho prompt hay làm dữ liệu huấn luyện. Dùng dev, sample, catalog, chính sách, hoặc câu tự viết.
+3. **Không lấy câu nào từ bộ test** (`datagen/out/test/` và trace test) để chỉnh luật hoặc viết ví dụ cho prompt. Dùng dev, sample, catalog, chính sách, hoặc câu tự viết.
 4. **Hỏi người dùng trước khi** chạy job Kaggle tốn trên 3 giờ GPU, đẩy job lên Kaggle, commit, push, hoặc có quyết định thuộc về người dùng.
 5. **Phong cách code:**
    - giữ đúng thói quen của repo: không docstring cho hàm/lớp, gần như không có comment `#`;
@@ -182,7 +184,7 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 **Nền tảng:**
 - DIALIGHT https://arxiv.org/pdf/2401.02208
 - AuGPT https://arxiv.org/pdf/2102.05126
-- Slot-consistent NLG (ACL 2020) https://preview.aclanthology.org/moar-dois/2020.acl-main.10.pdf
+- Slot-consistent NLG (ACL 2020) https://aclanthology.org/2020.acl-main.pdf
 
 **Bật/tắt bằng biến môi trường** `GEN_PLACEHOLDERS=1` (thêm vào `core/config.py`, mặc định `0`) để so A/B.
 
@@ -217,41 +219,18 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 
 ---
 
-### Nhiệm vụ 6 (A1): bộ phân loại câu hỏi/yêu cầu nhỏ học từ luật
+### Nhiệm vụ 6 (A1): phát hiện câu hỏi/yêu cầu để đo metric, không huấn luyện
 
-**Mục tiêu:** recall phát hiện câu hỏi từ 60% lên ≥ 85%, precision ≥ 95%, chạy trên CPU vài ms mỗi câu.
-
-**Nền tảng:**
-- Snorkel / data programming https://arxiv.org/pdf/1711.10160: luật là labeling function, gộp phiếu thành nhãn xác suất, rồi huấn luyện bộ phân loại.
-- Encoder: PhoBERT-base (`vinai/phobert-base-v2`, cần tách từ) hoặc `microsoft/mdeberta-v3-base`.
+**Mục tiêu:** cải thiện recall của `questions[]` trong trace mà vẫn giữ precision cao. Đây là bước trích lời agent **sau khi câu trả lời đã được chọn**, không phải bộ điều khiển nội dung gửi khách.
 
 **Các bước:**
-1. **Dữ liệu chưa gán nhãn:** gom `agent_text` từ trace dev và sample trong `runs/` (mọi lần chạy, khử trùng), tách câu bằng `_sentences`. **Loại mọi câu thuộc kịch bản test** (đối chiếu tên kịch bản với `datagen/out/test/` và `test_set/`).
-2. **Labeling function** (mỗi hàm trả nhãn hoặc bỏ phiếu trắng): dấu `?`, `REQUEST_RX`, `MAYBE_ASK_RX`, `QUESTION_TAIL_RX` có loại trừ "không… đâu", `CONFIRM_RX`, từng mục `SLOT_KW`, nhãn Qwen (từ `llm_extract.agent`, nếu có trace `extractor`), nhãn DeepSeek (chỉ khi người dùng cho phép gọi API; nhớ che PII bằng `Redactor`).
-3. **Gộp phiếu:** dùng `snorkel` (`LabelModel`) nếu cài được. Không thì bỏ phiếu theo trọng số, với trọng số ước lượng trên `agent.jsonl`.
-4. **Nhãn:** hai đầu ra.
-   - (a) `is_question`: không hỏi / hỏi mở / hỏi xác nhận.
-   - (b) `slot` thuộc `QUESTION_SLOTS`.
+1. Giữ bộ luật `?`, `REQUEST_RX`, `SLOT_KW`, `CONFIRM_RX` và sửa các mẫu bỏ sót dựa trên dev/sample. Không lấy câu test để viết luật hoặc ví dụ.
+2. Dùng Jev có sẵn như một backend tùy chọn để nhận diện câu không bị luật bắt; che PII trước khi gọi API. Jev lỗi thì dùng kết quả luật. `QUESTION_CLF=0` tiếp tục chỉ dùng luật.
+3. `coverage` gọi `agent_questions()` ở chế độ luật. Chỉ `analyze_agent()` được bật `use_classifier=True`; không để phép trích metric thay đổi câu trả lời gửi khách.
+4. Dùng [REVIEW-QUESTION-CLF-200.csv](REVIEW-QUESTION-CLF-200.csv) có nhãn người rà để đánh giá luật, Jev và hợp hai nguồn qua `scripts/evaluate_question_detection.py` trên Kaggle. Báo precision, recall, F1, lỗi API, p50/p95. Ngưỡng 0,75 là cấu hình từ thử nghiệm cũ; bộ 200 câu hiện tại không phải holdout mới để chứng minh tăng chất lượng.
+5. Khi có lỗi, sửa luật hoặc prompt/tiêu chí Jev trên dữ liệu dev; giữ một holdout mới chưa dùng để quyết định phiên bản. Không fit trọng số, không chưng cất hoặc xuất model local.
 
-   Có thể bắt đầu bằng (a) và để luật/`SLOT_KW` lo (b).
-5. **Huấn luyện:** fine-tune trên CPU hoặc Kaggle (vài phút, **hỏi trước khi đẩy job**). Lưu model ở `models/question_clf/`, và thêm thư mục này vào `.gitignore` nếu nặng.
-6. **Tích hợp:** `agent_questions()` thêm nhánh `QUESTION_CLF=1`: câu được bộ phân loại cho là câu hỏi với p ≥ τ thì vào danh sách; slot lấy theo `SLOT_KW` như cũ, hoặc lấy đầu (b). Luật `?` vẫn luôn bắt (hợp). τ chọn trên một nửa `agent.jsonl`, báo số trên nửa còn lại. Backend có thể chuyển bằng `QUESTION_CLF_BACKEND=local|jev`; cả hai dùng chung giao diện `predict(text)`, còn `QUESTION_CLF=0` giữ nguyên chỉ dùng luật. Guardrail nội dung là bước độc lập, luôn tiếp tục chạy.
-7. **Gán tay thêm:** cần khoảng 200 câu có nhãn để đo tin cậy. Lấy thêm từ câu dev và **nhờ người dùng kiểm** nhãn (`agent.jsonl` hiện do Claude gán, chưa người kiểm).
-
-Để so sánh công bằng hai backend, chạy shadow benchmark trên cùng split fit/tune/test và cùng ground truth; benchmark không dùng dự đoán để điều khiển câu trả lời. Với Jev, che PII trước khi gửi, lưu lỗi/latency riêng và fallback về luật khi request lỗi. Không chọn backend mặc định chỉ theo độ chính xác: báo cả latency CPU/API, độ phủ, số lỗi và ví dụ nhầm/bỏ sót.
-
-**Tiêu chí đạt:** trên nửa giữ lại, recall ≥ 85% và precision ≥ 95%. Latency CPU p95 < 20 ms mỗi lượt. Smoke OK khi không có model (tự tắt, dùng luật).
-
-#### Kế hoạch mở rộng sau benchmark
-
-Không cần gán nhãn tay mọi câu. Dùng luật và Jev để tạo nhãn yếu/gợi ý; ưu tiên đưa cho người rà các câu mà hai backend bất đồng, classifier có độ tin cậy thấp, và một mẫu ngẫu nhiên để phát hiện lỗi mà cả hai cùng mắc. Mỗi đợt có thể rà một lô nhỏ (ví dụ 50–200 câu), sau đó thêm **chỉ nhãn đã xác nhận** vào train và huấn luyện lại trên Kaggle.
-
-- Giữ một tập test có nhãn người rà riêng, không đưa vào train hay chọn ngưỡng; khi có thêm dữ liệu, bổ sung một holdout mới để kiểm tra độ tổng quát.
-- Theo dõi precision, recall, F1, độ trễ p50/p95, tỷ lệ Jev lỗi và các nhóm câu thường bị bỏ sót/nhận nhầm. Phiên bản mới chỉ được dùng khi cải thiện trên holdout người rà và vẫn đạt các ngưỡng ở trên; lưu model, ngưỡng và mã phiên bản để có thể rollback.
-- Giữ TF-IDF + Logistic Regression làm baseline nhẹ. Khi dữ liệu nhãn đã đủ đa dạng mà baseline không tiến bộ, mới thử sentence embedding + classifier tuyến tính hoặc fine-tune encoder tiếng Việt trên Kaggle; so sánh trên cùng holdout trước khi thay backend mặc định.
-- Jev có thể hỗ trợ gán nhãn/đối chiếu nhưng nhãn Jev vẫn là nhãn yếu, không thay thế ground truth người rà trong báo cáo cuối.
-
-Lần benchmark ngày 27/10 dùng 120 nhãn người rà để fit, 40 tune và 40 test; classifier local chưa tăng recall trên holdout (60%), còn Jev đạt 80% recall với độ trễ API cao hơn nhiều. Đây là số ban đầu trên test nhỏ; tiếp tục thu thập nhãn theo quy trình trên trước khi chọn backend mặc định. Chi tiết ở [NHAT-KY-2026-10-27.md](NHAT-KY-2026-10-27.md).
+**Tiêu chí xem xét bật Jev:** precision ≥ 95%, recall ≥ 85% trên holdout mới; ghi rõ chi phí và độ trễ API. Kết quả Kaggle 27/10 (40 câu test) là Jev + luật precision 100%, recall 80%, chưa đạt ngưỡng recall. Model local được fit trong thử nghiệm cũ đã bị loại khỏi đường chạy và không dùng cho cấu hình nộp bài; chi tiết lịch sử ở [NHAT-KY-2026-10-27.md](NHAT-KY-2026-10-27.md).
 
 ---
 
@@ -316,31 +295,23 @@ Lần benchmark ngày 27/10 dùng 120 nhãn người rà để fit, 40 tune và 
 
 ---
 
-## Giai đoạn 4: hướng nặng (cần người dùng duyệt GPU)
+## Giai đoạn 4: mở rộng không huấn luyện mô hình
 
-### Nhiệm vụ 12 (A5): chưng cất bộ trích sang model nhỏ
-**Nền tảng:**
-- LDST (EMNLP 2023) https://arxiv.org/pdf/2310.14970: LoRA khoảng 0,12% tham số, ngang ChatGPT về theo dõi trạng thái hội thoại.
-- NuExtract https://numind.ai/blog/nuextract-a-foundation-model-for-structured-extraction: model trích chuyên dụng nhỏ.
+### Nhiệm vụ 12 (A5): chọn và cấu hình bộ trích có sẵn
 
-**Các bước:**
-1. Sinh câu khách và câu agent từ `datagen/` (dev) cộng câu tổng hợp mới dựa trên catalog. **Không dùng test.**
-2. DeepSeek làm thầy, gán nhãn theo đúng schema của `llm_extract` (che PII).
-3. Chỉ giữ mẫu mà thầy qua được `_claim_ok` / `_customer_slot_ok` và không mâu thuẫn với luật ở field luật chắc chắn (tiền, ngày).
-4. LoRA cho Qwen3-1.7B, hoặc Qwen3-4B phục vụ bằng `--enable-lora` trên cùng vLLM (kiểm vLLM 0.9.2 trên T4 có chạy LoRA không).
-5. Model đủ nhanh (p95 dưới khoảng 300 ms) thì cân nhắc trích lời khách **đồng bộ** để slot vào plan ngay trong lượt (CCR).
+1. So luật, Qwen và Jev trên dữ liệu dev/sample có nhãn người rà. Không dùng test để sửa prompt.
+2. Sửa schema, phản ví dụ và kiểm tra bằng code (`_claim_ok`, `_customer_slot_ok`) cho các lỗi trích thường gặp.
+3. Nếu thử một model trích có sẵn khác, dùng nguyên trọng số và cùng bộ đo; chỉ chuyển backend khi chất lượng và độ trễ tốt hơn. Không LoRA hoặc chưng cất.
 
-### Nhiệm vụ 13 (B5): chưng cất phong cách cho generator (ReST)
-**Nền tảng:** ReST (DeepMind 2023) https://arxiv.org/abs/2308.08998v1: lấy mẫu, lọc bằng hàm thưởng, rồi SFT.
+### Nhiệm vụ 13 (B5): cải thiện phong cách bằng Exemplar Bank
 
-**Các bước:**
-1. Plan lấy từ trace dev và sample, cộng plan tổng hợp.
-2. DeepSeek và Qwen sinh nhiều bản cho mỗi plan.
-3. Lọc bằng `guardrails.check` + `coverage` + độ dài (≤ 2 câu, mỗi câu < 25 từ) + mở bằng "Dạ" và có "ạ".
-4. LoRA SFT Qwen3-4B. Sau đó thử rút gọn `SYSTEM` / `GOAL_NOTES` và đo lại TTFT cùng chất lượng.
+1. Lấy ứng viên từ trace dev/sample và các cuộc gọi thành công, loại câu có claim sai hoặc vi phạm guardrail.
+2. Người duyệt ví dụ trước khi đưa vào ngân hàng few-shot; lưu nguồn và phiên bản để quay lui.
+3. Truy hồi 1–2 ví dụ phù hợp theo intent/persona để đưa vào prompt generator. Đo TSR, HR, RQR, TTFT/total trên cùng bộ test giữ nguyên sau mỗi lần thay đổi.
 
 ### Nhiệm vụ 14 (B6 phần rủi ro): EAGLE-3
-- Draft `AngelSlim/Qwen3-4B_eagle3` (https://nvidia.github.io/TensorRT-Edge-LLM/0.9.1/user_guide/examples/speculative-decoding.html). Baseten báo tăng tốc 1,5–2,5 lần trên Qwen3-4B (https://www.baseten.co/blog/how-to-train-custom-eagle-3-heads-for-speculative-decoding/).
+- Có thể khảo sát draft `AngelSlim/Qwen3-4B_eagle3` có sẵn theo tài liệu [TensorRT Edge-LLM](https://nvidia.github.io/TensorRT-Edge-LLM/0.9.1/user_guide/examples/speculative-decoding.html).
+- Chỉ xét draft **có sẵn**, dùng nguyên trọng số; không tự tạo hoặc huấn luyện draft.
 - n-gram và prefix caching đã làm vLLM 0.9.2 sập trên T4 (engine V0), nên khả năng cao EAGLE cũng sập. Chỉ thử trong một job riêng ngắn. Không đưa vào cấu hình nộp nếu chưa chạy ổn định đủ 3 bộ.
 
 ---
@@ -358,9 +329,9 @@ Lần benchmark ngày 27/10 dùng 120 nhãn người rà để fit, 40 tune và 
 | 3 | 4 gọn JSON plan | 1–2 giờ | không |
 | 4 | 5 (B1) placeholder | 1–1,5 ngày | không (kiểm thật ở 11) |
 | 5 | 7 (A6) claim theo sản phẩm | ½ ngày | không |
-| 6 | 6 (A1) bộ phân loại câu hỏi | 1–2 ngày + người dùng kiểm nhãn | vài phút (hỏi trước) |
+| 6 | 6 (A1) luật/Jev có sẵn để trích câu hỏi | 1–2 ngày + người dùng kiểm nhãn | không cần GPU để sửa code; đo Jev trên Kaggle |
 | 7 | 8, 9, 10 | mỗi việc ½ ngày | không (kiểm thật ở 11) |
 | 8 | 11 chạy lại Kaggle | khoảng 2,7 giờ mỗi biến thể | **hỏi trước** |
-| 9 | 12, 13, 14 | nhiều ngày | **trên 3 giờ, hỏi trước** |
+| 9 | 12, 13, 14 (chỉ model có sẵn, prompt và ví dụ) | nhiều ngày | chỉ thử Kaggle khi cần đo |
 
 Sau mỗi nhiệm vụ: chạy smoke và `extract_eval`, ghi nhật ký, rồi báo người dùng ngắn gọn (đã làm gì, số trước/sau, việc tiếp theo). Không commit hay push khi người dùng chưa bảo.

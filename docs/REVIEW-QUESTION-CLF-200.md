@@ -4,4 +4,4 @@ File CSV đi kèm có 200 câu đã lấy từ trace `sample` và `dev`, đã kh
 
 Không dựa riêng vào dấu `?`: câu xin địa chỉ hoặc hẹn giờ gọi lại vẫn là `1` dù không có dấu hỏi. Câu “chị cân nhắc thêm nhé” là `0`; câu xin khách cân nhắc lại / cho biết lựa chọn là `1`. Nếu câu không thể phân loại độc lập, ghi chú lý do trong `review_note` và vẫn chọn nhãn phù hợp nhất theo định nghĩa trên.
 
-Khi hoàn tất, gửi lại CSV có đủ 200 nhãn; lúc đó mới huấn luyện/đánh giá lại Nhiệm vụ 6. Không dùng cột gợi ý làm ground truth.
+CSV đã có 200 nhãn người rà. Dùng các nhãn này để đo độ đúng của luật và Jev có sẵn bằng `scripts/evaluate_question_detection.py` trên Kaggle; không huấn luyện hoặc fine-tune model. Không dùng cột gợi ý làm ground truth. Ngưỡng Jev đã được xem trên tập này trước đây, nên cần holdout mới nếu muốn chứng minh một thay đổi cải thiện.

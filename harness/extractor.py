@@ -35,7 +35,8 @@ def customer_slots(text, today, meta=None, context=None):
 
 
 def analyze_agent(text, known_values, meta=None, focus_sku=None):
-    q_rules, c_rules = agent_questions(text, known_values), agent_claims(text, focus_sku=focus_sku)
+    q_rules = agent_questions(text, known_values, use_classifier=settings.question_clf)
+    c_rules = agent_claims(text, focus_sku=focus_sku)
     if settings.extractor_backend == "rules":
         return q_rules, c_rules
     from harness import llm_extract
@@ -162,12 +163,12 @@ def question_prob(s):
         return None
 
 
-def agent_questions(text, known_values):
+def agent_questions(text, known_values, use_classifier=False):
     out = []
     for s in _sentences(text):
         f = fold(s)
         if not s.endswith("?") and not REQUEST_RX.search(f):
-            pt = question_prob(s) if settings.question_clf else None
+            pt = question_prob(s) if use_classifier else None
             if not pt or pt[0] < pt[1]:
                 continue
         slot = next((name for name, rx in SLOT_KW if re.search(rx, f)), None)

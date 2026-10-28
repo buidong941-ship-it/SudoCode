@@ -4,8 +4,6 @@ openai>=1.40            # client tương thích OpenAI cho DeepSeek
 typesafe-sdk>=0.7       # Jev (TypeSafe System One) — router/orchestrator
 laya>=0.4.13            # Laya (System One mã nguồn mở, chạy local) — router `laya`
 mcp>=1.20,<2            # MCP server/client (mcp-commerce, mcp-memory); đã kiểm với 1.28
-# models/question_clf/model.pkl được huấn luyện và kiểm tra với bản này.
-scikit-learn==1.9.1
 # Postgres trên server (tùy chọn, khi DATABASE_URL=postgresql+psycopg://...)
 psycopg[binary]>=3.1
 

@@ -1,4 +1,4 @@
-"""Interchangeable question classifiers used by the agent extractor and Kaggle comparison."""
+"""Pretrained question detector for post-response agent-text extraction."""
 
 from harness.question_classifiers.factory import get_classifier
 

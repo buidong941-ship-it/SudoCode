@@ -1,5 +1,7 @@
 # Bảng tra hàm của `harness/extractor.py`
 
+> **Cập nhật 28/10/2026:** `agent_questions(text, known_values, use_classifier=False)` mặc định dùng luật, gồm dấu `?` và `REQUEST_RX`. `coverage` luôn dùng mặc định này. Chỉ `analyze_agent()` có thể gọi Jev có sẵn khi `QUESTION_CLF=1`, sau khi lời agent đã được chọn, để ghi `questions[]` vào trace. Không còn backend model local được huấn luyện.
+
 [harness/extractor.py](../harness/extractor.py) là **bộ trích bằng luật**. Nó làm hai việc:
 
 - trích slot từ **lời khách** (diện tích, ngân sách, size, địa chỉ…) để ghi bộ nhớ và cho planner dùng;
@@ -43,7 +45,7 @@ Hai hàm cổng `customer_slots` và `analyze_agent` chọn chế độ theo `EX
 | Hàm | Chức năng | Đầu vào | Đầu ra | Gọi tới |
 |---|---|---|---|---|
 | `_sentences(text)` [:102](../harness/extractor.py#L102) | Tách câu theo dấu `.` `!` `?` | đoạn văn | list câu | |
-| `agent_questions(text, known_values)` [:106](../harness/extractor.py#L106) | Tìm câu hỏi (chỉ câu **kết thúc bằng "?"**), gán slot bằng `SLOT_KW`; không khớp từ khóa nào thì là `product_advised` nếu câu nhắc tên sản phẩm, không thì `other`. Loại câu: `confirm` nếu nhắc đúng giá trị đã biết hoặc khớp `CONFIRM_RX`, còn lại `open` | lời agent; slot đã biết | list `{slot, type, text}` | `_sentences`, `fold`, `mentions_known`, `tools.find_products` |
+| `agent_questions(text, known_values, use_classifier=False)` [:165](../harness/extractor.py#L165) | Tìm câu hỏi theo dấu `?` hoặc mẫu xin thông tin/yêu cầu `REQUEST_RX`; khi bật tùy chọn chỉ cho phép ở bước đo metric, Jev có sẵn bổ sung câu luật bỏ sót. Gán slot bằng `SLOT_KW`, loại `confirm`/`open` theo giá trị đã biết và `CONFIRM_RX` | lời agent; slot đã biết; cờ tùy chọn | list `{slot, type, text}` | `_sentences`, `fold`, `mentions_known`, `tools.find_products`, `question_prob` |
 | `mentions_known(s, slot, known_values)` [:122](../harness/extractor.py#L122) | Câu hỏi có nhắc đúng giá trị đã biết của slot không ("vẫn phòng 25m² ạ?"). Riêng `product_advised`: giá trị nhớ là mã SKU, câu nhắc bằng tên, nên so qua `find_products` | câu; slot; slot đã biết | `True` / `False` | `tools.find_products`, `tools.mt._parent` |
 
 ### 2.4. Lời agent → `claims[]`
@@ -60,7 +62,7 @@ Hai hàm cổng `customer_slots` và `analyze_agent` chọn chế độ theo `EX
 
 ## 3. Ghi chú khi đọc code
 
-- **`agent_questions` chỉ nhận câu có dấu "?".** Câu kiểu "chị cho em xin địa chỉ ạ." không được tính là câu hỏi ở chế độ `rules`; chế độ `llm` / `hybrid` bắt được loại câu này.
+- **Luật nhận dấu `?` và mẫu `REQUEST_RX`.** Các câu xin thông tin không khớp mẫu này có thể được Jev/LLM bổ sung trong `questions[]` sau khi agent đã trả lời. Chỉ dùng nhãn người rà để đánh giá độ đúng phép trích; không fit model.
 - **`claimed_prices` không vào bộ nhớ.** `agent._plan` và `_remember` bỏ trường này; nó chỉ dùng để chặn đọc lại giá cũ (`forbidden_money`) và để chọn goal `explain_price_change`.
 - **Bất kỳ "bảo hành N tháng" nào cũng thành claim `warranty_months`,** kể cả câu nói về sản phẩm khác hoặc gói mở rộng (GEN-T23, GEN-T26 ở [SO-SANH-2026-10-15.md](SO-SANH-2026-10-15.md) mục 7.1).
 - **Script BTC chỉ tính claim có `field` trùng khóa trong `ground_truth_facts`** của kịch bản; tên field ở đây phải khớp cách BTC đặt tên (CAU-HOI-BTC A5).

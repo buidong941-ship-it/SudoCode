@@ -34,6 +34,7 @@ assert all(r["extractor"]["backend"].startswith("hybrid") and not r["extractor"]
 print(f"qwen OK: {len(rows)} lượt, router + generator + bộ trích hybrid qua API kiểu vLLM (giả lập)")
 PY
 python tests/llm_extract_check.py | tail -1
+python tests/question_detection_check.py | tail -1
 python tests/coverage_check.py | tail -1
 python tests/placeholder_check.py | tail -1
 python tests/generator_parallel_check.py
