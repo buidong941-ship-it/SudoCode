@@ -132,6 +132,8 @@ def _customer_slot_ok(slot, value, text, context=None):
                     or (context and re.search(dict(SLOT_KW)["budget_vnd"], fold(context))))
     if slot == "address":
         return bool(re.search(r"\d|,", str(value)))
+    if slot == "payment":
+        return bool(re.search(r"\b(cod|thanh toan|tien mat|chuyen khoan|ck truoc|momo|zalopay|nhan hang (roi )?tra)\b", f))
     if slot == "blocker" and str(value).startswith("can hoi") and not RELATIVE_RX.search(f):
         return False
     cue = CUSTOMER_CUE.get((slot, value)) or CUSTOMER_CUE.get(slot)
@@ -184,6 +186,10 @@ def _slot_value(slot, span, label, text, today):
 
 def customer_slots(text, today, rules, mode, meta=None, context=None):
     meta = meta if meta is not None else {}
+    from harness.extractor import customer_llm_candidate
+    if mode == "hybrid" and not customer_llm_candidate(text, context):
+        meta["customer_llm_skipped"] = "no_slot_cue"
+        return dict(rules)
     prev = (f"Câu nhân viên vừa nói trước đó (chỉ để hiểu khách đang trả lời điều gì, KHÔNG trích từ câu này): {context}\n"
             if context else "")
     prompt = ("Trích các thông tin KHÁCH vừa nói trong câu dưới đây. Chỉ trích điều khách nói rõ trong câu này, không suy đoán. "
@@ -358,6 +364,9 @@ def _claim_ok(field, value, s, focus_sku):
     cue = FIELD_CUE.get((field, value)) or FIELD_CUE.get(field)
     if cue is not None and not cue.search(f):
         return False
+    if field == "promo_active" and value is True and re.search(
+            r"\b(chua|khong) co thong tin (?:ve )?(?:viec )?(?:giam|khuyen mai|uu dai|qua tang)\b", f):
+        return False
     if field in FIELD_BLOCK and FIELD_BLOCK[field].search(f):
         return False
     if value is True and field in NEG_BEFORE_CUE and re.search(r"\b(chua|khong|het|chang)\b(\s+\w+){0,4}\s+" + cue.pattern, f):
@@ -457,7 +466,9 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
         s = sents[i]
         slot = it.get("ask")
         if slot in QUESTION_SLOTS:
-            if i not in ask and not (i in maybe and _slot_topic_ok(slot, s)):
+            is_offer = slot == "product_advised" and re.search(
+                r"^em co the (?:tu van|ho tro|gioi thieu) them\b", fold(s))
+            if is_offer or (i not in ask and not (i in maybe and _slot_topic_ok(slot, s))):
                 dropped += 1
             else:
                 qtype = "confirm" if it.get("confirm") or mentions_known(s, slot, known_values) or CONFIRM_RX.search(fold(s)) else "open"

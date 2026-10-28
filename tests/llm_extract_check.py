@@ -56,7 +56,11 @@ rules2 = extractor.customer_slots_rules(text2, "2026-10-15")
 fake({"slots": [{"slot": "size", "span": "size 39"}, {"slot": "payment", "span": "giao về", "label": "COD"}]})
 got2 = llm_extract.customer_slots(text2, "2026-10-15", rules2, "hybrid", {})
 check(got2.get("size") == rules2.get("size") == "38", "hybrid: luật thắng khi cùng slot (span 'size 39' không có trong câu)")
-check(got2.get("payment") == "COD" and got2.get("address") == rules2.get("address"), "hybrid: LLM bổ sung slot luật bỏ sót")
+check("payment" not in got2 and got2.get("address") == rules2.get("address"),
+      "hybrid: không suy diễn COD từ câu chỉ nói địa chỉ")
+fake({"slots": [{"slot": "payment", "span": "thanh toán khi nhận", "label": "COD"}]})
+paid = llm_extract.customer_slots("Chị thanh toán khi nhận nhé.", "2026-10-15", {}, "llm", {})
+check(paid.get("payment") == "COD", "LLM vẫn nhận COD khi khách nói rõ cách thanh toán")
 
 for t, reply, want, msg in [
         ("Giá bao nhiêu em?", [{"slot": "objection", "span": "Giá bao nhiêu", "label": "ep_gia"}], {}, "hỏi giá thường không phải ép giá"),
@@ -96,13 +100,23 @@ fake({"sentences": []})
 q, c = llm_extract.agent(agent, {}, q_r, c_r, "hybrid", {})
 check({(x["field"], x["value"]) for x in c_r} <= {(x["field"], x["value"]) for x in c}, "hybrid: không mất claim nào của luật")
 
-req = "Dạ em lên đơn rồi ạ. Chị lên địa chỉ giúp em nhé. Anh gọi lại em sau nhé."
+req = "Dạ em lên đơn rồi ạ. Anh hỗ trợ em phần địa chỉ nhé. Anh gọi lại em sau nhé."
 q_r = extractor.agent_questions(req, {})
 fake({"sentences": [{"i": 1, "ask": "address", "numbers": [], "facts": []},
                     {"i": 2, "ask": "callback_time", "numbers": [], "facts": []}]})
 q, _ = llm_extract.agent(req, {}, q_r, [], "hybrid", {})
-check(not q_r and [(x["slot"], x["text"]) for x in q] == [("address", "Chị lên địa chỉ giúp em nhé.")],
+check(not q_r and [(x["slot"], x["text"]) for x in q] == [("address", "Anh hỗ trợ em phần địa chỉ nhé.")],
       f"câu yêu cầu luật bỏ sót được LLM nhận; câu dặn dò không có từ khóa slot bị chặn: {q}")
+
+offer = "Em có thể tư vấn thêm về sản phẩm hỗ trợ hút sữa không ạ?"
+fake({"sentences": [{"i": 0, "ask": "product_advised", "numbers": [], "facts": []}]})
+q, _ = llm_extract.agent(offer, {}, extractor.agent_questions(offer, {}), [], "hybrid", {})
+check(len(q) == 1 and q[0]["slot"] == "other", "đề nghị tư vấn không hỏi lại sản phẩm khách đã chọn")
+
+no_promo = "Em chưa có thông tin về việc giảm thêm nữa ạ."
+fake({"sentences": [{"i": 0, "ask": "none", "numbers": [], "facts": ["dang_co_khuyen_mai"]}]})
+_, c = llm_extract.agent(no_promo, {}, [], [], "hybrid", {})
+check(not c, "không coi việc thiếu thông tin giảm thêm là khuyến mãi hiện hành")
 
 print("luật đã sửa")
 check(not any(x["slot"] == "has_children" for x in extractor.agent_questions("Bên em giao trong 2 ngày, chị nhận ở đâu ạ?", {})),

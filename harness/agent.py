@@ -8,6 +8,7 @@ nên giá trong đơn luôn khớp mock của BTC. LLM chỉ lo câu chữ.
 """
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 from core import log as cclog
@@ -24,6 +25,7 @@ CATEGORY_WORDS = [("may loc khong khi", "gia-dung/may-loc-khong-khi"), ("may loc
                   ("ao khoac", "thoi-trang/ao"), ("may hut sua", "me-be"), ("xe day", "me-be"), ("binh sua", "me-be"),
                   ("may ham sua", "me-be"), ("ghe o to", "me-be")]
 log = cclog.get("agent")
+_POST_EXTRACTOR_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="agent-extract")
 STACKABLE_SKIP = {"COD-0", "NAM-SHIP0"}
 FILTER_OF = {"SKU-AP-X": "SKU-AP-FLT-X", "SKU-AP-Y": "SKU-AP-FLT-X", "SKU-AP-PRO": "SKU-AP-FLT-P",
              "SKU-XM-4L": "SKU-XM-FLT", "SKU-XM-4P": "SKU-XM-FLT"}
@@ -351,23 +353,52 @@ class CallSession:
                 text_out, guard["action"] = render_offline(plan), "safe_template" if p2 else "coverage_template"
             total_gen += tot2
         t_ready = time.perf_counter()
+        post_parts = {}
+        agent_meta = {}
+        known_for_q = {k: v for k, v in self.known.items()}
+        agent_started = time.perf_counter()
+        agent_future = _POST_EXTRACTOR_POOL.submit(
+            extractor.analyze_agent, text_out, known_for_q, agent_meta, self.focus)
         if pending is not None:
+            customer_wait_started = time.perf_counter()
             late = extractor.customer_slots_finish(pending, slots, settings.extractor_timeout_s)
+            post_parts["customer_slot_wait_ms"] = int((time.perf_counter() - customer_wait_started) * 1000)
             for k, v in late.items():
                 if k not in ("self_name", "claimed_prices"):
                     self.known[k] = v
             if late.get("self_name") and self.customer and not self.customer.get("name"):
                 self.customer["name"] = late["self_name"]
+        questions, claims = agent_future.result()
+        post_parts["agent_extraction_wall_ms"] = int((time.perf_counter() - agent_started) * 1000)
+        # Customer slots may have completed while agent extraction was running. Recheck
+        # confirmation labels against the final known-value set without another model call.
         known_for_q = {k: v for k, v in self.known.items()}
-        questions, claims = extractor.analyze_agent(text_out, known_for_q, meta=ext_meta, focus_sku=self.focus)
+        from harness.extractor import CONFIRM_RX, mentions_known
+        for question in questions:
+            if mentions_known(question["text"], question["slot"], known_for_q) or CONFIRM_RX.search(fold(question["text"])):
+                question["type"] = "confirm"
+        for key in ("ms", "dropped_spans"):
+            ext_meta[key] = int(ext_meta.get(key, 0) or 0) + int(agent_meta.get(key, 0) or 0)
+        if agent_meta.get("backend"):
+            ext_meta["backend"] = agent_meta["backend"]
+        fallbacks = [x for x in (ext_meta.get("fallback"), agent_meta.get("fallback")) if x]
+        if fallbacks:
+            ext_meta["fallback"] = " | ".join(dict.fromkeys(fallbacks))
         used = extractor.facts_used(text_out, [tc["args"] for tc in tool_log], self.carried)
+        memory_started = time.perf_counter()
         mem_writes = self._remember(slots, route)
+        post_parts["memory_write_ms"] = int((time.perf_counter() - memory_started) * 1000)
         self.history += [{"role": "customer", "text": text}, {"role": "agent", "text": text_out}]
+        turn_log_ms = 0
         if self.customer and self.customer.get("customer_id"):
+            turn_log_started = time.perf_counter()
             self.mem.log_turn(self.session_id, self.turn_no, text, text_out, {"focus": self.focus, "intent": route["intent"]})
+            turn_log_ms = int((time.perf_counter() - turn_log_started) * 1000)
+        post_parts["turn_log_ms"] = turn_log_ms
         pre_ms = int((t_gen - t_start) * 1000)
         total_ms = int((t_ready - t_start) * 1000)
         post_ms = int((time.perf_counter() - t_ready) * 1000)
+        end_to_end_ms = int((time.perf_counter() - t_start) * 1000)
         ms = lambda a, b: int((b - a) * 1000)
         parts = {"perceive_ms": ms(t_start, t_perceive), "slots_ms": ms(t_perceive, t_slots), "identity_ms": ms(t_slots, t_identity),
                  "router_ms": ms(t_identity, t_route), "plan_ms": ms(t_route, t_plan), "plan_tools_ms": int(tools_ms),
@@ -375,7 +406,8 @@ class CallSession:
                  "llm_gen_ms": max(0, llm1_total - llm1_ttft), "guard_ms": ms(t_gen1, t_guard), "regen_ms": ms(t_guard, t_ready)}
         row = {"customer_text": text, "agent_text": text_out, "questions": questions, "facts_used": used, "claims": claims,
                "tool_calls": [{"name": tc["name"], "args": tc["args"], "result": tc["result"]} for tc in tool_log],
-               "latency": {"ttft_ms": pre_ms + ttft, "total_ms": total_ms, "ttfa_ms": None, "post_ms": post_ms, "parts": parts},
+               "latency": {"ttft_ms": pre_ms + ttft, "total_ms": total_ms, "end_to_end_ms": end_to_end_ms,
+                           "ttfa_ms": None, "post_ms": post_ms, "parts": parts, "post_parts_ms": post_parts},
                "memory_writes": mem_writes,
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},

@@ -129,6 +129,21 @@ def eval_customer(items):
             "logprob_samples": logprob_samples}
 
 
+def eval_facts_used(items):
+    counts = {"tp": 0, "fp": 0, "fn": 0}
+    errors = []
+    for it in items:
+        expected = set(it["facts_used"])
+        predicted = set(extractor.facts_used(it["text"], it.get("tool_args", []), it.get("carried", {})))
+        counts["tp"] += len(expected & predicted)
+        counts["fp"] += len(predicted - expected)
+        counts["fn"] += len(expected - predicted)
+        if expected != predicted:
+            errors.append({"id": it["id"], "expected": sorted(expected), "predicted": sorted(predicted),
+                           "text": it["text"]})
+    return {**prf(**counts), "errors": errors}
+
+
 def fmt(x):
     return "     -" if x is None else f"{100 * x:6.1f}"
 
@@ -139,11 +154,13 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "runs", "extract_eval.json"))
     a = ap.parse_args()
     agent_items, cust_items = load("agent.jsonl"), load("customer.jsonl")
+    facts_used_items = load("facts_used.jsonl")
     settings.extractor_async = False
     report = {"n_agent": len(agent_items), "n_customer": len(cust_items), "modes": {}}
     for mode in a.modes:
         os.environ["EXTRACTOR_BACKEND"] = settings.extractor_backend = mode
-        r = {"agent": eval_agent(agent_items), "customer": eval_customer(cust_items)}
+        r = {"agent": eval_agent(agent_items), "customer": eval_customer(cust_items),
+             "facts_used": eval_facts_used(facts_used_items)}
         report["modes"][mode] = r
         ag, cu = r["agent"], r["customer"]
         print(f"\n== {mode}  (agent {len(agent_items)} câu, khách {len(cust_items)} câu; ms p50 agent {ag['ms_p50']:.0f}, "
@@ -155,6 +172,9 @@ def main():
         for name, s in rows:
             print(f"{name:28}{fmt(s['precision'])}{fmt(s['recall'])}{fmt(s['f1'])}   {s['tp']}/{s['fp']}/{s['fn']}")
         print(f"đúng slot câu hỏi: {fmt(ag['questions']['slot_acc'])}%   đúng loại open/confirm: {fmt(ag['questions']['type_acc'])}%")
+        fu = r["facts_used"]
+        print(f"facts_used (bộ hồi quy {len(facts_used_items)} ca): {fmt(fu['precision'])}{fmt(fu['recall'])}{fmt(fu['f1'])}   "
+              f"{fu['tp']}/{fu['fp']}/{fu['fn']}")
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     json.dump(report, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"\n→ {a.out}")

@@ -132,7 +132,20 @@
           "type": "integer"
         },
         "total_ms": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Từ đầu lượt đến khi câu trả lời qua guardrail (response-ready, chưa gồm xử lý hậu kỳ)"
+        },
+        "end_to_end_ms": {
+          "type": "integer",
+          "description": "Thời gian từ đầu lượt đến khi trích xuất hậu kỳ và ghi bộ nhớ/trace xong"
+        },
+        "post_ms": {
+          "type": "integer",
+          "description": "Thời gian sau khi câu trả lời qua guardrail đến khi hoàn tất lượt"
+        },
+        "post_parts_ms": {
+          "type": "object",
+          "description": "Breakdown xử lý hậu kỳ của harness"
         },
         "ttfa_ms": {
           "type": [

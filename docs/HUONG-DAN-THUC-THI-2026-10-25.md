@@ -230,7 +230,7 @@ Tài liệu này dành cho phiên Claude **phụ trách viết code**. Đề xu�
 4. Dùng [REVIEW-QUESTION-CLF-200.csv](REVIEW-QUESTION-CLF-200.csv) có nhãn người rà để đánh giá luật, Jev và hợp hai nguồn qua `scripts/evaluate_question_detection.py` trên Kaggle. Báo precision, recall, F1, lỗi API, p50/p95. Ngưỡng 0,75 là cấu hình từ thử nghiệm cũ; bộ 200 câu hiện tại không phải holdout mới để chứng minh tăng chất lượng.
 5. Khi có lỗi, sửa luật hoặc prompt/tiêu chí Jev trên dữ liệu dev; giữ một holdout mới chưa dùng để quyết định phiên bản. Không fit trọng số, không chưng cất hoặc xuất model local.
 
-**Tiêu chí xem xét bật Jev:** precision ≥ 95%, recall ≥ 85% trên holdout mới; ghi rõ chi phí và độ trễ API. Kết quả Kaggle 27/10 (40 câu test) là Jev + luật precision 100%, recall 80%, chưa đạt ngưỡng recall. Model local được fit trong thử nghiệm cũ đã bị loại khỏi đường chạy và không dùng cho cấu hình nộp bài; chi tiết lịch sử ở [NHAT-KY-2026-10-27.md](NHAT-KY-2026-10-27.md).
+**Tiêu chí nội bộ để xem xét bật Jev (không phải ngưỡng của đề thi):** precision ≥ 95%, recall ≥ 85% trên holdout mới; ghi rõ chi phí và độ trễ API. Kết quả Kaggle 27/10 (40 câu test) là Jev + luật precision 100%, recall 80%, chưa đạt mốc recall nội bộ. Model local được fit trong thử nghiệm cũ đã bị loại khỏi đường chạy và không dùng cho cấu hình nộp bài; chi tiết lịch sử ở [NHAT-KY-2026-10-27.md](NHAT-KY-2026-10-27.md).
 
 ---
 

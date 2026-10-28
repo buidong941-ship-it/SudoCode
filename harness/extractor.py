@@ -21,9 +21,18 @@ KIDS_RX = re.compile(r"(?<!mau )\b(be|con nho|em be|tre nho|tre con|chau nho)\b"
 
 BLOCKERS = [(r"(hoi|ban voi) (chong|ong xa|anh nha|bo no)", "can hoi chong"), (r"(hoi|ban voi) (vo|ba xa|chi nha|me no)", "can hoi vo"),
             (r"hoi (con|nguoi nha|gia dinh|bo me|me)", "can hoi nguoi nha"), (r"(so sanh|so gia|tham khao) (gia|them)", "so sanh gia"),
-            (r"(can nhac|suy nghi|xem them|tim hieu them)", "can nhac")]
+            (r"(can nhac|suy nghi|xem them|tim hieu them|de (cuoi tuan )?(anh|chi|em) quyet)", "can nhac")]
 ADDRESS_RX = re.compile(r"(?:giao (?:về|tới|đến|cho \w+ (?:về|tới|ở))|địa chỉ(?: mới| giao)?(?: là|:)?|(?:giờ|hiện|nhà) (?:chị|anh|em|cô|chú)? ?ở|chuyển (?:nhà|về) (?:ra|vào|về|tới)?)\s+"
                         r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=\s+(?:nhé|nha|nhá|ạ|em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|hả|vậy)\b|[.!?]|$)", re.I)
+
+CUSTOMER_LLM_CUE_RX = re.compile(
+    r"\d|m2|m²|mét vuông|diện tích|phòng|bé|em bé|trẻ nhỏ|trẻ con|con nhỏ|ngân sách|tầm|khoảng|"
+    r"giá|shopee|lazada|tiki|sàn|bên kia|bên khác|size|cỡ|màu|giao|địa chỉ|cod|thanh toán|"
+    r"chuyển khoản|momo|zalopay|ông xã|bà xã|anh nhà|chị nhà|người nhà|cân nhắc|so sánh|"
+    r"gọi lại|liên lạc|báo lại|tên là|chị là|anh là|cô là|chú là|\bnhà\b|tháng|tuổi|"
+    r"đắt|mắc|giảm|bớt|đang dùng|đang xài|đã có|có sẵn|nhà có",
+    re.I,
+)
 
 
 def customer_slots(text, today, meta=None, context=None):
@@ -32,6 +41,13 @@ def customer_slots(text, today, meta=None, context=None):
         return rules
     from harness import llm_extract
     return llm_extract.customer_slots(text, today, rules, settings.extractor_backend, meta, context)
+
+
+def customer_llm_candidate(text, context=None):
+    """Cheap high-recall gate: skip customer LLM extraction for text with no slot cues."""
+    if context and len(text.strip()) <= 32:
+        return True
+    return bool(CUSTOMER_LLM_CUE_RX.search(text))
 
 
 def analyze_agent(text, known_values, meta=None, focus_sku=None):
@@ -48,6 +64,10 @@ def customer_slots_start(text, today, meta=None, context=None):
         return customer_slots(text, today, meta, context), None
     from harness import llm_extract
     rules = customer_slots_rules(text, today)
+    if not customer_llm_candidate(text, context):
+        if meta is not None:
+            meta["customer_llm_skipped"] = "no_slot_cue"
+        return dict(rules), None
     return dict(rules), llm_extract.submit_customer_slots(text, today, rules, meta, context)
 
 
@@ -64,8 +84,9 @@ def customer_slots_rules(text, today):
     if KIDS_RX.search(f) and not re.search(r"khong co (be|con)", f):
         out["has_children"] = True
     for s, e, v in find_money(text):
-        ctx = fold(text[max(0, s - 30):e + 15])
-        if re.search(r"ben (kia|khac)|shopee|lazada|cho khac|tiki", ctx): out["competitor_price_vnd"] = v
+        ctx = fold(text[max(0, s - 80):e + 15])
+        if re.search(r"ben (kia|khac)|shopee|lazada|cho khac|tiki|san thuong mai dien tu|tren san", ctx):
+            out["competitor_price_vnd"] = v
         elif re.search(r"(bao|noi|bao gia|thay|giam xong|con)\b", ctx) and not re.search(r"ngan sach", ctx):
             out.setdefault("claimed_prices", []).append(v)
         elif re.search(r"ngan sach|tam|khoang|toi da|duoi|co (tam|khoang)", ctx): out["budget_vnd"] = v
@@ -92,9 +113,9 @@ def customer_slots_rules(text, today):
     if m: out["household_size"] = int(m.group(1))
     m = re.search(r"\b(?:be|con|chau)\b[^.?!]{0,20}?\b(\d{1,2}) (thang|tuoi)\b", f)
     if m: out["baby_age"] = f"{int(m.group(1))} {'tháng' if m.group(2) == 'thang' else 'tuổi'}"
-    if re.search(r"\b(dat (hon|qua|the|vay)|mac (hon|qua)|chenh (the|qua|vay|hon)|gia cao|chat qua)\b", f):
+    if re.search(r"\b(dat (hon|qua|the|vay)|mac (hon|qua)|chenh (the|qua|vay|hon)|gia cao|chat qua|re hon)\b", f):
         out["objection"] = "dat_qua"
-    elif re.search(r"\b(bot (cho|di|gia|chut)|giam (them|gia) (cho|di|duoc)|ep gia|gia thap nhat)\b", f):
+    elif re.search(r"\b(bot (cho|di|gia|chut)|giam (them|gia) (cho|di|duoc)|giam duoc (khong|khong a)|ep gia|gia thap nhat)\b", f):
         out["objection"] = "ep_gia"
     m = re.search(r"\b(dang dung|dang xai|da co|co san|nha co)\b([^.?!]{0,40})", f)
     if m:
@@ -117,14 +138,18 @@ SLOT_KW = [
     ("payment", r"(thanh toan|cod|chuyen khoan)"),
     ("customer_name", r"(ten (gi|la gi)|xung ho|goi .* the nao)"),
     ("phone", r"(so dien thoai|sdt)"),
-    ("blocker", r"(bang khoan|trao doi|anh nha|chi nha|ong xa|ba xa|nguoi nha|da hoi|y kien)"),
+    ("blocker", r"(ban khoan|bang khoan|trao doi|anh nha|chi nha|ong xa|ba xa|nguoi nha|da hoi|y kien)"),
     ("callback_time", r"(goi lai .*(luc|khi) nao|may gio|gio nao|hen .* (luc|ngay))"),
     ("product_advised", r"(san pham nao|mau nao|quan tam (den )?(gi|san pham)|tim (mau|san pham)|loai nao)"),
     ("order_id", r"ma don"),
     ("confirm_order", r"(len don|chot don|dat hang)"),
 ]
 REQUEST_RX = re.compile(r"\b(cho em xin|xin (anh|chi|co|chu|minh|ban) (cho em )?(biet|ten|so|dia chi)|(anh|chi|co|chu|minh|ban) cho em biet"
-                        r"|(anh|chi|co|chu|minh|ban) (doc|nhan|gui) (giup|cho) em)\b")
+                        r"|(anh|chi|co|chu|minh|ban) (doc|nhan|gui) (giup|cho) em)\b"
+                        r"|\b(anh|chi|co|chu|minh|ban|quy khach) (co the )?(len|gui|doc|nhan) (dia chi|so dien thoai)\b"
+                        r"|\b(anh|chi|co|chu|minh|ban|quy khach) (goi lai|hen)\b[^.!?]*\b(khi nao|luc nao|may gio|gio nao)\b")
+QUESTION_CUE_RX = re.compile(r"\b(khi nao|luc nao|may gio|gio nao|o dau|bao nhieu|loai nao|mau nao|size nao|mau gi|"
+                             r"co phai|dung khong|phai khong|con .{0,24} ban khoan gi khong)\b")
 CONFIRM_RX = re.compile(r"(dung khong|phai khong|dung a|van (lay|giu|la|o|dung)|\bnhi\b|chu a\b|nhu cu|hay (la )?(van|doi)|xac nhan|co phai)")
 
 
@@ -167,7 +192,7 @@ def agent_questions(text, known_values, use_classifier=False):
     out = []
     for s in _sentences(text):
         f = fold(s)
-        if not s.endswith("?") and not REQUEST_RX.search(f):
+        if not s.endswith("?") and not REQUEST_RX.search(f) and not QUESTION_CUE_RX.search(f):
             pt = question_prob(s) if use_classifier else None
             if not pt or pt[0] < pt[1]:
                 continue
@@ -224,17 +249,17 @@ def _sentence_claims(s, claims, focus_sku):
         if re.search(r"(gia|con|chi|tong|thanh tien|la|ban|niem yet)", ctx) or re.search(r"^\s*(a|thoi|nhe)", after):
             then_final = any(re.search(r"(giam|uu dai|ap ma|khuyen mai|tru|thu cu).*\bcon\s*$", fold(s[en:st2])) for st2, _, _ in monies[i + 1:])
             field = "list_price_vnd" if not final and (then_final or re.search(r"niem yet|gia goc", ctx)) else "price_vnd"
-            if re.search(r"(hom truoc|lan truoc|hom \d|truoc day|da bao|da tu van|co tu van)", f) \
+            if re.search(r"(hom truoc|lan truoc|hom \d|truoc day|da bao (muc )?gia|gia da bao la|da tu van|co tu van)", f) \
                     or re.search(r"^\W*d?\W*(la|chinh la)\s+(muc\s+)?gia\s+(khi|luc|cu|truoc|hom)", fold(s[en:en + 45])):
                 field = "price_quoted_vnd"
             claims.append({"field": field, "value": v, "text": s})
-    if re.search(r"(het han|da ket thuc|khong con ap dung|het chuong trinh|het khuyen mai)", f):
+    if re.search(r"\b(het han|da ket thuc|khong con ap dung|het chuong trinh|het khuyen mai)\b", f):
         claims.append({"field": "promo_active", "value": False, "text": s})
     elif re.search(r"(chua co|khong co|chua ap dung|khong ap dung) (them )?(chuong trinh|khuyen mai|uu dai)", f) and not re.search(r"\bngoai\b", f):
         claims.append({"field": "promo_active", "value": False, "text": s})
     elif re.search(r"uu dai mien phi (giao|van chuyen|ship)", f) and not re.search(r"(khuyen mai|giam|tang kem|duoc tang)", f):
         pass
-    elif re.search(r"(dang co|van con|dang ap dung|duoc tang|co khuyen mai|uu dai|tang kem|giam con)", f) and re.search(r"(khuyen mai|uu dai|tang|giam)", f) \
+    elif re.search(r"(dang co|van con|dang ap dung|duoc tang|co khuyen mai|uu dai|tang kem|giam con|dung ma|ap ma|bao gom)", f) and re.search(r"(khuyen mai|uu dai|tang|giam)", f) \
             and not re.search(r"\b(chua|khong|chang)\b(\s+\w+){0,4}\s+(khuyen mai|uu dai|qua tang|tang|giam)", f):
         claims.append({"field": "promo_active", "value": True, "text": s})
     if re.search(r"(tam het|het hang|het mat|chua co hang|(khong|chua) con hang)", f):
@@ -282,7 +307,27 @@ AI_CLAIM_RX = re.compile(r"\b(em|minh|toi) (la|chi la) (tro ly (ao|ai)|ai|tri tu
 def facts_used(text, tool_args_list, carried):
     used, low = [], text.lower()
     f = fold(text)
-    args_blob = " ".join(str(v).lower() for a in tool_args_list for v in a.values())
+    arg_values, arg_numbers = set(), set()
+
+    def collect_values(value):
+        if isinstance(value, dict):
+            for child in value.values():
+                collect_values(child)
+        elif isinstance(value, (list, tuple, set)):
+            for child in value:
+                collect_values(child)
+        else:
+            arg_values.add(str(value).lower())
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                arg_numbers.add(value)
+
+    for args in tool_args_list:
+        collect_values(args)
+
+    def has_phrase(phrase):
+        phrase = fold(str(phrase)).strip()
+        return bool(phrase and re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", f))
+
     for slot, val in carried.items():
         if val in (None, "", [], {}):
             continue
@@ -297,18 +342,19 @@ def facts_used(text, tool_args_list, carried):
             hit = bool(re.search(r"(khuyen mai|uu dai|tang kem|qua tang|chinh hang|gia tot nhat|giam them)", f))
         elif slot == "owned_product":
             from harness.tools import find_products, mt
-            hit = (mt._parent(val)[0] or {}).get("sku") in find_products(text) or str(val).lower() in args_blob
+            hit = (mt._parent(val)[0] or {}).get("sku") in find_products(text) or str(val).lower() in arg_values
         elif isinstance(val, int):
-            hit = any(v == val for _, _, v in find_money(text)) or bool(re.search(rf"\b{val}\s*(m2|m²|mét|m\b)", low)) or str(val) in args_blob
+            hit = any(v == val for _, _, v in find_money(text)) or bool(re.search(rf"\b{val}\s*(m2|m²|mét|m\b)", low)) or val in arg_numbers
         else:
             sval = str(val).lower()
             if slot == "blocker":
                 hit = bool(re.search(r"(anh nha|chi nha|ong xa|ba xa|nguoi nha|trao doi|hoi y kien|so sanh|can nhac)", f))
             elif slot == "product_advised":
                 from harness.tools import product_name
-                hit = sval in args_blob or fold(product_name(val)).split()[-1] in f.split() and fold(product_name(val)).split()[-2] in f
+                words = fold(product_name(val)).split()
+                hit = sval in arg_values or (len(words) >= 2 and has_phrase(" ".join(words[-2:])))
             else:
-                hit = sval in low or sval in args_blob or fold(sval) in f
+                hit = has_phrase(sval) or sval in arg_values
         if hit:
             used.append(slot)
     return used

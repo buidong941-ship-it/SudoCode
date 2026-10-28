@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+from contextlib import nullcontext
 import hashlib
 import json
 import os
@@ -63,28 +64,31 @@ def main():
     ap.add_argument("--csv", default=os.path.join(ROOT, "docs", "REVIEW-QUESTION-CLF-200.csv"))
     ap.add_argument("--out", required=True)
     ap.add_argument("--threshold", type=float, default=0.75)
+    ap.add_argument("--split-file", help="JSON mapping split name to sample_id list; reports each split separately")
+    ap.add_argument("--checkpoint", help="Existing Jev predictions JSONL; defaults to <out>/jev_predictions.jsonl")
+    ap.add_argument("--cached-only", action="store_true", help="Score only cached predictions without Jev calls")
     ap.add_argument("--max-calls", type=int, default=0, help="0 = đánh giá toàn bộ CSV; số dương = giới hạn API call mới")
     args = ap.parse_args()
     if not 0 <= args.threshold <= 1 or args.max_calls < 0:
         ap.error("threshold phải trong [0,1] và max-calls không âm")
     rows = read_labels(args.csv)
     os.makedirs(args.out, exist_ok=True)
-    checkpoint = os.path.join(args.out, "jev_predictions.jsonl")
+    checkpoint = args.checkpoint or os.path.join(args.out, "jev_predictions.jsonl")
     cached = load_checkpoint(checkpoint)
-    if not settings.typesafe_api_key and any(
+    if not args.cached_only and not settings.typesafe_api_key and any(
             (row["sample_id"], hashlib.sha256(row["sentence_dev_or_sample"].strip().encode("utf-8")).hexdigest())
             not in cached for row in rows):
         raise SystemExit("Thiếu TYPESAFE_API_KEY để gọi Jev cho các câu chưa có checkpoint.")
-    jev = JevQuestionClassifier(threshold=args.threshold)
+    jev = None if args.cached_only else JevQuestionClassifier(threshold=args.threshold)
     observed = []
     new_calls = 0
-    with open(checkpoint, "a", encoding="utf-8") as fh:
+    with (nullcontext(None) if args.cached_only else open(checkpoint, "a", encoding="utf-8")) as fh:
         for row in rows:
             sentence = row["sentence_dev_or_sample"].strip()
             digest = hashlib.sha256(sentence.encode("utf-8")).hexdigest()
             key = (row["sample_id"], digest)
             item = cached.get(key)
-            if item is None and (args.max_calls == 0 or new_calls < args.max_calls):
+            if item is None and not args.cached_only and (args.max_calls == 0 or new_calls < args.max_calls):
                 prediction = jev.predict(sentence)
                 item = {"sample_id": key[0], "text_sha256": key[1],
                         "probability": prediction.probability,
@@ -105,6 +109,7 @@ def main():
     latencies = [item["latency_ms"] for _, _, item in observed if item["probability"] is not None]
     report = {"status": "complete" if len(observed) == len(rows) else "partial",
               "labeled": len(rows), "evaluated": len(observed), "new_jev_calls": new_calls,
+              "prediction_source": "historical_cache" if args.cached_only else "current_jev",
               "threshold": args.threshold, "model_training": False,
               "rules": metrics(rules, gold), "jev_only": metrics(jev_only, gold),
               "jev_plus_rules": metrics(combined, gold),
@@ -113,6 +118,23 @@ def main():
               "latency_ms_p50": statistics.median(latencies) if latencies else None,
               "latency_ms_p95": percentile(latencies, 0.95),
               "note": "Đánh giá mô tả trên nhãn hiện có; ngưỡng 0.75 đã được chọn trong thử nghiệm trước, không coi đây là holdout mới."}
+    if args.split_file:
+        with open(args.split_file, encoding="utf-8") as fh:
+            splits = json.load(fh)
+        known_ids = {row["sample_id"] for row in rows}
+        used_ids = [sample_id for ids in splits.values() for sample_id in ids]
+        if len(used_ids) != len(set(used_ids)) or set(used_ids) != known_ids:
+            raise SystemExit("Split phải phân hoạch chính xác toàn bộ sample_id trong CSV.")
+        report["splits"] = {}
+        for name, ids in splits.items():
+            split_ids = set(ids)
+            subset = [(row, sentence, item) for row, sentence, item in observed if row["sample_id"] in split_ids]
+            labels = [int(row["human_label_0_or_1"]) for row, _, _ in subset]
+            rules_pred = [bool(extractor.agent_questions(sentence, {})) for _, sentence, _ in subset]
+            jev_pred = [item["probability"] is not None and item["probability"] >= args.threshold for _, _, item in subset]
+            report["splits"][name] = {"n": len(subset), "rules": metrics(rules_pred, labels),
+                                      "jev_only": metrics(jev_pred, labels),
+                                      "jev_plus_rules": metrics([r or j for r, j in zip(rules_pred, jev_pred)], labels)}
     with open(os.path.join(args.out, "question_detection_report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=2)
     with open(os.path.join(args.out, "question_detection_predictions.csv"), "w", encoding="utf-8-sig", newline="") as fh:

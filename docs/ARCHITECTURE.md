@@ -205,7 +205,7 @@ harness/
   perceive.py       # chuẩn hóa teencode/không dấu, ITN số tiền/SĐT/ngày tương đối, mask PII
   identity.py       # SĐT/Zalo/FB → customer_id | ambiguous | new
   brief.py          # Call Brief (schemas/call_brief.schema.json)
-  agent.py          # vòng lặp LLM + tool (function calling)
+  agent.py          # vòng lặp harness; planner bằng code chọn goal và gọi tool, LLM sinh lời thoại
   guardrails.py     # pre-tool, post-response
   extractor.py      # questions[] / claims[] / facts (regex + LLM, cấu hình được)
   memory_writer.py  # memory policy mục 3.1

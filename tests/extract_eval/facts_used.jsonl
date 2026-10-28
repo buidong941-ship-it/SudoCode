@@ -1,0 +1,16 @@
+{"id":"F001","text":"Phòng 25m² này hợp với nhu cầu nhà mình.","tool_args":[],"carried":{"room_area_m2":25},"facts_used":["room_area_m2"]}
+{"id":"F002","text":"Mẫu này có thiết kế gọn, dễ vệ sinh.","tool_args":[],"carried":{"room_area_m2":25},"facts_used":[]}
+{"id":"F003","text":"Mức giá này nằm trong ngân sách 8 triệu chị nói.","tool_args":[],"carried":{"budget_vnd":8000000},"facts_used":["budget_vnd"]}
+{"id":"F004","text":"Nhà có bé nhỏ thì mình ưu tiên mẫu có khóa an toàn.","tool_args":[],"carried":{"has_children":true},"facts_used":["has_children"]}
+{"id":"F005","text":"Dạ, nhà mình chưa có bé nên mẫu này vẫn phù hợp.","tool_args":[],"carried":{"has_children":false},"facts_used":["has_children"]}
+{"id":"F006","text":"Máy phù hợp cho gia đình có 3 thành viên.","tool_args":[],"carried":{"household_size":3},"facts_used":["household_size"]}
+{"id":"F007","text":"Bé nhà chị mới 6 tháng tuổi, em ưu tiên chế độ an toàn.","tool_args":[],"carried":{"baby_age":"6 tháng"},"facts_used":["baby_age"]}
+{"id":"F008","text":"Em gửi chị chương trình khuyến mãi để cân đối mức giá nhé.","tool_args":[],"carried":{"objection":"dat_qua"},"facts_used":["objection"]}
+{"id":"F009","text":"Em kiểm tra phụ kiện tương thích với máy nhà chị đang dùng.","tool_args":[{"sku":"SKU-AP-X"}],"carried":{"owned_product":"SKU-AP-X"},"facts_used":["owned_product"]}
+{"id":"F010","text":"Chị cứ trao đổi thêm với ông xã rồi báo em nhé.","tool_args":[],"carried":{"blocker":"can hoi chong"},"facts_used":["blocker"]}
+{"id":"F011","text":"Em lên báo giá AirPure Pro cho chị nhé.","tool_args":[{"sku":"SKU-AP-X"}],"carried":{"product_advised":"SKU-AP-X"},"facts_used":["product_advised"]}
+{"id":"F012","text":"Em cập nhật giao hàng tới 12 Nguyễn Trãi, Hà Nội.","tool_args":[{"address":"12 Nguyễn Trãi, Hà Nội"}],"carried":{"address":"12 Nguyễn Trãi, Hà Nội"},"facts_used":["address"]}
+{"id":"F013","text":"Màu navy sẽ hợp với lựa chọn của chị.","tool_args":[],"carried":{"color":"navy"},"facts_used":["color"]}
+{"id":"F014","text":"Đơn này chị chọn thanh toán COD khi nhận hàng.","tool_args":[],"carried":{"payment":"COD"},"facts_used":["payment"]}
+{"id":"F015","text":"Dạ chị Hạnh, em đã cập nhật thông tin cho mình.","tool_args":[],"carried":{"self_name":"Hạnh"},"facts_used":["self_name"]}
+{"id":"F016","text":"Sản phẩm này có số lượng 15 chiếc.","tool_args":[{"quantity":15}],"carried":{"budget_vnd":5000000},"facts_used":[]}
