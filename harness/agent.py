@@ -295,14 +295,19 @@ class CallSession:
         stale = {v for q in self.prev_quotes for v in (q["final_price_vnd"],) if v and cur and v != cur and v not in tool_now}
         from core.llm.generator import render_offline
         guard = {"problems": [], "action": None}
+        adaptive_second = (settings.gen_adaptive_second and settings.gen_parallel_n == 2
+                           and self.gen.backend in ("deepseek", "qwen"))
+        if adaptive_second:
+            guard["candidate_strategy"] = "adaptive"
         t_gen = time.perf_counter()
+        problems = cov = None
         try:
-            candidates = self.gen.generate_candidates(plan)
+            candidates = self.gen.generate_candidates(
+                plan, count=1, first_temperature=0.0) if adaptive_second else self.gen.generate_candidates(plan)
             total_gen = candidates[0].get("parallel_total", candidates[0]["total"])
             ttft = min(c["ttft"] for c in candidates)
             usage = candidates[0]["usage"]
             text_out = candidates[0]["text"]
-            problems = cov = None
             for i, candidate in enumerate(candidates):
                 self.gen.fill_problems = candidate["fill_problems"]
                 p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
@@ -340,7 +345,8 @@ class CallSession:
             note = "; ".join(problems + cov) + ("" if not bad else ". Viết lại và KHÔNG được có các số: "
                                                + ", ".join(f"{v:,}đ".replace(",", ".") for v in bad))
             try:
-                text2, ttft2, tot2, _ = self.gen.generate(plan, retry_note=note)
+                text2, ttft2, tot2, _ = self.gen.generate(
+                    plan, retry_note=note, temperature=0.7 if adaptive_second else None)
             except Exception as e:
                 log.error("generator %s lỗi khi sinh lại → câu mẫu: %s", self.gen.backend, type(e).__name__)
                 text2, tot2 = render_offline(plan), 0
@@ -414,6 +420,14 @@ class CallSession:
                "goals": goals, "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", "rules"), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
+        if "jev_slot_requests" in agent_meta:
+            row["extractor"].update({"question_backend": "jev_slots_experimental",
+                                     "jev_slot_requests": agent_meta["jev_slot_requests"],
+                                     "jev_slot_ms": agent_meta["jev_slot_ms"],
+                                     "jev_slot_errors": agent_meta["jev_slot_errors"]})
+        if agent_meta.get("agent_qwen_skipped"):
+            row["extractor"]["agent_claim_backend"] = "rules"
+            row["extractor"]["agent_qwen_skipped"] = True
         if self.turn_no == 1:
             row["call_brief_latency_ms"] = self.brief_ms if self.call_name != "call_1" else None
             row["call_brief"] = self.brief

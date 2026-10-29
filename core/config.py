@@ -63,6 +63,7 @@ class Settings:
     reply_style: str = field(default_factory=lambda: _env("REPLY_STYLE", "normal"))
     gen_placeholders: bool = field(default_factory=lambda: _env("GEN_PLACEHOLDERS", "0") not in ("0", "off", "false"))
     gen_parallel_n: int = field(default_factory=lambda: max(1, min(2, int(_env("GEN_PARALLEL_N", "1")))))
+    gen_adaptive_second: bool = field(default_factory=lambda: _env("GEN_ADAPTIVE_SECOND", "0") not in ("0", "off", "false"))
     extract_logprobs: bool = field(default_factory=lambda: _env("EXTRACT_LOGPROBS", "0") not in ("0", "off", "false"))
     extract_logprob_top_n: int = field(default_factory=lambda: max(1, min(5, int(_env("EXTRACT_LOGPROB_TOP_N", "5")))))
     extract_logprob_thresholds: dict = field(default_factory=lambda: _json_env("EXTRACT_LOGPROB_THRESHOLDS", {}))
@@ -75,6 +76,8 @@ class Settings:
     qwen_thinking: str = field(default_factory=lambda: _env("QWEN_THINKING", "disabled"))
 
     extractor_backend: str = field(default_factory=lambda: _env("EXTRACTOR_BACKEND", "rules"))
+    agent_question_backend: str = field(default_factory=lambda: _env("AGENT_QUESTION_BACKEND", "current").lower())
+    agent_claim_backend: str = field(default_factory=lambda: _env("AGENT_CLAIM_BACKEND", "current").lower())
     extractor_llm: str = field(default_factory=lambda: _env("EXTRACTOR_LLM", "qwen"))
     extractor_timeout_s: float = field(default_factory=lambda: float(_env("EXTRACTOR_TIMEOUT_S", "10")))
     extractor_async: bool = field(default_factory=lambda: _env("EXTRACTOR_ASYNC", "1") not in ("0", "off", "false"))
@@ -100,6 +103,7 @@ class Settings:
                 "deepseek_base_url": self.deepseek_base_url, "llm_temperature": self.llm_temperature,
                 "llm_max_tokens": self.llm_max_tokens, "reply_style": self.reply_style, "gen_placeholders": self.gen_placeholders,
                 "gen_parallel_n": self.gen_parallel_n,
+                "gen_adaptive_second": self.gen_adaptive_second,
                 "extract_logprobs": self.extract_logprobs,
                 "extract_logprob_top_n": self.extract_logprob_top_n,
                 "extract_logprob_thresholds": self.extract_logprob_thresholds,

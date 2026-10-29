@@ -26,13 +26,16 @@ def main():
         settings.gen_parallel_n = 2
         Generator.generate = fake
         out = Generator("qwen").generate_candidates({})
+        adaptive_first = Generator("qwen").generate_candidates({}, count=1, first_temperature=0.0)
     finally:
         settings.gen_parallel_n = old_n
         Generator.generate = old_generate
-    assert seen == [0.0, 0.7], seen
+    assert seen == [0.0, 0.7, 0.0], seen
     assert [x["temperature"] for x in out] == [0.0, 0.7]
     assert all(x["parallel_total"] < sum(x["total"] for x in out) for x in out)
-    print("TẤT CẢ OK: hai nhiệt độ chạy song song, thứ tự ưu tiên ổn định")
+    assert adaptive_first[0]["temperature"] == 0.0
+    assert len(adaptive_first) == 1 and seen == [0.0, 0.7, 0.0], seen
+    print("TẤT CẢ OK: song song giữ nguyên; nhánh adaptive chỉ sinh câu đầu")
 
 
 if __name__ == "__main__":

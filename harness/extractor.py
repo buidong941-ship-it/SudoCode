@@ -55,8 +55,22 @@ def analyze_agent(text, known_values, meta=None, focus_sku=None):
     c_rules = agent_claims(text, focus_sku=focus_sku)
     if settings.extractor_backend == "rules":
         return q_rules, c_rules
-    from harness import llm_extract
-    return llm_extract.agent(text, known_values, q_rules, c_rules, settings.extractor_backend, meta, focus_sku=focus_sku)
+    if settings.agent_claim_backend == "rules":
+        # Experiment: retain the customer hybrid extractor, but skip the
+        # post-reply Qwen call for agent questions and claims entirely.
+        questions, claims = q_rules, c_rules
+        if meta is not None:
+            meta["agent_qwen_skipped"] = True
+    elif settings.agent_claim_backend == "current":
+        from harness import llm_extract
+        questions, claims = llm_extract.agent(text, known_values, q_rules, c_rules,
+                                              settings.extractor_backend, meta, focus_sku=focus_sku)
+    else:
+        raise ValueError(f"Unknown AGENT_CLAIM_BACKEND: {settings.agent_claim_backend}")
+    if settings.agent_question_backend == "jev_slots_experimental":
+        from harness.question_classifiers.jev_slots import classify_agent_questions
+        questions = classify_agent_questions(text, known_values, meta)
+    return questions, claims
 
 
 def customer_slots_start(text, today, meta=None, context=None):

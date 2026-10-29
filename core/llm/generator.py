@@ -122,12 +122,12 @@ class Generator:
         ms = int((time.perf_counter() - t0) * 1000)
         return text, ms, ms, None
 
-    def generate_candidates(self, plan, retry_note=None):
-        n = settings.gen_parallel_n if self.backend in ("deepseek", "qwen") else 1
+    def generate_candidates(self, plan, retry_note=None, count=None, first_temperature=None):
+        n = (settings.gen_parallel_n if count is None else count) if self.backend in ("deepseek", "qwen") else 1
         if n < 2:
-            text, ttft, total, usage = self.generate(plan, retry_note)
+            text, ttft, total, usage = self.generate(plan, retry_note, temperature=first_temperature)
             return [{"text": text, "ttft": ttft, "total": total, "usage": usage,
-                     "fill_problems": list(self.fill_problems), "temperature": None}]
+                     "fill_problems": list(self.fill_problems), "temperature": first_temperature}]
         from concurrent.futures import ThreadPoolExecutor
         import time
 
