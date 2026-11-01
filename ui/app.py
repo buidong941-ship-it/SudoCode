@@ -176,7 +176,7 @@ with tab_mem:
         rows = [e for e in ev if e["kind"] in kinds and not (only_cur and e["status"].startswith("superseded"))]
         st.dataframe([{"ngày": e["date"], "loại": e["kind"], "mục": e["what"],
                        "nội dung": e["detail"] if isinstance(e["detail"], str) else json.dumps(e["detail"], ensure_ascii=False),
-                       "nguồn": e["source"], "trạng thái": e["status"]} for e in rows], use_container_width=True)
+                       "nguồn": e["source"], "trạng thái": e["status"]} for e in rows], width="stretch")
 
 # ---------- Chỉ số ----------
 with tab_metrics:

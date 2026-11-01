@@ -103,6 +103,52 @@ bash scripts/data_pack.sh            # rồi tải _upload/*.tar.gz lên Drive t
 
 Server thuê thường xóa ổ đĩa khi tắt, nên bước cuối là bắt buộc nếu muốn giữ kết quả.
 
+## 5. Giao diện demo (UI)
+
+UI Streamlit ở `ui/app.py` phục vụ phần demo của đề bài (C.6): khung hội thoại, Call Brief khi khách gọi lại, dòng thời gian bộ nhớ, bảng chỉ số so với baseline, và khu duyệt đề xuất cải tiến. UI tách khỏi core: nó chỉ gọi agent giống `run_eval.py`, không sửa gì trong `harness/` hay `core/`, và dùng DB bộ nhớ riêng.
+
+### 5.1. Cài và mở
+
+```bash
+pip install -r requirements-ui.txt        # = requirements.txt + streamlit (chỉ cần cho UI)
+streamlit run ui/app.py                   # mở http://localhost:8501
+```
+
+Trên Windows, chạy `set PYTHONIOENCODING=utf-8` trước. Nếu chạy trên server, mở cổng bằng `streamlit run ui/app.py --server.address 0.0.0.0 --server.port 8501`, rồi chuyển cổng về máy (`ssh -L 8501:localhost:8501 <server>`).
+
+### 5.2. Chọn backend (thanh bên trái)
+
+| Mục | Lựa chọn | Cần gì |
+|---|---|---|
+| Chế độ | `full` (đọc bộ nhớ) / `baseline_no_memory` | Dùng để so trực tiếp: cùng kịch bản, chỉ khác việc đọc bộ nhớ |
+| Router | `rules` (mặc định) / `jev` / `qwen` / `llm` | `jev` cần `TYPESAFE_API_KEY`; `qwen` cần vLLM ở `QWEN_BASE_URL`; `llm` cần `DEEPSEEK_API_KEY` |
+| Generator | `offline` (mặc định) / `qwen` / `deepseek` | `offline` dùng câu mẫu, không cần mạng hay GPU, máy yếu chạy được; `qwen` cần GPU (vLLM); `deepseek` cần khóa |
+| Tên khách demo | chuỗi bất kỳ | Mỗi tên là một namespace bộ nhớ riêng (`ui:<chế độ>:<tên>`) |
+
+Khóa API đọc từ `.env`, giống phần còn lại của repo. Để demo cho giám khảo với câu trả lời tự nhiên, dùng router `rules` hoặc `jev` cùng generator `qwen` trên máy có GPU (hoặc `deepseek`). Nếu chỉ cần kiểm luồng thì dùng `offline`.
+
+### 5.3. Các tab
+
+- **Cuộc gọi:** nhập SĐT, kênh (hotline / Zalo / fanpage) và ngày gọi (để trống thì lấy 2026-10-15). Bấm **Bắt đầu cuộc gọi mới**, gõ lời khách vào ô chat, rồi bấm **Kết thúc cuộc gọi** để lưu phiên vào bộ nhớ. Gọi lần hai với cùng SĐT và một ngày sau đó thì **Call Brief** hiện ra: khách là ai, phiên trước nói gì, các mục không được hỏi lại, giá đã báo so với giá hiện tại, KM hết hạn, đơn đang có. Mỗi câu trả lời có mục "chi tiết lượt" ghi goal, nhánh planner, tool đã gọi, guardrail, claim và những gì được ghi vào bộ nhớ.
+- **Demo C.6:** chọn chạy tới cuộc 1, 2 hoặc 3, rồi bấm **Chạy demo từ đầu**. Cuộc 1 là khách mới được tư vấn, báo giá kèm KM, hẹn "để hỏi ý vợ". Cuộc 2 diễn ra 3 ngày sau: agent nhận ra khách, mở đầu bằng xác nhận tiếp nối, không hỏi lại thông tin đã có, rồi chốt đơn. Cuộc 3 (mức M2) là khách hỏi vận đơn. Lời khách của demo nằm trong `ui/engine.py` (`DEMO_SCRIPT`), viết riêng cho demo, không lấy từ bộ test.
+- **Bộ nhớ:** dòng thời gian của khách gồm phiên, báo giá và fact, mỗi mục có nguồn và hạn dùng. Fact cũ khi khách đổi ý vẫn hiện, ghi `superseded → #id` của fact mới. Có thể lọc theo loại hoặc ẩn các fact đã bị thay thế.
+- **Chỉ số:** chọn một `report.json` có sẵn dưới `runs/` (do `eval/reference_eval.py` sinh ra, hoặc kéo về từ Kaggle) để xem bảng Baseline so với Hệ thống (RQR, CCR, TSR, HR giá & KM, số lượt, vi phạm guardrail) và danh sách cuộc gọi trượt TSR. Để có số mới, chạy ba lệnh ở mục 2 kèm `--out runs/<tên>/report.json`.
+- **Cải tiến:** nhập tên người duyệt, rồi **Duyệt** hoặc **Loại** từng đề xuất trong `improve/pending/`. Tab này cũng hiện các đề xuất đã duyệt và các vòng đã chụp. Cách gom lỗi và tạo đề xuất bằng dòng lệnh xem ở [docs/HAM-IMPROVE.md](docs/HAM-IMPROVE.md).
+
+### 5.4. Bộ nhớ của UI
+
+- UI ghi vào `data/ui/memory.db`, không ghi vào `data/memory.db` mà `run_eval.py` dùng, nên chơi thử trên UI không làm sai số đo. Muốn dùng DB khác thì đặt `DATABASE_URL=sqlite:///<đường dẫn>` trước khi chạy `streamlit`.
+- Nút **Xoá bộ nhớ khách này** ở thanh bên xoá namespace hiện tại và đặt lại trạng thái mock (đơn đã tạo, tồn kho). Nút **Chạy demo từ đầu** tự xoá trước khi chạy.
+- Mặc định UI gọi tool trực tiếp (`TOOL_TRANSPORT=direct`). Muốn demo đường MCP thì đặt `TOOL_TRANSPORT=mcp`; trace của hai đường giống hệt nhau (`tests/mcp_parity.py`). Lưu ý: ở chế độ MCP, tab Bộ nhớ không hiện dòng thời gian vì nó đọc DB trực tiếp.
+
+### 5.5. Kiểm thử UI
+
+```bash
+python tests/ui_check.py       # chạy kịch bản C.6 không giao diện; nếu đã cài streamlit thì mở app bằng AppTest và bấm nút demo
+```
+
+`tests/smoke.sh` đã gồm bước này.
+
 ---
 
 # Gói dữ liệu BTC — AI Challenge Vòng 1 (Harness Agent Call Center)
