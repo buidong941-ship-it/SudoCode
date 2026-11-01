@@ -39,6 +39,25 @@ def customer_slots(text, today, meta=None, context=None):
     rules = customer_slots_rules(text, today)
     if settings.extractor_backend == "rules":
         return rules
+    if settings.extractor_backend == "hybrid" and settings.extractor_confidence_gate:
+        from harness.rule_confidence import customer as certify_customer
+
+        cert = certify_customer(text, rules, context)
+        if meta is not None:
+            meta["customer_confidence"] = cert
+        if cert["certified"]:
+            if meta is not None:
+                meta["backend"] = "hybrid:certified_rules"
+                meta["customer_qwen_skipped"] = True
+            return rules
+    if settings.extractor_backend == "hybrid" and settings.extractor_jev_hybrid:
+        from harness.jev_hybrid import customer as jev_customer
+        jev_slots = jev_customer(text, rules, meta, context)
+        if jev_slots is not None:
+            if meta is not None:
+                meta["backend"] = "hybrid:jev_grounded_rules"
+                meta["customer_qwen_skipped"] = True
+            return jev_slots
     from harness import llm_extract
     return llm_extract.customer_slots(text, today, rules, settings.extractor_backend, meta, context)
 
@@ -55,6 +74,8 @@ def analyze_agent(text, known_values, meta=None, focus_sku=None):
     c_rules = agent_claims(text, focus_sku=focus_sku)
     if settings.extractor_backend == "rules":
         return q_rules, c_rules
+    if settings.extractor_backend == "hybrid" and (settings.extractor_confidence_gate or settings.extractor_jev_hybrid):
+        return _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_sku)
     if settings.agent_claim_backend == "rules":
         # Experiment: retain the customer hybrid extractor, but skip the
         # post-reply Qwen call for agent questions and claims entirely.
@@ -73,11 +94,109 @@ def analyze_agent(text, known_values, meta=None, focus_sku=None):
     return questions, claims
 
 
+def _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_sku):
+    from harness import llm_extract
+    from harness.rule_confidence import question as certify_question
+
+    sentences = _sentences(text)
+    by_sentence = {s: [q for q in q_rules if q["text"] == s] for s in sentences}
+    certs = [certify_question(s, by_sentence[s], known_values)
+             if settings.extractor_confidence_gate
+             else {"certified": False, "checks": {}, "reason": "gate_disabled"} for s in sentences]
+    certified = {s for s, cert in zip(sentences, certs) if cert["certified"]}
+    if meta is not None:
+        meta["agent_confidence"] = [{"sentence": i, **cert} for i, cert in enumerate(certs)]
+        meta["rule_certified_sentences"] = len(certified)
+        meta["claim_route"] = "current_hybrid"
+    remaining = [s for s in sentences if s not in certified]
+    if not remaining:
+        if meta is not None:
+            meta["agent_qwen_skipped"] = True
+            meta["backend"] = "hybrid:certified_rules"
+        return q_rules, c_rules
+    uncertain_text = " ".join(remaining)
+    uncertain_q = [q for q in q_rules if q["text"] not in certified]
+    uncertain_c = [c for c in c_rules if c["text"] not in certified]
+    jev_questions = settings.extractor_jev_hybrid or settings.agent_question_backend == "jev_slots_experimental"
+    if settings.extractor_jev_hybrid and settings.agent_claim_backend == "current":
+        from harness.jev_hybrid import claims as jev_claims
+        qwen_sentences = []
+        jev_label_meta = meta if meta is not None else {}
+        jev_grounded_claims = []
+        for s in remaining:
+            sentence_claims = [c for c in uncertain_c if c["text"] == s]
+            selected_claims = jev_claims(s, sentence_claims, jev_label_meta)
+            jev_labels = jev_label_meta.get("jev_claim_labels", [])
+            found_labels = jev_labels[-1] if jev_labels else []
+            if selected_claims is None and (llm_extract.CLAIM_HINT_RX.search(fold(s))
+                                             or found_labels or jev_label_meta.get("jev_label_error")):
+                qwen_sentences.append(s)
+            elif selected_claims is not None:
+                jev_grounded_claims.extend(selected_claims)
+        uncertain_c = jev_grounded_claims
+        if meta is not None:
+            meta["claim_route"] = "jev_then_qwen_if_unresolved"
+    else:
+        qwen_sentences = ([s for s in remaining if llm_extract.CLAIM_HINT_RX.search(fold(s))]
+                          if jev_questions else remaining)
+    if settings.agent_claim_backend == "rules":
+        questions, claims = uncertain_q, uncertain_c
+        if meta is not None:
+            meta["agent_qwen_skipped"] = True
+    elif settings.agent_claim_backend == "current" and qwen_sentences:
+        qwen_text = " ".join(qwen_sentences)
+        qwen_q = [q for q in uncertain_q if q["text"] in qwen_sentences]
+        qwen_c = [c for c in uncertain_c if c["text"] in qwen_sentences]
+        questions, claims = llm_extract.agent(qwen_text, known_values, qwen_q, qwen_c,
+                                               "hybrid", meta, focus_sku=focus_sku)
+        known_claims = {(c["field"], str(c["value"]), c["text"]) for c in claims}
+        claims += [c for c in uncertain_c if (c["field"], str(c["value"]), c["text"]) not in known_claims]
+    elif settings.agent_claim_backend == "current":
+        questions, claims = uncertain_q, uncertain_c
+        if meta is not None:
+            meta["agent_qwen_skipped"] = True
+    else:
+        raise ValueError(f"Unknown AGENT_CLAIM_BACKEND: {settings.agent_claim_backend}")
+    if jev_questions:
+        from harness.question_classifiers.jev_slots import classify_agent_questions
+
+        jev_meta = meta if meta is not None else {}
+        questions = classify_agent_questions(uncertain_text, known_values, jev_meta)
+        if jev_meta.get("jev_slot_errors") and settings.agent_claim_backend == "current":
+            fallback_q, fallback_c = llm_extract.agent(uncertain_text, known_values, uncertain_q, uncertain_c,
+                                                        "hybrid", jev_meta, focus_sku=focus_sku)
+            questions = fallback_q
+            known_claims = {(c["field"], str(c["value"]), c["text"]) for c in claims}
+            claims += [c for c in fallback_c if (c["field"], str(c["value"]), c["text"]) not in known_claims]
+    by_text = {q["text"]: q for q in questions}
+    by_text.update({q["text"]: q for q in q_rules if q["text"] in certified})
+    return [by_text[s] for s in sentences if s in by_text], claims
+
+
 def customer_slots_start(text, today, meta=None, context=None):
     if settings.extractor_backend != "hybrid" or not settings.extractor_async:
         return customer_slots(text, today, meta, context), None
     from harness import llm_extract
     rules = customer_slots_rules(text, today)
+    if settings.extractor_confidence_gate:
+        from harness.rule_confidence import customer as certify_customer
+
+        cert = certify_customer(text, rules, context)
+        if meta is not None:
+            meta["customer_confidence"] = cert
+        if cert["certified"]:
+            if meta is not None:
+                meta["customer_qwen_skipped"] = True
+                meta["backend"] = "hybrid:certified_rules"
+            return dict(rules), None
+    if settings.extractor_jev_hybrid:
+        from harness.jev_hybrid import customer as jev_customer
+        jev_slots = jev_customer(text, rules, meta, context)
+        if jev_slots is not None:
+            if meta is not None:
+                meta["customer_qwen_skipped"] = True
+                meta["backend"] = "hybrid:jev_grounded_rules"
+            return dict(jev_slots), None
     if not customer_llm_candidate(text, context):
         if meta is not None:
             meta["customer_llm_skipped"] = "no_slot_cue"

@@ -219,8 +219,14 @@ class CallSession:
         text = p["text"]
         t_perceive = time.perf_counter()
         ext_meta = {}
-        last_agent = next((h["text"] for h in reversed(self.history) if h["role"] == "agent"), None)
-        slots, pending = extractor.customer_slots_start(text, self.today, meta=ext_meta, context=last_agent)
+        recent_context = "\n".join(f"{h['role']}: {h['text']}" for h in self.history[-8:])
+        session_summary = ((self.brief or {}).get("last_session") or {}).get("summary", "")
+        extraction_context = "\n".join(part for part in (
+            f"Tóm tắt phiên trước: {session_summary}" if session_summary else "",
+            f"Hội thoại gần đây:\n{recent_context}" if recent_context else "",
+        ) if part)
+        slots, pending = extractor.customer_slots_start(
+            text, self.today, meta=ext_meta, context=extraction_context or None)
         t_slots = time.perf_counter()
         if p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
             cid = self.customer["customer_id"]
@@ -418,16 +424,39 @@ class CallSession:
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},
                "goals": goals, "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
-               "extractor": {"backend": ext_meta.get("backend", "rules"), "ms": ext_meta.get("ms", 0),
+               "extractor": {"backend": ext_meta.get("backend", settings.extractor_backend), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
         if "jev_slot_requests" in agent_meta:
             row["extractor"].update({"question_backend": "jev_slots_experimental",
                                      "jev_slot_requests": agent_meta["jev_slot_requests"],
                                      "jev_slot_ms": agent_meta["jev_slot_ms"],
                                      "jev_slot_errors": agent_meta["jev_slot_errors"]})
+        if settings.extractor_jev_hybrid:
+            row["extractor"].update({"jev_hybrid": True,
+                                     "jev_label_requests": ext_meta.get("jev_label_requests", 0) + agent_meta.get("jev_label_requests", 0),
+                                     "jev_customer_labels": ext_meta.get("jev_customer_labels"),
+                                     "jev_claim_labels": agent_meta.get("jev_claim_labels", []),
+                                     "jev_customer_error": ext_meta.get("jev_label_error"),
+                                     "jev_agent_error": agent_meta.get("jev_label_error")})
         if agent_meta.get("agent_qwen_skipped"):
-            row["extractor"]["agent_claim_backend"] = "rules"
+            row["extractor"]["agent_claim_backend"] = settings.agent_claim_backend
             row["extractor"]["agent_qwen_skipped"] = True
+        if settings.extractor_confidence_gate:
+            row["extractor"]["confidence_gate"] = True
+            row["extractor"]["customer_confidence"] = ext_meta.get("customer_confidence")
+            row["extractor"]["agent_confidence"] = agent_meta.get("agent_confidence", [])
+            row["extractor"]["rule_certified_sentences"] = agent_meta.get("rule_certified_sentences", 0)
+            row["extractor"]["customer_qwen_skipped"] = ext_meta.get("customer_qwen_skipped", False)
+            row["extractor"]["customer_llm_requests"] = ext_meta.get("request_count", 0)
+            row["extractor"]["agent_llm_requests"] = agent_meta.get("request_count", 0)
+            row["extractor"]["request_count"] = (ext_meta.get("request_count", 0) +
+                                                   agent_meta.get("request_count", 0) +
+                                                   agent_meta.get("jev_slot_requests", 0) +
+                                                   ext_meta.get("jev_label_requests", 0) +
+                                                   agent_meta.get("jev_label_requests", 0))
+            row["extractor"]["customer_backend"] = ext_meta.get("backend", settings.extractor_backend)
+            row["extractor"]["agent_backend"] = agent_meta.get("backend", settings.extractor_backend)
+            row["extractor"]["claim_route"] = agent_meta.get("claim_route", "current_hybrid")
         if self.turn_no == 1:
             row["call_brief_latency_ms"] = self.brief_ms if self.call_name != "call_1" else None
             row["call_brief"] = self.brief

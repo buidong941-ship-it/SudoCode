@@ -79,6 +79,8 @@ def _call(prompt, schema, texts, meta):
             prompt = prompt.replace(a, b)
     t0 = time.perf_counter()
     log_meta = {}
+    if meta is not None:
+        meta["request_count"] = meta.get("request_count", 0) + 1
     d = llm.json(prompt, max_tokens=500, schema=schema, timeout=settings.extractor_timeout_s,
                  system="Bạn là bộ trích xuất thông tin cho cuộc gọi bán hàng tiếng Việt. Chỉ trả JSON hợp lệ.",
                  logprobs=settings.extract_logprobs and not llm.external,
@@ -280,6 +282,7 @@ def collect_customer_slots(pending, slots, wait):
             slots[k] = added[k] = v
     if outer is not None:
         outer["ms"] = outer.get("ms", 0) + own.get("ms", 0)
+        outer["request_count"] = outer.get("request_count", 0) + own.get("request_count", 0)
         outer["dropped_spans"] = outer.get("dropped_spans", 0) + own.get("dropped_spans", 0)
         for k in ("backend", "fallback"):
             if own.get(k):

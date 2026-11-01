@@ -208,9 +208,12 @@ def main():
         commit = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], text=True).strip()
     except Exception:
         commit = None
+    effective_settings = settings.describe()
+    effective_settings.update({"router_backend": a.router, "generator_backend": a.generator,
+                               "extractor_backend": a.extractor})
     meta = {"run_id": run_id, "config": a.config, "scenarios": a.scenarios, "n_scenarios": len(scens), "n_rows": n_rows,
             "errors": n_err, "router": a.router, "generator": a.generator, "extractor": a.extractor,
-            "settings": settings.describe(), "commit": commit, "seconds": round(time.time() - t0, 1)}
+            "settings": effective_settings, "commit": commit, "seconds": round(time.time() - t0, 1)}
     json.dump(meta, open(os.path.splitext(a.out)[0] + ".config.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     print(f"{len(scens)} kịch bản, {n_rows} lượt, {n_err} lỗi → {a.out}  ({meta['seconds']}s, router={a.router}, "
           f"generator={a.generator}, extractor={a.extractor}, transport={a.transport})")

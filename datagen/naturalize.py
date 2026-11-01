@@ -96,16 +96,19 @@ def _key(sc, cname, turns):
     return hashlib.sha1(json.dumps([sc["persona"], sc["honorific"], cname, turns], ensure_ascii=False).encode()).hexdigest()[:16]
 
 
-def rewrite_call(sc, cname, spec, styles, client, model, temperature):
+def rewrite_call(sc, cname, spec, styles, client, model, temperature, extra_body=None):
     turns = spec["customer_turns"]
     red = Redactor()
     safe = red.redact({"turns": turns})["turns"]
     prompt = PROMPT.format(xh=sc["honorific"], style=styles.get(sc["persona"], "bình thường"),
                            channel=spec.get("channel", "hotline"), turns=json.dumps(safe, ensure_ascii=False), n=len(turns))
-    r = client.chat.completions.create(model=model, temperature=temperature, max_tokens=2000,
-                                       response_format={"type": "json_object"},
-                                       messages=[{"role": "system", "content": "Chỉ trả về JSON hợp lệ."},
-                                                 {"role": "user", "content": prompt}])
+    kwargs = {"model": model, "temperature": temperature, "max_tokens": 2000,
+              "response_format": {"type": "json_object"},
+              "messages": [{"role": "system", "content": "Chỉ trả về JSON hợp lệ."},
+                           {"role": "user", "content": prompt}]}
+    if extra_body:
+        kwargs["extra_body"] = extra_body
+    r = client.chat.completions.create(**kwargs)
     out = json.loads(r.choices[0].message.content or "{}").get("turns") or []
     return [red.restore(t) if isinstance(t, str) else "" for t in out]
 
@@ -118,12 +121,17 @@ def main():
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--temperature", type=float, default=0.7)
+    ap.add_argument("--backend", choices=("deepseek", "qwen"), default="deepseek",
+                    help="deepseek qua API hoặc Qwen trên vLLM; mặc định giữ DeepSeek")
     ap.add_argument("--offline", action="store_true", help="chỉ dùng rewrites.json đã có, không gọi API")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
     cache_p = os.path.join(a.out, "rewrites.json")
     cache = json.load(open(cache_p, encoding="utf-8")) if os.path.exists(cache_p) else {}
+    def cache_key(sc, cname, turns):
+        key = _key(sc, cname, turns)
+        return key if a.backend == "deepseek" else f"qwen:{key}"
     styles = {p["persona_id"]: p["style"] for p in
               json.load(open(os.path.join(ROOT, "simulator", "personas.json"), encoding="utf-8"))["personas"]}
 
@@ -139,19 +147,25 @@ def main():
         for cname, spec in sc["calls"].items():
             if keep_as_is(spec):
                 continue
-            k = _key(sc, cname, spec["customer_turns"])
+            k = cache_key(sc, cname, spec["customer_turns"])
             if len(cache.get(k) or []) != len(spec["customer_turns"]):
                 jobs.append((k, sc, cname, spec))
     if jobs and not a.offline:
         from openai import OpenAI
-        if not settings.deepseek_api_key:
-            sys.exit("DEEPSEEK_API_KEY chưa đặt (hoặc dùng --offline)")
-        client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url, timeout=90, max_retries=2)
+        if a.backend == "deepseek":
+            if not settings.deepseek_api_key:
+                sys.exit("DEEPSEEK_API_KEY chưa đặt (hoặc dùng --offline)")
+            client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url, timeout=90, max_retries=2)
+            model, extra_body = settings.deepseek_model, None
+        else:
+            client = OpenAI(api_key=settings.qwen_api_key, base_url=settings.qwen_base_url, timeout=90, max_retries=2)
+            model = settings.qwen_model
+            extra_body = {"chat_template_kwargs": {"enable_thinking": settings.qwen_thinking == "enabled"}}
 
         def run(job):
             k, sc, cname, spec = job
             try:
-                return k, rewrite_call(sc, cname, spec, styles, client, settings.deepseek_model, a.temperature), None
+                return k, rewrite_call(sc, cname, spec, styles, client, model, a.temperature, extra_body), None
             except Exception as e:
                 return k, None, f"{type(e).__name__}: {str(e)[:200]}"
         with ThreadPoolExecutor(a.workers) as ex:
@@ -172,7 +186,7 @@ def main():
             n_turn += len(turns)
             if keep_as_is(spec):
                 n_skip_asr += len(turns); continue
-            new = cache.get(_key(sc, cname, turns))
+            new = cache.get(cache_key(sc, cname, turns))
             if not new or len(new) != len(turns):
                 rejected += [(sc["scenario_id"], cname, i + 1, "LLM trả sai số lượt / chưa có") for i in range(len(turns))]
                 continue

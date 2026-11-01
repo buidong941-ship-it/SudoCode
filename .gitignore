@@ -15,9 +15,13 @@ _download/
 asr/audio/
 asr/hypotheses*.json
 datagen/out_nat/*_report.json
+# Benchmark BTC-like sinh bởi datagen/generate_btc_like_benchmark.py (raw/, final/, review, validate)
+datagen/out_btc_like*/
 
 # Gói đẩy lên Kaggle (scripts/kaggle_job.py) và venv vLLM
 build/
 .vllm-venv/
 kaggle.json
 BUILD_INFO.json
+CLAUDE.md
+AGENTS.md

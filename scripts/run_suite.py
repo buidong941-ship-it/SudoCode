@@ -146,8 +146,13 @@ def main():
     os.environ.setdefault("VLLM_LOG", os.path.join(out, "vllm.log"))
     log = open(os.path.join(out, "suite.log"), "a", encoding="utf-8")
     t0 = time.time()
+    effective_settings = settings.describe()
+    # `settings.describe()` reflects environment defaults, while CLI arguments
+    # may override the active router, generator, and extractor for this suite.
+    effective_settings.update({"router_backend": a.router, "generator_backend": a.generator,
+                               "extractor_backend": a.extractor})
     meta = {"tag": tag, "args": vars(a), "profile": os.environ.get("RUN_PROFILE"), "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "settings": settings.describe(), "steps": []}
+            "settings": effective_settings, "steps": []}
     failed = False
     uses_qwen = "qwen" in (a.router, a.generator) or (a.extractor != "rules" and settings.extractor_llm == "qwen")
     started_server = False

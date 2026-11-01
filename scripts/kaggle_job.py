@@ -129,6 +129,8 @@ def push(k, a):
     needs = []
     if a.router == "jev":
         needs.append("TYPESAFE_API_KEY")
+    if any("EXTRACTOR_JEV_HYBRID=1" in value for value in (a.env + a.variant)) and "TYPESAFE_API_KEY" not in needs:
+        needs.append("TYPESAFE_API_KEY")
     if a.generator == "deepseek" or a.router == "llm":
         needs.append("DEEPSEEK_API_KEY")
     job = {"job": a.job, "suite_args": suite, "needs_qwen": needs_qwen, "needs_secrets": needs,

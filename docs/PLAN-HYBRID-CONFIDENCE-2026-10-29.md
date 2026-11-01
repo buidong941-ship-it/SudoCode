@@ -4,13 +4,37 @@
 
 Đề xuất của người dùng: luật chạy trước vì nhanh; nếu kết quả đủ tin cậy thì dùng ngay, còn không thì gọi Jev để phân loại slot lời khách, câu hỏi và claim lời agent. Chỉ dùng Qwen khi Jev phát hiện thông tin nhưng code không thể xác định đoạn chữ gốc (`span`) hoặc gán giá trị an toàn. Đây là **thiết kế thử nghiệm**, chưa phải kết quả đã chạy hay cấu hình mặc định. Không huấn luyện/fine-tune model.
 
-Bộ nhãn hiện có `tests/extract_eval/agent.jsonl` (120 câu) và `customer.jsonl` (60 câu) lấy từ trace/dev cũ; các kịch bản `datagen/out_nat/test` cũng đã dùng nhiều lần. Không dùng các bộ này để chọn ngưỡng rồi tuyên bố kết quả test mới.
+Bộ nhãn hiện có `tests/extract_eval/agent.jsonl` (120 câu) và `customer.jsonl` (60 câu) lấy từ trace/dev cũ; `test_set/public_sample/` là sample BTC, còn `datagen/out_nat/{dev,test}` là synthetic nhóm đã tạo và đã dùng nhiều lần. **Nhiệm vụ dữ liệu ở plan này là tạo thêm một bộ sample mới theo phong cách BTC, độc lập với cả hai nguồn trên**, rồi chạy full agent để đo metric và latency. Không tái đóng gói/sửa vài từ trong 67 synthetic cũ rồi gọi đó là test mới.
 
-## 1. Tạo hai lớp dữ liệu mới
+## 1. Tạo benchmark **hội thoại đa phiên như bài thi**
 
-1. **Bộ câu có nhãn:** chuẩn bị tối thiểu 300 câu khách và 300 câu agent mới. Lấy từ kịch bản, cách diễn đạt và chuỗi hội thoại mới; tránh sửa vài từ trong câu của trace cũ. Gồm câu không có nhãn, câu nhiều nhãn, trả lời ngắn phụ thuộc ngữ cảnh, phủ định, trích dẫn lời người khác, nhiều con số có vai trò khác nhau, khuyến mãi, tồn kho, bảo hành, câu hỏi không có dấu `?`, câu xác nhận và lỗi chính tả thông dụng. Tách theo *họ kịch bản/nguồn câu*, khử trùng gần giống với dev/test cũ. Gán nhãn tay cho `slots` lời khách (field, value, span), `questions` (slot, open/confirm, nguyên câu), `claims` (field, value, sản phẩm, câu chứa claim). Jev/Qwen có thể gợi ý nhãn nhưng không được dùng làm đáp án cuối khi chưa có người rà.
-2. **Bộ hội thoại mới:** ít nhất 20–30 kịch bản nhiều lượt, có sự thật sản phẩm/chính sách để chấm TSR/CCR/RQR/HR và đo toàn lượt. Không lấy câu hay chuỗi tình huống từ bộ test đã dùng. Bản này kiểm tác động của việc trích slot sớm/muộn tới kế hoạch và bộ nhớ, điều mà bộ câu độc lập không đo được.
-3. Chia bộ câu theo nguồn/kịch bản thành **calibration** (chọn ngưỡng) và **holdout** (chỉ chấm một lần sau khi khóa ngưỡng). Không chia ngẫu nhiên các câu gần giống của cùng kịch bản vào hai phía. Ghi nguồn, quy tắc gán nhãn, số câu theo field, hash và các câu mơ hồ cần bỏ qua trước khi xem kết quả model. Nếu field hiếm không đủ ví dụ, báo thiếu độ phủ và tiếp tục gọi Jev cho field đó.
+**Benchmark chính là toàn hệ thống trên bộ sample kiểu BTC mới, không phải bộ câu extractor đứng riêng.** Tạo một gói dữ liệu **bổ sung** riêng theo `schemas/scenario_format.md`, không trộn với `test_set/public_sample/` hoặc `datagen/out_nat/`. Trong gói mới, tách suite phát triển để sửa cổng và suite holdout chỉ mở sau khi khóa thiết kế. Ưu tiên để **holdout có khoảng 40 kịch bản, ít nhất 100 lượt khách và nhiều ca khó**, gần quy mô 41 kịch bản/19 ca khó và yêu cầu đo latency ≥100 lượt mà BTC mô tả; suite phát triển cần đủ các họ lỗi để sửa nhưng không được lấy câu từ holdout. Nếu nguồn lực không đủ, báo quy mô thực tế và không gọi đây là phép đo có độ ổn định tương đương bộ ẩn.
+
+### 1.1. File sinh riêng và tái sử dụng resolver hiện có
+
+- Tạo **một entry point mới** `datagen/generate_btc_like_benchmark.py` và **thư mục template mới** `datagen/templates_btc_like/`. File mới chỉ nạp template ở thư mục mới; không gọi `resolver.main()` với `datagen/templates/` hoặc sinh thêm instance từ 27 template cũ. **Viết thêm template mới là bước chủ động của nhiệm vụ này**: lập bảng các họ ca cần đo, tạo đủ template mới cho từng họ; nếu sau khi sinh còn thiếu kênh, số lượt, ca khó hoặc câu hỏi/claim quan trọng thì bổ sung template khác trước khi khóa benchmark. Mỗi template mới mô tả diễn biến, lời khách và assertion mới; có thể dùng cùng cú pháp `choose`, `dates`, `let`, `require`, `scenario` mà resolver đang hiểu. Không cần chép mã chọn khách/sản phẩm và tính giá sang file mới.
+- Trong file mới, import `Resolver`, `load_templates` từ `datagen/resolver.py`; gọi `Resolver.build(template, instance, split, scenario_id=...)` cho từng template. Việc tìm khách, SKU, ngày, khuyến mãi, tồn kho, ETA, địa chỉ và render các trường kỳ vọng vẫn đi qua `Resolver` và `eval/mock_tools.py`. Dùng tiền tố ID riêng, ví dụ `BTCL-001`, để trace/manifest không lẫn `GEN-*` của bộ cũ. Chỉ thay `resolver.py` nếu gặp khả năng thật sự thiếu; mọi thay đổi khi đó phải giữ CLI và đầu ra cũ tương thích.
+- Template mới khai báo split `dev` hoặc `holdout` theo **template/họ tình huống**, với ít nhất hai template có lời thoại và diễn biến khác nhau cho mỗi họ quan trọng. Không dùng nhánh `plan_splits()` chia **instance của cùng một template** sang hai phía: cách đó để lộ cấu trúc và câu mẫu. File sinh mới kiểm tra trùng `scenario_id`, khách/SĐT giữa hai split, câu thoại giống hệt, và báo lỗi nếu `Resolver.build` không tìm được ràng buộc; không âm thầm bỏ ca thất bại để vẫn đạt quota.
+- Đầu ra cố định: `datagen/out_btc_like_new/raw/{dev,holdout}/*.json` và `datagen/out_btc_like_new/manifest.json`. Manifest ghi seed, phiên bản generator, template nguồn, split, số call/lượt khách, nguồn dữ kiện BTC, SHA-256 từng scenario, số ca sinh thất bại và bảng coverage. **Chỉ** file mới ghi vào nhánh `out_btc_like_new`; các lệnh mặc định của `resolver.py`, `naturalize.py` và bộ `out/`, `out_nat/` cũ giữ nguyên.
+- Nếu cần lời khách tự nhiên hơn, dùng tiếp `datagen/naturalize.py` với `--src datagen/out_btc_like_new/raw --out datagen/out_btc_like_new/final --splits dev holdout`; cache `rewrites.json` nằm trong nhánh mới. Rà lại từng câu viết lại, chạy validator trên **bộ final thực sự đưa vào agent**, rồi cho file sinh mới chạy chế độ `--freeze final` để ghi hash của bản final vào manifest. Không dùng bản viết lại nếu làm mất dữ kiện, đổi ý định hoặc khiến assertion không còn đúng. Nếu không chạy naturalize, dùng `raw` làm bộ đánh giá và `--freeze raw`.
+
+Ví dụ lệnh sau khi viết file mới (tên cờ là giao diện cần hiện thực):
+
+```bash
+python datagen/generate_btc_like_benchmark.py --templates datagen/templates_btc_like --seed 20261030 --out datagen/out_btc_like_new
+python datagen/validate.py datagen/out_btc_like_new/raw/dev datagen/out_btc_like_new/raw/holdout --strict --report datagen/out_btc_like_new/validate_raw.json
+python datagen/naturalize.py --src datagen/out_btc_like_new/raw --out datagen/out_btc_like_new/final --splits dev holdout
+python datagen/validate.py datagen/out_btc_like_new/final/dev datagen/out_btc_like_new/final/holdout --strict --report datagen/out_btc_like_new/validate_final.json
+python datagen/generate_btc_like_benchmark.py --out datagen/out_btc_like_new --freeze final
+```
+
+`naturalize.py` là bước tùy chọn có API; sinh kịch bản bằng resolver và kiểm dữ kiện bằng validator chạy độc lập được. Đóng băng hash của bản dùng để chấm trước khi chạy agent; sửa câu hoặc assertion sau đó phải tạo phiên bản benchmark mới.
+
+1. Dùng `catalog/crm_seed.json` làm **trạng thái ban đầu**, không sửa file BTC. Có thể viết cuộc gọi mới cho khách sẵn có, tạo khách tổng hợp mà CRM chưa biết (đường `datagen/resolver.py` đã hỗ trợ), hoặc khai báo `seed_history` trong **kịch bản riêng** để thử lịch sử cũ. Giữ danh tính, đơn hàng và lịch sử đã có nhất quán; không trình bày lịch sử tự sinh là dữ liệu BTC phát.
+2. Dùng **7 file `test_set/public_sample/` và `schemas/scenario_format.md` làm mẫu về cấu trúc và cách đặt assertion**, không dùng làm template để đổi tên/số tiền. Tạo tình huống/câu thoại mới thuộc cùng **họ năng lực** của đề: khách quay lại, đổi ý, nhiều sản phẩm, KM hết hạn/có điều kiện, tồn kho theo ngày, đơn hàng, shared phone, ASR/teencode, PII, hỏi chính sách ngoài tài liệu. Có đủ hotline/chat, khách mới/khách quay lại, câu ngắn cần ngữ cảnh, câu hỏi không dấu `?` và nhiều thông tin trong một lượt. Rà độ trùng ý/câu với cả sample BTC và `datagen/out_nat/`; loại ca chỉ diễn đạt lại tình huống cũ.
+3. Mọi giá, KM, tồn kho, ETA, chính sách và expected tool result phải lấy từ `catalog/`, `policy/`, `eval/mock_tools.py` tại đúng `call_date`; không tự đặt sự thật nghiệp vụ. Mỗi call khai báo `facts_established`, `must_carry_over`, `must_not_ask`, `success_if`, `ground_truth_facts`, `memory_expectation` khi phù hợp. Chạy `datagen/validate.py` và rà thủ công các ca có đáp án/tool bất nhất trước khi đánh giá agent.
+4. Tách **theo họ kịch bản/khách**, không tách lượt từ cùng một cuộc vào hai suite. Dùng đúng cây thư mục và manifest ở mục 1.1; ghi rõ đây là **sample mô phỏng do nhóm tự tạo, không phải sample/hidden test chính thức của BTC**. Không chỉnh suite holdout sau khi nhìn kết quả. Dữ liệu đầu vào cho full và baseline phải giống hệt nhau; chỉ khác việc nạp bộ nhớ như định nghĩa của bài.
+5. Bộ câu có nhãn extractor chỉ là **phụ trợ**: lấy mẫu từ hội thoại mới để giải thích lỗi `CERT=1` nhưng trích sai, Jev gán sai slot hoặc claim bị bỏ sót. Không bắt buộc tạo 300+300 câu rời rồi dùng F1 riêng đó thay cho kết quả hội thoại.
 
 ## 2. Định nghĩa confidence của luật
 
@@ -53,7 +77,7 @@ Ví dụ: “Phòng 25m², ngân sách khoảng 5 triệu” chỉ được nh�
 
 ### 2.2. Kiểm chứng công thức production
 
-Nhãn người rà chỉ xuất hiện **ngoài đường chạy**, để đo số câu `CERT=1` nhưng rules sai hoặc bỏ sót, tỷ lệ gọi Jev/Qwen, metric hội thoại và latency. Chọn điều kiện trên calibration rồi khóa trước khi mở holdout. Không thể suy ra một bảo đảm tỷ lệ sai chỉ từ `CERT`; nếu muốn tuyên bố cận rủi ro thống kê, vẫn cần dữ liệu kiểm độc lập có nhãn. Trước khi tích hợp Jev cho slot khách và claim, phải đo riêng Jev trên dữ liệu mới; hiện kết quả đã biết mới kiểm Jev đa nhãn cho câu hỏi.
+Nhãn người rà chỉ xuất hiện **ngoài đường chạy** và chỉ để phân tích lỗi trích trên mẫu lấy từ suite hội thoại. Kết luận chính dựa trên metric và latency của **toàn lượt hội thoại**. Chọn điều kiện trên suite phát triển rồi khóa trước khi mở holdout. Không thể suy ra một bảo đảm tỷ lệ sai chỉ từ `CERT`; nếu muốn tuyên bố cận rủi ro thống kê vẫn cần dữ liệu kiểm độc lập có nhãn. Trước khi tích hợp Jev cho slot khách và claim, phải đo riêng Jev trên dữ liệu mới; hiện kết quả đã biết mới kiểm Jev đa nhãn cho câu hỏi.
 
 Cách tổ chức “nhận kết quả khi đủ tin cậy, còn lại chuyển bước mạnh hơn” dựa trên ý tưởng **selective classification** và **cascade** trong [Geifman & El-Yaniv (2017)](https://arxiv.org/abs/1705.08500) và [Chen, Zaharia & Zou (2023)](https://arxiv.org/abs/2305.05176). Sáu điều kiện `G/P/U/N/K/C` là **thiết kế cho repository này**, không phải công thức được hai bài báo chứng minh cho extractor này.
 
@@ -76,6 +100,19 @@ câu khách / câu agent
 
 ## 4. Cách chấm và điều kiện bật
 
-So trên **cùng câu**: luật, hybrid Qwen hiện hành, Jev + luật luôn gọi, và hybrid có cổng confidence. Báo riêng TP/FP/FN, precision/recall/F1, tỷ lệ đúng toàn bộ tập nhãn, tỷ lệ luật được nhận ngay, tỷ lệ gọi Jev/Qwen, lỗi API và thời gian p50/p95 theo từng nhiệm vụ/field. Kiểm cả **những câu luật được nhận ngay nhưng sai hoặc bỏ sót**; đó là lỗi trực tiếp của confidence.
+Trên **cùng suite phát triển**, chạy `full` và `baseline_no_memory` bằng `run_eval.py`, chấm `eval/reference_eval.py`. So cấu hình hybrid hiện hành, Jev + luật luôn gọi và hybrid có cổng confidence; dùng cùng model sinh lời, router, số worker, số bản trả lời ứng viên, RAG, mock tools và máy. Để tách riêng chi phí extractor khỏi biến động câu Qwen, bổ sung phép **replay cùng lời khách/lời agent cố định** từ trace; replay chỉ phục vụ phân tích, không thay kết quả full agent. Báo rõ khi các lần full sinh lời khác nhau.
 
-Sau khi khóa ngưỡng bằng calibration, chấm holdout mới một lần. Sau đó chạy full agent trên Kaggle với cùng model, worker, số bản trả lời ứng viên, kịch bản và môi trường; so Total, hậu xử lý, toàn lượt, Call Brief + toàn lượt, TSR/CCR/RQR/HR và số lượt lỗi. Phần trích lời agent chạy sau khi lời đáp sẵn sàng nên tối ưu nó chủ yếu ảnh hưởng **toàn lượt**, không tự giảm Total. Chỉ cân nhắc đổi mặc định khi chất lượng của câu được luật nhận ngay và metric hội thoại không giảm, đồng thời tốc độ có lợi thực đo. Giữ code dưới cờ backend riêng để chuyển lại được.
+Quy trình đo cụ thể: chọn `raw` hoặc `final` theo `manifest.json` đã đóng băng; giữ nguyên cùng đường dẫn scenario và cùng hash qua mọi cấu hình. Trước hết chạy cấu hình **hybrid hiện hành** làm mốc (lệnh dưới dùng `final/dev` làm ví dụ):
+
+```bash
+python run_eval.py --scenarios datagen/out_btc_like_new/final/dev --config full --extractor hybrid --out runs/btc_like_new/current_dev_full.jsonl
+python run_eval.py --scenarios datagen/out_btc_like_new/final/dev --config baseline_no_memory --extractor hybrid --out runs/btc_like_new/current_dev_baseline.jsonl
+python eval/reference_eval.py --scenarios datagen/out_btc_like_new/final/dev --trace runs/btc_like_new/current_dev_full.jsonl --baseline runs/btc_like_new/current_dev_baseline.jsonl --out runs/btc_like_new/current_dev_score.json
+python scripts/latency_report.py runs/btc_like_new/current_dev_full.jsonl
+```
+
+Sau khi **Jev đã được đo riêng cho slot khách và claim** và các biến thể extractor được hiện thực dưới cờ cấu hình riêng, chạy lại đúng bốn bước trên cho từng biến thể, đổi tên trace/report và cờ extractor tương ứng. Khóa lựa chọn bằng `dev`, rồi thay `dev` bằng `holdout` và chấm **một lượt** trên bộ đã đóng băng. Đối chiếu hash và số scenario/call/lượt trong manifest với trace trước khi so điểm; nếu thiếu trace hoặc lỗi hệ thống, báo riêng và không coi đó là metric hợp lệ. Lưu mỗi trace, report, cấu hình chạy và báo cáo latency dưới `runs/btc_like_new/`.
+
+**Bảng kết quả chính** cho mỗi cấu hình và split: số kịch bản/cuộc/lượt; TSR và TSR ca khó; CCR; RQR; HR mọi claim và HR giá/KM; guardrail; TTFT, Total (`total_ms`), hậu xử lý (`post_ms`), toàn lượt (`end_to_end_ms`) và Call Brief + toàn lượt, đều p50/p95; thời gian cả suite. Báo thêm số request Jev/Qwen theo nhiệm vụ, tỷ lệ rules đi thẳng, số lần Qwen fallback, lỗi/timeout và số lượt slot khách tới sau `_plan()`. Không cộng các p95 riêng để ra p95 toàn lượt.
+
+Sau khi khóa cổng bằng suite phát triển, chạy **suite holdout mới một lần** với đúng các cấu hình và cách đo trên. Kèm một bảng lỗi trích từ những lượt full: rules được `CERT=1` nhưng thiếu slot/claim/câu hỏi, Jev gán sai, và ảnh hưởng thực tế tới câu đáp, bộ nhớ hoặc metric. F1 extractor trên các câu được rà chỉ là phép chẩn đoán phụ. Chỉ cân nhắc đổi mặc định khi metric hội thoại không giảm và latency có lợi thực đo. Phần trích lời agent chạy sau khi lời đáp sẵn sàng nên tối ưu nó chủ yếu ảnh hưởng **toàn lượt**, không tự giảm Total. Giữ code dưới cờ backend riêng để chuyển lại được.

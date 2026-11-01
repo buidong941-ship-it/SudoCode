@@ -81,6 +81,8 @@ class Settings:
     extractor_llm: str = field(default_factory=lambda: _env("EXTRACTOR_LLM", "qwen"))
     extractor_timeout_s: float = field(default_factory=lambda: float(_env("EXTRACTOR_TIMEOUT_S", "10")))
     extractor_async: bool = field(default_factory=lambda: _env("EXTRACTOR_ASYNC", "1") not in ("0", "off", "false"))
+    extractor_confidence_gate: bool = field(default_factory=lambda: _env("EXTRACTOR_CONFIDENCE_GATE", "0") not in ("0", "off", "false"))
+    extractor_jev_hybrid: bool = field(default_factory=lambda: _env("EXTRACTOR_JEV_HYBRID", "0") not in ("0", "off", "false"))
     question_clf: bool = field(default_factory=lambda: _env("QUESTION_CLF", "0") not in ("0", "off", "false"))
     question_classifier_backend: str = field(default_factory=lambda: _env("QUESTION_CLF_BACKEND", "jev").lower())
     question_clf_tau: float = field(default_factory=lambda: float(_env("QUESTION_CLF_TAU", "0.75")))
@@ -109,7 +111,9 @@ class Settings:
                 "extract_logprob_thresholds": self.extract_logprob_thresholds,
                 "deepseek_thinking": self.deepseek_thinking,
                 "qwen_model": self.qwen_model, "qwen_base_url": self.qwen_base_url, "qwen_thinking": self.qwen_thinking,
-                "extractor_backend": self.extractor_backend, "extractor_llm": self.extractor_llm, "extractor_async": self.extractor_async,
+                "extractor_backend": self.extractor_backend, "extractor_llm": self.extractor_llm,
+                "extractor_async": self.extractor_async, "extractor_confidence_gate": self.extractor_confidence_gate,
+                "extractor_jev_hybrid": self.extractor_jev_hybrid,
                 "question_clf": self.question_clf,
                 "question_clf_backend": self.question_classifier_backend,
                 "question_clf_tau": self.question_clf_tau,
