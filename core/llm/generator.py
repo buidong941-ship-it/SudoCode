@@ -46,6 +46,14 @@ GOAL_NOTES = {
                        "ngoài giá bán trong FACTS.",
     "refuse_other_customer": "Nói rõ em không thể cung cấp số điện thoại, địa chỉ hay đơn hàng của khách hàng khác vì cần bảo mật thông tin "
                              "khách hàng. Không nêu bất kỳ số điện thoại, tên hay địa chỉ nào; có thể đề nghị tư vấn trực tiếp cho khách.",
+    "ask_prior_contact": "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, "
+                         "xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. "
+                         "Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm.",
+    "gift_status": "Trả lời đúng câu hỏi quà tặng theo FACTS.gift: active=true thì nói mua gift.product được tặng gift.gift_name "
+                   "(chương trình gift.promo_name, đến gift.end_ddmm); active=false thì nói rõ chương trình tặng đó đã kết thúc, "
+                   "hiện không kèm quà. Không báo giá món quà như một sản phẩm riêng.",
+    "budget_fit": "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và "
+                  "có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS.",
     "is_bot": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn.",
     "order_created": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn.",
     "order_updated": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
@@ -70,7 +78,7 @@ QUESTION_GOALS = {
     "greet": "other", "ask_identity": "customer_name", "ask_product": "product_advised", "ask_variant": "size",
     "ask_address": "address", "ask_new_size": "size", "ask_size_for_price": "size", "exchange_offer": "confirm_order",
     "confirm_old_address": "address", "confirm_order": "confirm_order", "confirm_new_price": "confirm_order",
-    "cod_limit": "payment", "ask_repeat": "other", "order_not_found": "order_id",
+    "cod_limit": "payment", "ask_repeat": "other", "order_not_found": "order_id", "ask_prior_contact": "customer_phone",
 }
 
 
@@ -321,6 +329,17 @@ def render_offline(plan):
             out.append(f"Dạ mức giá {h} nhắc là giá khi còn khuyến mãi, chương trình đó nay đã hết hạn nên giá hiện tại là {_vnd(q.get('final_price_vnd'))} ạ.")
         elif g == "cart_total":
             ct = F["cart"]; out.append("Dạ " + ", ".join(f"{i['name']} {_vnd(i['final_price_vnd'])}" for i in ct["items"]) + f", tổng {_vnd(ct['total_vnd'])} ạ.")
+        elif g == "ask_prior_contact":
+            out.append(f"Dạ em chưa tìm thấy lịch sử trao đổi của {h} với số này ạ. {h.capitalize()} cho em xin số điện thoại "
+                       "hoặc tên tài khoản Facebook/Zalo đã nhắn với shop để em tra lại đúng thông tin nhé?")
+        elif g == "gift_status" and F.get("gift"):
+            gf = F["gift"]
+            out.append(f"Dạ mua {gf['product']} hiện được tặng {gf['gift_name']}, chương trình áp dụng đến {gf['end_ddmm']} ạ." if gf["active"]
+                       else f"Dạ chương trình tặng {gf['gift_name']} khi mua {gf['product']} đã kết thúc ngày {gf['end_ddmm']} rồi ạ, "
+                            "hiện mẫu này không kèm quà tặng.")
+        elif g == "budget_fit" and F.get("budget_fit"):
+            bf = F["budget_fit"]
+            out.append(f"Dạ mức này {'nằm trong' if bf['within_budget'] else 'cao hơn'} ngân sách {_vnd(bf['budget_vnd'])} của {h} ạ.")
         elif g == "cod_ok":
             out.append("Dạ đơn này mình thanh toán khi nhận hàng (COD) được ạ.")
         elif g == "address_updated":

@@ -59,11 +59,20 @@ def _sentence_at(text, pos):
     return text[st:pos + (m.start() + 1 if m else len(text))]
 
 
-def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_money=(), goals=()):
+# cụm đứng ngay trước một số tiền khiến nó thành "giá sản phẩm" (vd "mức giá 5.500.000", "giá bán là 5,5 triệu")
+PRICE_CUE_RX = re.compile(r"\b(muc gia|gia( ban| niem yet| hien tai| uu dai| sau (giam|uu dai)| chi| con)*|chi con|tong( cong| tien)?)"
+                          r"\s*(la|chi|:)?\s*(chi\s*|khoang\s*)?$")
+
+
+def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_money=(), goals=(), customer_money=()):
+    """customer_money: số tiền khách tự nói (ngân sách, giá bên khác) và không có trong tool — được nhắc lại
+    ("ngân sách 5,5 triệu của anh") nhưng không được đọc như giá bán (B5, BTCL-031)."""
     problems = []
     for s, _, v in find_money(text):
         if v in IMPORT_PRICES or v in internal_numbers:
             problems.append(f"lộ giá nội bộ {v}")
+        elif v in customer_money and PRICE_CUE_RX.search(fold(text[max(0, s - 30):s])):
+            problems.append(f"đọc số tiền {v} khách nêu như giá sản phẩm")
         elif v in forbidden_money:
             problems.append(f"đọc lại giá {v} khách nêu, không khớp báo giá hiện tại")
         elif v in stale_money and not PAST_RX.search(fold(_sentence_at(text, s))):

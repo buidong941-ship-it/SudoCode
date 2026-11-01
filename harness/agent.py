@@ -31,6 +31,16 @@ FILTER_OF = {"SKU-AP-X": "SKU-AP-FLT-X", "SKU-AP-Y": "SKU-AP-FLT-X", "SKU-AP-PRO
              "SKU-XM-4L": "SKU-XM-FLT", "SKU-XM-4P": "SKU-XM-FLT"}
 
 # B1: câu hỏi hoàn/trả vượt mọi thời hạn có trong chính sách → không có thông tin (BTCL-041/042)
+# câu hỏi về quà tặng kèm (B4); "quá" fold thành "qua" nên không dùng "qua" đứng một mình
+GIFT_Q_RX = re.compile(r"\b(qua tang|co qua|qua (gi|kem|di kem)|qua [a-z ]{2,30} (con|co) tang|(duoc|con|co) tang|"
+                       r"tang (kem|them|qua|1|mot|mang|tui)|kem qua|khuyen mai kem)\b")
+GIFT_SKUS = {p["gift_sku"] for p in mt.PROMOS if p.get("gift_sku")}
+# hỏi hạn của chương trình KM đang nói ("Chương trình đó hết hạn khi nào?") → đọc lại KM kèm ngày hết hạn từ tool
+PROMO_END_RX = re.compile(r"\b(chuong trinh|khuyen mai|km|uu dai|qua tang|qua)\b.*\b(het han|ket thuc|den (ngay|khi) nao|"
+                          r"bao gio het|con (han|ap dung)|toi (ngay|khi) nao|keo dai)\b")
+# khách nhắc lần trao đổi trước (B3) — khi không tìm được lịch sử thì xin thông tin để tra, không hỏi lại nhu cầu từ đầu
+PRIOR_REF_RX = re.compile(r"\b(hom truoc|lan truoc|hom no|bua truoc|bua no|hom qua|tuan truoc|goi lai ve|da (dua|noi|hoi|nhan|bao|gui)|"
+                          r"(cai|mon|mau|may) (hom|lan|bua) (truoc|no))\b")
 REFUND_RX = re.compile(r"\b(hoan (du |lai )?tien|tra lai|tra hang|doi tra|hoan tra)\b")
 HYPO_RX = re.compile(r"\b(neu|gia su|lo nhu|truong hop)\b")
 DOC_REF_RX = re.compile(r"\b(van ban|giay to|cho nao ghi|co ghi|xac nhan dieu do|dieu do)\b")
@@ -109,6 +119,7 @@ class CallSession:
         self.seen_money = set()
         self.last_sentiment = None
         self.policy_gap, self.privacy_refused, self.plan_why = None, False, []
+        self.prior_contact_asked = 0
 
     def start(self):
         t0 = time.perf_counter()
@@ -312,6 +323,9 @@ class CallSession:
         tool_now = set().union(*(guardrails.collect_numbers(tc["result"]) for tc in tool_log)) if tool_log else set()
         forbidden = {v for v in slots.get("claimed_prices", []) if cur and v != cur and v not in tool_now}
         stale = {v for q in self.prev_quotes for v in (q["final_price_vnd"],) if v and cur and v != cur and v not in tool_now}
+        # số tiền do khách nói (ngân sách, giá bên khác) — được nhắc lại, nhưng không được đọc như giá sản phẩm (B5)
+        cust_money = (set(p["money"]) | {self.known[k] for k in ("budget_vnd", "competitor_price_vnd") if isinstance(self.known.get(k), int)}) \
+            - tool_now - guardrails.collect_numbers(facts) - {q["final_price_vnd"] for q in self.prev_quotes}
         from core.llm.generator import render_offline
         guard = {"problems": [], "action": None}
         adaptive_second = (settings.gen_adaptive_second and settings.gen_parallel_n == 2
@@ -329,7 +343,7 @@ class CallSession:
             text_out = candidates[0]["text"]
             for i, candidate in enumerate(candidates):
                 self.gen.fill_problems = candidate["fill_problems"]
-                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
                 c = coverage(candidate["text"], plan)
                 if not p and not c:
                     text_out, problems, cov = candidate["text"], p, c
@@ -339,11 +353,11 @@ class CallSession:
                     break
             if problems is None:
                 self.gen.fill_problems = candidates[0]["fill_problems"]
-                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
                 cov = coverage(text_out, plan)
                 if len(candidates) > 1:
                     guard["candidate_rejections"] = [{"temperature": c["temperature"],
-                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals)
+                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals, cust_money)
                                                        + c["fill_problems"], "coverage": coverage(c["text"], plan)}
                                                       for c in candidates]
         except Exception as e:
@@ -354,7 +368,7 @@ class CallSession:
         t_gen1 = time.perf_counter()
         llm1_ttft, llm1_total = ttft, int((t_gen1 - t_gen) * 1000)
         if problems is None:
-            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
             cov = coverage(text_out, plan)
         t_guard = time.perf_counter()
         guard["problems"], guard["coverage"] = problems, cov
@@ -369,7 +383,7 @@ class CallSession:
             except Exception as e:
                 log.error("generator %s lỗi khi sinh lại → câu mẫu: %s", self.gen.backend, type(e).__name__)
                 text2, tot2 = render_offline(plan), 0
-            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals) + self.gen.fill_problems
+            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
             c2 = [] if p2 else coverage(text2, plan)
             if not p2 and not c2:
                 text_out, guard["action"] = text2, "regenerated"
@@ -540,6 +554,16 @@ class CallSession:
         """B7: ghi nhánh planner đã đi qua và lý do, để phân tích lỗi và làm feedback."""
         self.plan_why.append({"branch": branch, "reason": reason} if reason else {"branch": branch})
 
+    def _ask_prior_contact(self, f):
+        """B3 (BTCL-016/017): khách nhắc lần trao đổi trước nhưng không tìm được lịch sử (vd chat fanpage rồi gọi hotline
+        số khác) → xin SĐT / tài khoản đã dùng để tra lại, thay vì hỏi lại nhu cầu từ đầu. Tối đa 2 lần mỗi cuộc."""
+        if self.focus is not None or (self.brief or {}).get("is_returning") or self.prior_contact_asked >= 2 \
+                or not PRIOR_REF_RX.search(f):
+            return []
+        self.prior_contact_asked += 1
+        self._why("prior_contact_unknown", f"lần hỏi {self.prior_contact_asked}")
+        return ["ask_prior_contact"]
+
     def _policy_gap(self, text, f, asking=True):
         """Hỏi hoàn/trả với thời hạn dài hơn mọi thời hạn hoàn/đổi/trả trong tài liệu (hoặc hỏi văn bản cho chính câu đó)."""
         if self.policy_gap and DOC_REF_RX.search(f):
@@ -574,7 +598,11 @@ class CallSession:
             return ["ask_identity"], facts
         f = fold(text)
         mentioned = find_products(text)
-        if re.search(r"\bmang loc\b", f):
+        # B4 (BTCL-051/052): "mua AirPure Y có tặng màng lọc không?" hỏi QUÀ của sản phẩm chính, không phải giá phụ kiện
+        gift_q = bool(GIFT_Q_RX.search(f))
+        if gift_q:
+            mentioned = [x for x in mentioned if x not in GIFT_SKUS]   # còn rỗng → dùng self.focus (sản phẩm đang tư vấn)
+        elif re.search(r"\bmang loc\b", f):
             base = mentioned or ([self.focus] if self.focus else [])
             mentioned = [FILTER_OF.get(mt._parent(x)[0]["sku"], x) for x in base]
         alt = None if mentioned else (find_by_model_token(text, self.focus) if self.focus else None)
@@ -705,8 +733,9 @@ class CallSession:
                 if old:
                     facts["alternative"] = self._quote(old, "alternative")
             if not rec and self.focus is None and "ask_need" not in goals and it in ("product_inquiry", "price_promo"):
-                goals.append("ask_product")
+                goals += self._ask_prior_contact(f) or ["ask_product"]
         asks_price = it in ("price_promo", "negotiate", "product_inquiry") or (new_focus and new_focus != prev_focus) or bool(alt) or compare \
+            or ((gift_q or bool(PROMO_END_RX.search(f))) and bool(self.focus)) \
             or (it == "place_order" and asking) or "exchange_window_passed" in goals
         ask_size_after = False
         if sales_turn and "recommend" not in goals and asks_price:
@@ -742,6 +771,33 @@ class CallSession:
                     claimed = [v for v in slots.get("claimed_prices", []) if v != q.get("final_price_vnd")]
                     if claimed and q.get("expired_promos"):
                         facts["claimed_price_vnd"] = claimed[0]; goals.append("explain_price_change")
+        # B5 (BTCL-031): "tầm 5 triệu rưỡi có vừa không?" → so ngân sách với giá tool, thay vì rơi xuống closing để LLM tự nói
+        if sales_turn and slots.get("budget_vnd") and self.focus and not self.cart and "recommend" not in goals \
+                and "ask_size_for_price" not in goals:
+            q = facts.get("quote") or self._quote(self._resolve_variant(self.focus, text), "advised")
+            if q.get("final_price_vnd"):
+                facts["quote"], b = q, slots["budget_vnd"]
+                facts["budget_fit"] = {"budget_vnd": b, "final_price_vnd": q["final_price_vnd"],
+                                       "within_budget": q["final_price_vnd"] <= b}
+                if "quote" not in goals and "out_of_stock" not in goals:
+                    goals.append("quote")
+                goals.append("budget_fit")
+                self._why("budget_fit", f"ngân sách {b} so với giá {q['final_price_vnd']}")
+        if gift_q and sales_turn and facts.get("quote"):
+            q = facts["quote"]
+            par = mt._parent(q["sku"])[0]
+            psku = par["sku"] if par else q["sku"]
+            gifts = [x for x in mt.PROMOS if x.get("type") == "gift" and psku in (x.get("applies_to") or [])]
+            if gifts:
+                active = [x for x in gifts if x["promo_code"] in (q.get("promo_codes") or [])]
+                g0 = active[0] if active else max(gifts, key=lambda x: x["end"])
+            if gifts and active and "quote" in goals and q.get("promo_names"):
+                gifts = []   # câu báo giá đã nói quà đang tặng → không nói lặp lần hai
+            if gifts:
+                facts["gift"] = {"product": q["name"], "gift_name": product_name(g0["gift_sku"]), "promo_name": g0["name"],
+                                 "active": bool(active), "end_ddmm": _ddmm(g0["end"])}
+                goals.append("gift_status")
+                self._why("gift_status", f"{g0['promo_code']} {'còn' if active else 'hết'} hiệu lực")
         if self.cart and asking and re.search(r"\b(tong|het bao nhieu|tat ca|ca hai|giam gi|duoc giam)\b", f):
             facts["cart"] = self._cart_quote(text); goals.append("cart_total")
         if asking and re.search(r"\b(cod|thanh toan khi nhan)\b", f):
@@ -795,7 +851,7 @@ class CallSession:
         if not goals:
             garbled = self.input_mode == "asr_transcript" and route.get("confidence", 1) < 0.6
             if self.turn_no == 1:
-                goals.append("greet")
+                goals += self._ask_prior_contact(f) or ["greet"]
             elif not slots and not mentioned and not CLOSING_RX.search(f) and (asking or garbled) and self.repeat_asked < 2:
                 self.repeat_asked += 1
                 goals.append("ask_repeat")

@@ -39,6 +39,11 @@ python tests/coverage_check.py | tail -1
 python tests/placeholder_check.py | tail -1
 python tests/generator_parallel_check.py
 python tests/logprobs_check.py
+# planner / extractor (plan 01/11: A1, A6, B1–B5)
+python tests/confidence_gate_check.py | tail -1
+python tests/jev_hybrid_check.py | tail -1
+python tests/planner_rules_check.py | tail -1
+python tests/planner_b345_check.py
 # khung cơ chế cải tiến (improve/, tách khỏi core)
 python tests/improve_check.py
 # UI demo (ui/, tách khỏi core; AppTest chỉ chạy khi có streamlit)

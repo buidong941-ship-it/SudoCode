@@ -35,7 +35,9 @@ CUSTOMER_SLOTS = {
     "claimed_price_vnd": "giá khách nói shop ĐÃ báo trước đó hoặc giá khách nhớ từ lần trước (không phải ngân sách, không phải giá nơi khác)",
     "size": "size / cỡ / số giày, áo khách chọn",
     "color": "màu khách chọn",
-    "address": "địa chỉ giao hàng khách đọc (span = nguyên địa chỉ, không kèm 'giao về'). KHÔNG phải khi khách chỉ nhắc nơi ở chung chung ('nhà ở Huế')",
+    "address": "địa chỉ giao hàng khách đọc, có số nhà / ngõ / tên đường cụ thể (span = nguyên địa chỉ, không kèm 'giao về'). "
+               "TÍNH CẢ khi địa chỉ nằm trong câu hỏi giao hàng ('ship đến 5 Trần Phú, Nha Trang mất mấy ngày?', "
+               "'giao về 54 Hùng Vương, Việt Trì được không?'). KHÔNG phải khi khách chỉ nhắc nơi ở chung chung ('nhà ở Huế')",
     "payment": "cách thanh toán khách chọn (label=COD: tiền mặt khi nhận; label=bank: chuyển khoản, momo, zalopay)",
     "blocker": "rào cản khiến khách chưa quyết (label: can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac). "
                "'can hoi …' chỉ khi khách nhắc rõ người nhà. KHÔNG phải khi khách đã chốt mua, chỉ hỏi thông tin, hoặc từ chối dứt khoát",
