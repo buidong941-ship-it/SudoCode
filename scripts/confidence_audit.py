@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from harness.extractor import agent_questions, customer_slots_rules
-from harness.rule_confidence import customer, question
+from harness.rule_confidence import customer, empty, question
 
 
 def upper_error_bound(errors, n, alpha=.05):
@@ -37,7 +37,56 @@ def read(path):
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def audit_trace(path):
+    """A1: recompute CERT with the current rules on a trace and count why it fails."""
+    from collections import Counter, defaultdict
+    from harness.extractor import _sentences
+
+    rows = read(Path(path))
+    side = {"customer": defaultdict(Counter), "agent": defaultdict(Counter)}
+    sole = {"customer": Counter(), "agent": Counter()}
+    total = {"customer": Counter(), "agent": Counter()}
+    for r in rows:
+        has_context = r["turn"] > 1 or r["call"] != "call_1"
+        text = r.get("customer_text") or ""
+        rules = customer_slots_rules(text, "2026-10-15")
+        cert = customer(text, rules, "ctx" if has_context else None)
+        slot = next(iter(rules), "-") if len(rules) == 1 else ("none" if not rules else "multi")
+        _tally(side["customer"][slot], sole["customer"], total["customer"], cert)
+        for s in _sentences(r.get("agent_text") or ""):
+            q = agent_questions(s, {})
+            cert = question(s, q)
+            slot = q[0]["slot"] if len(q) == 1 else ("none" if not q else "multi")
+            _tally(side["agent"][slot], sole["agent"], total["agent"], cert)
+    out = {"trace": str(path), "rows": len(rows)}
+    jev_empty = [not (r["extractor"].get("jev_customer_labels") or []) for r in rows
+                 if empty(r.get("customer_text") or "", customer_slots_rules(r.get("customer_text") or "", "2026-10-15"),
+                          "ctx" if r["turn"] > 1 or r["call"] != "call_1" else None)["certified"]]
+    out["customer_empty_vs_jev"] = {"certified": len(jev_empty), "jev_disagrees": jev_empty.count(False)}
+    for k in ("customer", "agent"):
+        out[k] = {"items": sum(side[k][s]["_n"] for s in side[k]),
+                  "certified": sum(side[k][s]["certified"] for s in side[k]),
+                  "failed_check": dict(total[k].most_common()),
+                  "sole_blocker": dict(sole[k].most_common()),
+                  "by_slot": {s: dict(c.most_common()) for s, c in sorted(side[k].items())}}
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def _tally(slot_counter, sole, total, cert):
+    slot_counter["_n"] += 1
+    if cert["certified"]:
+        slot_counter["certified"] += 1
+        return
+    failed = [k for k, v in cert["checks"].items() if not v]
+    slot_counter[cert["reason"]] += 1
+    total.update(failed)
+    if len(failed) == 1:
+        sole[failed[0]] += 1
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--trace":
+        return audit_trace(sys.argv[2])
     folder = ROOT / "tests" / "extract_eval"
     customers = read(folder / "customer.jsonl")
     agents = read(folder / "agent.jsonl")
@@ -46,6 +95,8 @@ def main():
         rules = customer_slots_rules(item["text"], "2026-10-15")
         if customer(item["text"], rules, item.get("context"))["certified"]:
             c_cert.append(rules == item["slots"])
+    e_cert = [item["slots"] == {} for item in customers
+              if empty(item["text"], customer_slots_rules(item["text"], "2026-10-15"), item.get("context"))["certified"]]
     q_cert = []
     for item in agents:
         rules = agent_questions(item["sentence"], {})
@@ -55,6 +106,8 @@ def main():
     result = {"source": "tests/extract_eval (previously used labels; not independent holdout)",
               "customer_slots": {"labeled": len(customers), "certified": len(c_cert), "wrong": c_cert.count(False),
                                  "upper_error_95pct": upper_error_bound(c_cert.count(False), len(c_cert))},
+              "customer_empty": {"labeled": len(customers), "certified": len(e_cert), "wrong": e_cert.count(False),
+                                 "upper_error_95pct": upper_error_bound(e_cert.count(False), len(e_cert))},
               "agent_questions": {"labeled": len(agents), "certified": len(q_cert), "wrong": q_cert.count(False),
                                   "upper_error_95pct": upper_error_bound(q_cert.count(False), len(q_cert))},
               "agent_claims": {"certified": 0, "reason": "claim rules abstain until independently validated"}}

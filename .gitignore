@@ -25,3 +25,5 @@ kaggle.json
 BUILD_INFO.json
 CLAUDE.md
 AGENTS.md
+# Cơ chế cải tiến: gaps.jsonl sinh lại được từ trace (python -m improve collect)
+improve/gaps.jsonl

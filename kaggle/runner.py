@@ -99,6 +99,13 @@ def main():
         DEADLINE = T0 + int(JOB.get("max_seconds", 3 * 3600))
         log(f"cấu hình job lấy từ dataset: {ov}")
         json.dump(JOB, open(os.path.join(OUT, "job.json"), "w"), ensure_ascii=False, indent=2)
+    # A8: ghi commit + băm dữ liệu của gói repo vào job.json để mỗi kết quả truy được về đúng mã nguồn
+    for root, _, files in os.walk(REPO):
+        if "BUILD_INFO.json" in files and root.count(os.sep) - REPO.count(os.sep) <= 1:
+            JOB["build"] = json.load(open(os.path.join(root, "BUILD_INFO.json"), encoding="utf-8"))
+            json.dump(JOB, open(os.path.join(OUT, "job.json"), "w"), ensure_ascii=False, indent=2)
+            log(f"build: {JOB['build']}")
+            break
     secrets = load_secrets()
     g = gpus(); log(f"GPU: {g or 'không có'}")
     json.dump({"gpus": g, "secrets": secrets, "python": sys.version}, open(os.path.join(OUT, "machine.json"), "w"), indent=2)

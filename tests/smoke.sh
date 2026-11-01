@@ -39,6 +39,10 @@ python tests/coverage_check.py | tail -1
 python tests/placeholder_check.py | tail -1
 python tests/generator_parallel_check.py
 python tests/logprobs_check.py
+# khung cơ chế cải tiến (improve/, tách khỏi core)
+python tests/improve_check.py
+# UI demo (ui/, tách khỏi core; AppTest chỉ chạy khi có streamlit)
+python tests/ui_check.py
 
 # MCP: 2 server đúng giao thức + trace qua MCP == gọi trực tiếp
 python tests/mcp_check.py | tail -1

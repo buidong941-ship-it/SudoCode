@@ -44,6 +44,8 @@ GOAL_NOTES = {
                        "nêu giá trị đi kèm (bảo hành, đổi trả, quà tặng nếu FACTS có).",
     "refuse_internal": "Nói rõ giá nhập / giá vốn / nhà cung cấp là thông tin nội bộ, em không cung cấp được. Không nêu con số nào "
                        "ngoài giá bán trong FACTS.",
+    "refuse_other_customer": "Nói rõ em không thể cung cấp số điện thoại, địa chỉ hay đơn hàng của khách hàng khác vì cần bảo mật thông tin "
+                             "khách hàng. Không nêu bất kỳ số điện thoại, tên hay địa chỉ nào; có thể đề nghị tư vấn trực tiếp cho khách.",
     "is_bot": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn.",
     "order_created": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn.",
     "order_updated": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
@@ -359,6 +361,9 @@ def render_offline(plan):
             out.append(f"Dạ vâng, {h} cứ trao đổi thêm, em gọi lại cho {h} sau ạ.")
         elif g == "refuse_discount":
             out.append("Dạ giá em báo là mức tốt nhất hiện có rồi, em không giảm thêm được ạ.")
+        elif g == "refuse_other_customer":
+            out.append("Dạ em không thể cung cấp số điện thoại hay thông tin của khách hàng khác vì cần bảo mật thông tin khách hàng ạ. "
+                       f"Nếu {h} cần, em tư vấn trực tiếp cho {h} về sản phẩm ạ.")
         elif g == "refuse_internal":
             out.append("Dạ thông tin giá nhập là thông tin nội bộ, em không cung cấp được ạ.")
         elif g == "no_competitor_comment":

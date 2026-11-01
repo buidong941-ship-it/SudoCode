@@ -63,6 +63,26 @@ def customer(text, rules, context=None):
                          "K": cue and no_extra, "C": context_ok})
 
 
+def empty(text, rules, context=None):
+    """Certify that a customer turn carries no slot: no rule value and no cue at all.
+
+    The cue scanner is deliberately broader than the rules (any digit, money,
+    delivery, payment, deferral word...), checked on both accented and folded
+    text. Short replies with context and back-references abstain because they
+    may confirm a value said earlier.
+    """
+    from harness.extractor import CUSTOMER_CUE_FOLD_RX, CUSTOMER_LLM_CUE_RX
+
+    f = fold(text)
+    short_with_context = bool(context) and len(text.strip()) <= 32
+    # Câu còn dấu: dùng regex có dấu (fold() làm "cỡ" khớp "có", "nhà" khớp "nha").
+    # Câu mất dấu (ASR/teencode): dùng bản fold, rộng hơn nên dễ abstain hơn.
+    accentless = f == re.sub(r"\s+", " ", (text or "").lower()).strip()
+    cue = (CUSTOMER_CUE_FOLD_RX if accentless else CUSTOMER_LLM_CUE_RX).search(f if accentless else text)
+    return _result(not rules, {"Q": not cue,
+                               "C": not short_with_context and not CONTEXT.search(f)})
+
+
 def question(sentence, q_rules, known_values=None):
     """Certify an explicit single-slot question without claim or context risk."""
     from harness.extractor import SLOT_KW, agent_claims

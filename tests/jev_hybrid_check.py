@@ -37,6 +37,17 @@ def run():
          patch.object(llm_extract, "agent", side_effect=AssertionError("grounded claim should skip Qwen")):
         _, claims = extractor.analyze_agent("Giá là 5 triệu.", {}, {})
         assert claims and claims[0]["field"] == "price_vnd"
+
+    # A6: Jev trả rỗng trong khi luật cắt được địa chỉ (chuỗi lỗi BTCL-047).
+    text = "Có ship hàng đến 5 Trần Phú, Nha Trang, Khánh Hòa không ạ?"
+    rules = extractor.customer_slots_rules(text, "2026-10-15")
+    assert rules == {"address": "5 Trần Phú, Nha Trang, Khánh Hòa"}, rules
+    for policy, expected in (("accept", {}), ("rules", rules), ("qwen", None)):
+        meta = {}
+        with patch.object(jev_hybrid.settings, "jev_drop_policy", policy), \
+             patch.object(jev_hybrid, "labels", return_value=set()):
+            assert jev_hybrid.customer(text, rules, meta) == expected, policy
+            assert meta["jev_dropped_rule_slots"] == ["address"]
     print("Jev hybrid checks OK")
 
 

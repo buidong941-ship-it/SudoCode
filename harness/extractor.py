@@ -22,17 +22,24 @@ KIDS_RX = re.compile(r"(?<!mau )\b(be|con nho|em be|tre nho|tre con|chau nho)\b"
 BLOCKERS = [(r"(hoi|ban voi) (chong|ong xa|anh nha|bo no)", "can hoi chong"), (r"(hoi|ban voi) (vo|ba xa|chi nha|me no)", "can hoi vo"),
             (r"hoi (con|nguoi nha|gia dinh|bo me|me)", "can hoi nguoi nha"), (r"(so sanh|so gia|tham khao) (gia|them)", "so sanh gia"),
             (r"(can nhac|suy nghi|xem them|tim hieu them|de (cuoi tuan )?(anh|chi|em) quyet)", "can nhac")]
-ADDRESS_RX = re.compile(r"(?:giao (?:về|tới|đến|cho \w+ (?:về|tới|ở))|địa chỉ(?: mới| giao)?(?: là|:)?|(?:giờ|hiện|nhà) (?:chị|anh|em|cô|chú)? ?ở|chuyển (?:nhà|về) (?:ra|vào|về|tới)?)\s+"
-                        r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=\s+(?:nhé|nha|nhá|ạ|em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|hả|vậy)\b|[.!?]|$)", re.I)
+# A5 (01/11): thêm "ship/gửi/chuyển (hàng) đến/về/tới…" (BTCL-047) và dừng trước "không" cuối câu hỏi (BTCL-046).
+# Giá trị vẫn phải bắt đầu bằng số/ngõ/hẻm nên "gửi về cho mẹ", "giao đến khi nào" không thành địa chỉ.
+ADDRESS_RX = re.compile(r"(?:(?:giao|ship|gửi|chuyển)(?: hàng)? (?:về|tới|đến|ra|vô|vào)|giao cho \w+ (?:về|tới|ở)|địa chỉ(?: mới| giao)?(?: là|:)?|(?:giờ|hiện|nhà) (?:chị|anh|em|cô|chú)? ?ở|chuyển nhà (?:ra|vào|về|tới))\s+"
+                        r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=,?\s+(?:(?:nhé|nha|nhá|ạ|rồi)(?=\s*(?:[.!?,]|$))|(?:em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|không|hả|vậy)\b)|[.!?]|$)", re.I)
 
 CUSTOMER_LLM_CUE_RX = re.compile(
     r"\d|m2|m²|mét vuông|diện tích|phòng|bé|em bé|trẻ nhỏ|trẻ con|con nhỏ|ngân sách|tầm|khoảng|"
     r"giá|shopee|lazada|tiki|sàn|bên kia|bên khác|size|cỡ|màu|giao|địa chỉ|cod|thanh toán|"
     r"chuyển khoản|momo|zalopay|ông xã|bà xã|anh nhà|chị nhà|người nhà|cân nhắc|so sánh|"
     r"gọi lại|liên lạc|báo lại|tên là|chị là|anh là|cô là|chú là|\bnhà\b|tháng|tuổi|"
-    r"đắt|mắc|giảm|bớt|đang dùng|đang xài|đã có|có sẵn|nhà có",
+    r"đắt|mắc|giảm|bớt|đang dùng|đang xài|đã có|có sẵn|nhà có|"
+    # trì hoãn / blocker không có từ khóa slot (A1 01/11: BTCL-006/056/057 bị bỏ sót)
+    r"so thêm|phản hồi|quyết|chờ|đợi|suy nghĩ|tính sau|để sau|bàn lại|hỏi ý|hỏi lại|"
+    r"ship|gửi|chuyển|nhận hàng|tên",
     re.I,
 )
+# Cùng bộ cue nhưng khớp trên chuỗi fold() để không lọt câu ASR mất dấu.
+CUSTOMER_CUE_FOLD_RX = re.compile(fold(CUSTOMER_LLM_CUE_RX.pattern), re.I)
 
 
 def customer_slots(text, today, meta=None, context=None):
@@ -40,7 +47,7 @@ def customer_slots(text, today, meta=None, context=None):
     if settings.extractor_backend == "rules":
         return rules
     if settings.extractor_backend == "hybrid" and settings.extractor_confidence_gate:
-        from harness.rule_confidence import customer as certify_customer
+        from harness.rule_confidence import customer as certify_customer, empty as certify_empty
 
         cert = certify_customer(text, rules, context)
         if meta is not None:
@@ -50,6 +57,14 @@ def customer_slots(text, today, meta=None, context=None):
                 meta["backend"] = "hybrid:certified_rules"
                 meta["customer_qwen_skipped"] = True
             return rules
+        empty = certify_empty(text, rules, context)
+        if meta is not None:
+            meta["customer_empty_confidence"] = empty
+        if empty["certified"]:
+            if meta is not None:
+                meta["backend"] = "hybrid:certified_empty"
+                meta["customer_qwen_skipped"] = True
+            return {}
     if settings.extractor_backend == "hybrid" and settings.extractor_jev_hybrid:
         from harness.jev_hybrid import customer as jev_customer
         jev_slots = jev_customer(text, rules, meta, context)
@@ -179,7 +194,7 @@ def customer_slots_start(text, today, meta=None, context=None):
     from harness import llm_extract
     rules = customer_slots_rules(text, today)
     if settings.extractor_confidence_gate:
-        from harness.rule_confidence import customer as certify_customer
+        from harness.rule_confidence import customer as certify_customer, empty as certify_empty
 
         cert = certify_customer(text, rules, context)
         if meta is not None:
@@ -189,6 +204,14 @@ def customer_slots_start(text, today, meta=None, context=None):
                 meta["customer_qwen_skipped"] = True
                 meta["backend"] = "hybrid:certified_rules"
             return dict(rules), None
+        empty = certify_empty(text, rules, context)
+        if meta is not None:
+            meta["customer_empty_confidence"] = empty
+        if empty["certified"]:
+            if meta is not None:
+                meta["customer_qwen_skipped"] = True
+                meta["backend"] = "hybrid:certified_empty"
+            return {}, None
     if settings.extractor_jev_hybrid:
         from harness.jev_hybrid import customer as jev_customer
         jev_slots = jev_customer(text, rules, meta, context)

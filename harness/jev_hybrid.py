@@ -59,7 +59,20 @@ def customer(text, rules, meta=None, context=None):
             meta["jev_un_grounded_customer_labels"] = sorted(missing)
         return None
     selected = {value_key.get(label, label) for label in found}
+    # A6 (BTCL-047): Jev bỏ một slot đơn hàng mà luật đã cắt được span thì sai
+    # một lần làm hỏng order.create. Chính sách chọn bằng JEV_DROP_POLICY.
+    dropped = sorted(PROTECTED & set(rules) - selected)
+    if dropped:
+        if meta is not None:
+            meta["jev_dropped_rule_slots"] = dropped
+        if settings.jev_drop_policy == "qwen":
+            return None
+        if settings.jev_drop_policy == "rules":
+            selected |= set(dropped)
     return {key: value for key, value in rules.items() if key in selected}
+
+
+PROTECTED = {"address", "payment"}
 
 
 def claims(sentence, rule_claims, meta=None):

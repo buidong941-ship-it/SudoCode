@@ -60,6 +60,24 @@ class K:
         return r.returncode, out
 
 
+DATA_DIRS = ("catalog", "policy", "test_set", "datagen/out_nat", "datagen/out_btc_like_final_v1")
+
+
+def data_hash():
+    """A8: băm nội dung các bộ dữ liệu đo (đường dẫn + sha256 từng file), để biết chắc lần chạy dùng đúng gói nào."""
+    import hashlib
+    h = hashlib.sha256()
+    for d in DATA_DIRS:
+        base = os.path.join(ROOT, d)
+        for dirpath, dirnames, files in os.walk(base):
+            dirnames.sort()
+            for name in sorted(files):
+                path = os.path.join(dirpath, name)
+                h.update(os.path.relpath(path, ROOT).replace(os.sep, "/").encode())
+                h.update(hashlib.sha256(open(path, "rb").read()).digest())
+    return h.hexdigest()[:16]
+
+
 def pack(dst, extra=None):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
 
@@ -78,7 +96,8 @@ def pack(dst, extra=None):
         dirty = bool(subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain"], text=True).strip())
     except Exception:
         commit, dirty = None, None
-    info = json.dumps({"commit": commit, "uncommitted_changes": dirty, "packed_at": time.strftime("%Y-%m-%d %H:%M:%S")}).encode()
+    info = json.dumps({"commit": commit, "uncommitted_changes": dirty, "data_sha256": data_hash(),
+                       "packed_at": time.strftime("%Y-%m-%d %H:%M:%S")}).encode()
     with tarfile.open(dst, "w:gz") as t:
         t.add(ROOT, arcname="repo", filter=keep)
         ti = tarfile.TarInfo("repo/BUILD_INFO.json"); ti.size = len(info); ti.mtime = int(time.time())

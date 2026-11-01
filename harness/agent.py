@@ -30,6 +30,18 @@ STACKABLE_SKIP = {"COD-0", "NAM-SHIP0"}
 FILTER_OF = {"SKU-AP-X": "SKU-AP-FLT-X", "SKU-AP-Y": "SKU-AP-FLT-X", "SKU-AP-PRO": "SKU-AP-FLT-P",
              "SKU-XM-4L": "SKU-XM-FLT", "SKU-XM-4P": "SKU-XM-FLT"}
 
+# B1: câu hỏi hoàn/trả vượt mọi thời hạn có trong chính sách → không có thông tin (BTCL-041/042)
+REFUND_RX = re.compile(r"\b(hoan (du |lai )?tien|tra lai|tra hang|doi tra|hoan tra)\b")
+HYPO_RX = re.compile(r"\b(neu|gia su|lo nhu|truong hop)\b")
+DOC_REF_RX = re.compile(r"\b(van ban|giay to|cho nao ghi|co ghi|xac nhan dieu do|dieu do)\b")
+DUR_RX = re.compile(r"\b(\d+|mot|hai|ba|bon|sau|bay|tam|chin|muoi|nua) (nam|thang|tuan|ngay)\b")
+_NUM_WORD = {"mot": (1, "một"), "hai": (2, "hai"), "ba": (3, "ba"), "bon": (4, "bốn"), "sau": (6, "sáu"),
+             "bay": (7, "bảy"), "tam": (8, "tám"), "chin": (9, "chín"), "muoi": (10, "mười"), "nua": (0.5, "nửa")}
+_UNIT = {"nam": (365, "năm"), "thang": (30, "tháng"), "tuan": (7, "tuần"), "ngay": (1, "ngày")}
+# B2: xin SĐT/địa chỉ/đơn của khách khác (BTCL-061/062)
+OTHER_PII_RX = re.compile(r"\b(so|sdt|so dien thoai|dia chi|thong tin|zalo|don hang)\b.{0,20}\b(khach|nguoi)( mua)? "
+                          r"(khac|tung mua|da mua|mua truoc|mua mau)\b")
+
 
 def _ddmm(d):
     return f"{int(d[8:10])}/{int(d[5:7])}"
@@ -96,6 +108,7 @@ class CallSession:
         self.open_questions, self.repeat_asked, self.fail_streak = [], 0, 0
         self.seen_money = set()
         self.last_sentiment = None
+        self.policy_gap, self.privacy_refused, self.plan_why = None, False, []
 
     def start(self):
         t0 = time.perf_counter()
@@ -423,7 +436,8 @@ class CallSession:
                "memory_writes": mem_writes,
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},
-               "goals": goals, "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
+               "goals": goals, "planner": {"backend": "rules", "branches": list(self.plan_why)},
+               "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", settings.extractor_backend), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
         if "jev_slot_requests" in agent_meta:
@@ -522,9 +536,35 @@ class CallSession:
             cands.append((-score, it["list_price_vnd"], it["sku"]))
         return sorted(cands)[0][2] if cands else None
 
+    def _why(self, branch, reason=""):
+        """B7: ghi nhánh planner đã đi qua và lý do, để phân tích lỗi và làm feedback."""
+        self.plan_why.append({"branch": branch, "reason": reason} if reason else {"branch": branch})
+
+    def _policy_gap(self, text, f, asking=True):
+        """Hỏi hoàn/trả với thời hạn dài hơn mọi thời hạn hoàn/đổi/trả trong tài liệu (hoặc hỏi văn bản cho chính câu đó)."""
+        if self.policy_gap and DOC_REF_RX.search(f):
+            return self.policy_gap if asking else None
+        m = DUR_RX.search(f)
+        if not m or not (REFUND_RX.search(f) or re.search(r"\bcam ket\b", f)):
+            return None
+        n, unit = m.group(1), m.group(2)
+        num, num_txt = (int(n), n) if n.isdigit() else _NUM_WORD[n]
+        asked_days = num * _UNIT[unit][0]
+        hits = knowledge.search(text, k=3)
+        windows = []
+        for h in hits:
+            for sent in re.split(r"(?<=[.;\n])\s*", fold(h["text"])):
+                if re.search(r"\b(doi|tra|hoan)\b", sent):
+                    windows += [int(x) * _UNIT[u][0] for x, u in re.findall(r"(\d+)\s*(ngay|thang)", sent)]
+        if not windows or asked_days <= max(windows):
+            return None
+        return {"topic": f"cam kết hoàn tiền / trả hàng sau {num_txt} {_UNIT[unit][1]}",
+                "policy": [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits[:2]]}
+
     def _plan(self, text, slots, route):
         it, fl = route["intent"], route.get("flags", {})
         goals, facts = [], {}
+        self.plan_why = []
         c = self.customer or {}
         y = lambda k, th=0.6: fl.get(k, 0) >= th
         for k, v in slots.items():
@@ -584,11 +624,28 @@ class CallSession:
             return goals, facts
         if y("asks_internal_cost"):
             goals.append("refuse_internal")
+        if OTHER_PII_RX.search(f) or (self.privacy_refused and re.search(r"\bchia se\b", f)):
+            self._why("privacy_refuse", "khách xin thông tin của khách khác")
+            self.privacy_refused = True
+            goals.append("refuse_other_customer")
+            return goals, facts
+        gap = self._policy_gap(text, f, asking)
+        if gap:
+            self._why("policy_gap", gap["topic"])
+            self.policy_gap = gap
+            facts["unknown_topic"], facts["policy"] = gap["topic"], gap["policy"]
+            goals.append("no_info")
+            self.open_questions.append(text[:200])
+            return goals, facts
+        if it == "order_change" and HYPO_RX.search(f) and asking and REFUND_RX.search(f):
+            self._why("hypothetical_return", "hỏi giả định về trả hàng, không tạo yêu cầu trả")
+            it = "policy_question"
         if it == "order_change" and self.buy_intent and not self.orders_created and slots.get("address"):
             it = "place_order"
         if it == "order_change" and self.orders_created and slots.get("address"):
             return goals + self._update_address(slots["address"], facts), facts
         if it == "order_change":
+            self._why("order_change")
             g = self._plan_order_change(text, facts)
             if g != ["WINDOW_PASSED"]:
                 return goals + g, facts
@@ -596,6 +653,7 @@ class CallSession:
                 self.window_told = True; goals.append("exchange_window_passed")
             it = "product_inquiry"
         if it == "order_status":
+            self._why("order_status")
             r = self.tools.call("order.status", customer_phone=c.get("phone") or self.phone)
             facts["orders"] = [{**{k: o.get(k) for k in ("order_id", "sku", "status", "tracking", "created_on", "date", "estimated_delivery", "address")
                                    if o.get(k) is not None}, "product": product_name(o["sku"]) if o.get("sku") else None,
@@ -618,6 +676,7 @@ class CallSession:
             hits = knowledge.search(text, k=2, order_date=order_date)
             facts["policy"] = [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits]
             goals.append("policy_answer" if hits else "no_info")
+            self._why("policy", "có tài liệu" if hits else "không có tài liệu")
         terms = [m.group(0) for m in ATTR_ASK_RX.finditer(f)]
         if asking and terms and "no_info" not in goals and "policy_answer" not in goals:
             specific = [t for t in terms if t in ("fda", "iso", "ce", "rohs") or t.startswith("tieu chuan")] or terms
@@ -627,6 +686,7 @@ class CallSession:
             missing = [t for t in specific if not re.search(rf"\b{re.escape(t)}\b", known_txt)]
             if missing:
                 goals.append("no_info"); facts["unknown_topic"] = missing[0]
+                self._why("attr_unknown", missing[0])
         if re.search(r"\bbao hanh\b", f) and (mentioned or self.focus):
             par = mt._parent((mentioned or [self.focus])[-1])[0]
             if par and par["attributes"].get("warranty_months"):
@@ -719,6 +779,7 @@ class CallSession:
                 facts["quote"] = facts.get("quote") or self._quote(self._resolve_variant(self.focus, text), "advised")
                 goals += ["stale_promo", "quote", "confirm_new_price"]
             else:
+                self._why("order_create", "đồng ý mua" if wants else "bổ sung thông tin đơn")
                 goals += self._plan_order(text, facts)
         elif wants and asking and "quote" in goals:
             goals.append("confirm_order")
@@ -740,6 +801,7 @@ class CallSession:
                 goals.append("ask_repeat")
             else:
                 goals.append("closing")
+            self._why("fallback", goals[-1])
         if "no_info" in goals or "handoff" in goals:
             self.open_questions.append(text[:200])
         self.fail_streak = self.fail_streak + 1 if "order_failed" in goals else 0
@@ -780,6 +842,10 @@ class CallSession:
                 "total_vnd": sum(q["final_price_vnd"] or 0 for q in qs), "budget_vnd": self.known.get("budget_vnd")}
 
     def _update_address(self, address, facts):
+        if all(fold(o.get("address") or "") == fold(address) for o in self.orders_created):
+            self._why("address_same", "địa chỉ trùng địa chỉ trong đơn, không gọi order.update")
+            return self._plan_order("", facts)
+        self._why("address_update")
         out = []
         for o in self.orders_created:
             r = self.tools.call("order.update", order_id=o["order_id"], action="update_address", reason=f"địa chỉ mới: {address}")
@@ -836,7 +902,7 @@ class CallSession:
                 args["price_vnd"] = r["expected_price_vnd"]; r = self.tools.call("order.create", **args)
             if r.get("error"):
                 facts["order_error"] = r["error"]; return ["order_failed"]
-            made.append({**r, "sku": q["sku"], "price_vnd": args["price_vnd"], "payment": payment})
+            made.append({**r, "sku": q["sku"], "price_vnd": args["price_vnd"], "payment": payment, "address": args["address"]})
         self.orders_created += made
         facts["order"] = {"order_id": ", ".join(o["order_id"] for o in made), "total_vnd": sum(o["total_vnd"] for o in made),
                           "estimated_delivery": made[0].get("estimated_delivery"),

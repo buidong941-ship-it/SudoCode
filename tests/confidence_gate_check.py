@@ -7,7 +7,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from harness import extractor, llm_extract
-from harness.rule_confidence import customer, question
+from harness.rule_confidence import customer, empty, question
 
 
 def run():
@@ -65,6 +65,18 @@ def run():
         meta = {}
         slots, pending = extractor.customer_slots_start("Phòng 25m².", "2026-10-15", meta)
         assert slots == {"room_area_m2": 25} and pending is None and meta["customer_qwen_skipped"]
+    # Chứng nhận rỗng: không giá trị luật, không cue nào (cả bản có dấu lẫn mất dấu).
+    assert empty("Dạ em cảm ơn nhé.", {})["certified"]
+    for t, ctx in [("Chị sẽ so thêm rồi phản hồi.", None), ("Anh muốn chờ bạn quyết cùng.", None),
+                   ("Anh muốn đợi bạn quyết định cùng nhau.", None), ("ship ve 12 le loi giup em", None),
+                   ("chi muon chuyen khoan truoc", None), ("Vậy giá bên kia rẻ hơn.", None),
+                   ("Ừ được em.", "Chị lấy màu xám nhé?"), ("cái hôm trước ấy em", None)]:
+        assert not empty(t, extractor.customer_slots_rules(t, "2026-10-15"), ctx)["certified"], t
+    assert not empty("Phòng 25m².", {"room_area_m2": 25})["certified"]
+    with patch.object(extractor.settings, "extractor_backend", "hybrid"),          patch.object(extractor.settings, "extractor_confidence_gate", True),          patch.object(extractor.settings, "extractor_jev_hybrid", True),          patch.object(extractor.settings, "extractor_async", True),          patch("harness.jev_hybrid.labels", side_effect=AssertionError("Jev should be skipped")),          patch.object(llm_extract, "submit_customer_slots", side_effect=AssertionError("Qwen should be skipped")):
+        meta = {}
+        slots, pending = extractor.customer_slots_start("Dạ em cảm ơn nhé.", "2026-10-15", meta)
+        assert slots == {} and pending is None and meta["backend"] == "hybrid:certified_empty", meta
     print("confidence gate checks OK")
 
 
