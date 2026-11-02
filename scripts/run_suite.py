@@ -65,6 +65,23 @@ def sh(cmd, log, timeout=None, **kw):
     return p.returncode
 
 
+def _build_info():
+    """A8: bản code đã chạy. Trên Kaggle lấy từ BUILD_INFO.json do kaggle_job.py đóng gói (kể cả khi kernel còn runner.py cũ,
+    vì file này đi theo dataset); ở máy có git thì lấy `git rev-parse HEAD` + có thay đổi chưa commit hay không."""
+    p = os.path.join(ROOT, "BUILD_INFO.json")
+    if os.path.exists(p):
+        try:
+            return json.load(open(p, encoding="utf-8"))
+        except ValueError:
+            pass
+    try:
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout.strip())
+        return {"commit": head or None, "uncommitted_changes": dirty}
+    except OSError:
+        return {"commit": None}
+
+
 def bash():
     if os.name != "nt":
         return "bash"
@@ -173,9 +190,14 @@ def main():
                      "--out", os.path.join(out, "extract_eval.json")], log)
             meta["steps"].append({"step": "extract_eval", "rc": rc})
         summary = {}
+        # tên thư mục kết quả = tên cuối của đường dẫn; nếu hai bộ trùng tên cuối (out_nat/dev và out_btc_like…/dev)
+        # thì cả hai dùng "<thư mục cha>-<tên>" để không ghi đè nhau (lỗi phát hiện 01/11 ở job regress-b345)
+        bases = [os.path.basename(os.path.normpath(n)) for n in a.sets]
+        dirname = {n: (b if bases.count(b) == 1 else
+                       os.path.normpath(n).replace(os.sep, "/").replace("/", "_")) for n, b in zip(a.sets, bases)}
         for name in a.sets:
             path = SETS.get(name, name)
-            sdir = os.path.join(out, os.path.basename(os.path.normpath(name)))
+            sdir = os.path.join(out, dirname[name])
             os.makedirs(sdir, exist_ok=True)
             traces, fails = {}, {}
             for cfg in a.configs:
@@ -214,7 +236,7 @@ def main():
     finally:
         if started_server and not a.keep_server:
             subprocess.run([bash(), "scripts/serve_llm.sh", "stop"], cwd=ROOT)
-        meta.update(seconds=round(time.time() - t0, 1), failed=failed)
+        meta.update(seconds=round(time.time() - t0, 1), failed=failed, build=_build_info())
         json.dump(meta, open(os.path.join(out, "suite.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
         log.close()
     print(f"→ {out}")

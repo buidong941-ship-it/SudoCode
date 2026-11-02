@@ -81,7 +81,8 @@ def customer_llm_candidate(text, context=None):
     """Cheap high-recall gate: skip customer LLM extraction for text with no slot cues."""
     if context and len(text.strip()) <= 32:
         return True
-    return bool(CUSTOMER_LLM_CUE_RX.search(text))
+    from harness import lexicon
+    return bool(CUSTOMER_LLM_CUE_RX.search(text)) or bool(lexicon.cue_hit(fold(text)))
 
 
 def analyze_agent(text, known_values, meta=None, focus_sku=None):
@@ -232,7 +233,9 @@ def customer_slots_finish(pending, slots, wait):
     return llm_extract.collect_customer_slots(pending, slots, wait)
 
 
-def customer_slots_rules(text, today):
+def customer_slots_rules(text, today, lexicon_hits=None):
+    from harness import lexicon
+    text = lexicon.normalize(text)            # viết tắt / teencode đã duyệt (A-L); không có entry approved → giữ nguyên
     t, f = text.lower(), fold(text)
     out = {}
     m = re.search(r"(\d{1,3})\s*(?:m2|m²|mét vuông|mét|m\b)", t)
@@ -260,7 +263,7 @@ def customer_slots_rules(text, today):
         if re.search(rx, f):
             out["blocker"] = label; break
     w = parse_relative_datetime(text, today)
-    if w and re.search(r"goi lai|lien lac|bao lai|goi cho", f):
+    if w and (re.search(r"goi lai|lien lac|bao lai|goi cho", f) or lexicon.trigger("callback_requested", f)):
         out["callback_requested"] = f"{w[0]}T{w[1] or '09:00'}"
     m = re.search(r"(?:chị|anh|cô|chú|em|tôi|mình) (?:là|tên là|tên) ([A-ZĐ][a-zà-ỹ]+)", text) \
         or re.search(r"\b(?:chị|anh|cô|chú|bác|em) ([A-ZĐ][a-zà-ỹ]+) (?:đây|nè|này)\b", text)
@@ -278,7 +281,7 @@ def customer_slots_rules(text, today):
         from harness.tools import find_products
         owned = find_products(text[m.start():m.end() + 10])
         if owned: out["owned_product"] = owned[0]
-    return out
+    return lexicon.apply(text, out, hits=lexicon_hits)   # value / negative đã duyệt trong harness/lexicon/slots.json
 
 
 SLOT_KW = [

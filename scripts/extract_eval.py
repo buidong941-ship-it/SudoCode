@@ -6,6 +6,10 @@ Câu lấy từ trace bộ dev (generator của nhóm + lời khách của kịc
 Chỉ số: precision / recall / F1 theo từng field claim, phát hiện câu hỏi, đúng slot câu hỏi, và theo từng slot của khách.
 
     python scripts/extract_eval.py --modes rules hybrid --out runs/extract_eval.json
+    python scripts/extract_eval.py --modes rules --customer-sets customer real_ref --lexicon none approved
+
+- real_ref.jsonl: 200 câu khách THẬT (CSConDa / hcmut-ura, CC BY-NC 4.0, đã che PII), nhãn tay — bộ đo câu thật duy nhất
+  của lexicon (PLAN-2026-11-01 D-2). Phần lớn câu không mang slot nên chủ yếu đo precision (phản ví dụ thật).
 """
 import argparse
 import json
@@ -152,19 +156,44 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--modes", nargs="+", default=["rules"], choices=["rules", "llm", "hybrid"])
     ap.add_argument("--out", default=os.path.join(ROOT, "runs", "extract_eval.json"))
+    ap.add_argument("--customer-sets", nargs="+", default=["customer"], help="customer | real_ref (tests/extract_eval/<tên>.jsonl)")
+    ap.add_argument("--lexicon", nargs="+", default=["approved"], choices=["none", "approved", "proposed"],
+                    help="none = tắt hẳn harness/lexicon; approved / proposed = nạp tới mức đó (so trước/sau)")
     a = ap.parse_args()
-    agent_items, cust_items = load("agent.jsonl"), load("customer.jsonl")
+    agent_items = load("agent.jsonl")
     facts_used_items = load("facts_used.jsonl")
     settings.extractor_async = False
-    report = {"n_agent": len(agent_items), "n_customer": len(cust_items), "modes": {}}
-    for mode in a.modes:
+    report = {"n_agent": len(agent_items), "runs": {}}
+    from harness import lexicon
+    saved = lexicon._compiled
+    for lex in a.lexicon:
+        if lex == "none":
+            lexicon._compiled = lambda path, include: {"entries": [], "abbrev": []}
+        else:
+            lexicon._compiled = saved
+            os.environ["LEXICON_INCLUDE"] = lex
+            lexicon.reload()
+        for cset in a.customer_sets:
+            report["runs"][f"{lex}/{cset}"] = run_modes(a.modes, agent_items, load(f"{cset}.jsonl"), facts_used_items,
+                                                        f"lexicon={lex}, bộ khách={cset}")
+    lexicon._compiled = saved
+    first = next(iter(report["runs"].values()))      # giữ khóa cũ cho scripts/tune_extract_logprobs.py
+    report.update(n_customer=first["n_customer"], modes=first["modes"])
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    json.dump(report, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print(f"\n→ {a.out}")
+
+
+def run_modes(modes, agent_items, cust_items, facts_used_items, label):
+    report = {"n_customer": len(cust_items), "modes": {}}
+    for mode in modes:
         os.environ["EXTRACTOR_BACKEND"] = settings.extractor_backend = mode
         r = {"agent": eval_agent(agent_items), "customer": eval_customer(cust_items),
              "facts_used": eval_facts_used(facts_used_items)}
         report["modes"][mode] = r
         ag, cu = r["agent"], r["customer"]
-        print(f"\n== {mode}  (agent {len(agent_items)} câu, khách {len(cust_items)} câu; ms p50 agent {ag['ms_p50']:.0f}, "
-              f"khách {cu['ms_p50']:.0f})")
+        print(f"\n== {mode} · {label}  (agent {len(agent_items)} câu, khách {len(cust_items)} câu; "
+              f"ms p50 agent {ag['ms_p50']:.0f}, khách {cu['ms_p50']:.0f})")
         print(f"{'':28}{'P':>6}{'R':>6}{'F1':>6}   tp/fp/fn")
         rows = [("câu hỏi (phát hiện)", ag["questions"])] + [(f"claim {k}", v) for k, v in ag["claims"].items()] + \
                [("claim (tất cả)", ag["claims_all"])] + [(f"khách {k}", v) for k, v in cu["slots"].items()] + \
@@ -175,9 +204,7 @@ def main():
         fu = r["facts_used"]
         print(f"facts_used (bộ hồi quy {len(facts_used_items)} ca): {fmt(fu['precision'])}{fmt(fu['recall'])}{fmt(fu['f1'])}   "
               f"{fu['tp']}/{fu['fp']}/{fu['fn']}")
-    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
-    json.dump(report, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print(f"\n→ {a.out}")
+    return report
 
 
 if __name__ == "__main__":

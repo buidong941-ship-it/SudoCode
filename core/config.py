@@ -85,7 +85,12 @@ class Settings:
     extractor_jev_hybrid: bool = field(default_factory=lambda: _env("EXTRACTOR_JEV_HYBRID", "0") not in ("0", "off", "false"))
     # A6: khi Jev không chọn slot address/payment mà luật đã cắt được giá trị:
     # accept = theo Jev (cũ) | qwen = để Qwen làm trọng tài | rules = giữ giá trị của luật
-    jev_drop_policy: str = field(default_factory=lambda: _env("JEV_DROP_POLICY", "accept").lower())
+    jev_drop_policy: str = field(default_factory=lambda: _env("JEV_DROP_POLICY", "qwen").lower())
+    # Mục E: thư mục improve/ có approved/ để agent nạp (harness/improve_hook.py). Rỗng = tắt (mặc định, cấu hình đo vòng 0)
+    improve_dir: str = field(default_factory=lambda: _env("IMPROVE_DIR", ""))
+    # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
+    planner_backend: str = field(default_factory=lambda: _env("PLANNER_BACKEND", "rules").lower())
+    planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
     question_clf: bool = field(default_factory=lambda: _env("QUESTION_CLF", "0") not in ("0", "off", "false"))
     question_classifier_backend: str = field(default_factory=lambda: _env("QUESTION_CLF_BACKEND", "jev").lower())
     question_clf_tau: float = field(default_factory=lambda: float(_env("QUESTION_CLF_TAU", "0.75")))
@@ -117,6 +122,8 @@ class Settings:
                 "extractor_backend": self.extractor_backend, "extractor_llm": self.extractor_llm,
                 "extractor_async": self.extractor_async, "extractor_confidence_gate": self.extractor_confidence_gate,
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
+                "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
+                "improve_dir": self.improve_dir,
                 "question_clf": self.question_clf,
                 "question_clf_backend": self.question_classifier_backend,
                 "question_clf_tau": self.question_clf_tau,

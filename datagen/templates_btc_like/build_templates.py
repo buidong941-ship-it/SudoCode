@@ -135,11 +135,17 @@ FAMILIES = [
 ]
 
 
-def materialize():
+def materialize(families=None, splits=("dev", "holdout"), target=None):
+    """families/splits/target cho phép sinh bộ phụ (vd D-7: họ mới, CHỈ split dev → templates_btc_like_d7/benchmark.json)
+    mà không đụng benchmark.json của bộ chính."""
     templates = []
-    for family in FAMILIES:
-        for split in ("dev", "holdout"):
+    for family in families or FAMILIES:
+        for split in [s for s in splits if s in family]:
             cust_choose = ("customers(ids=['C035'], reuse=True)" if family["id"] == "shared_number" and split == "holdout"
+                           # B3 (01/11): khách đa kênh fanpage → hotline phải có trong CRM kèm fb_id (như SAMPLE-04);
+                           # khách tổng hợp không có SĐT ở cuộc chat thì không nối được hai kênh → ca không thể qua
+                           # (chỉ delivery_address đổi kênh fanpage → hotline giữa hai cuộc; các họ khác giữ một kênh)
+                           else "customers(kind='crm', need=['fb_id'])" if family["id"] == "delivery_address"
                            else "customers(kind='new')")
             choose = {"cust": cust_choose, "p": f"products(skus={family['skus']!r}, variants=False)",
                       "d1": family.get("date_choose", "days('2026-10-13','2026-10-21')"),
@@ -175,6 +181,14 @@ def materialize():
             if family["id"] == "change_mind":
                 second["facts_established"] = {"product_advised": "{{p2.sku}}"}
                 second["ground_truth_facts"] = {"price_vnd": "{{final(p2.vsku,'call_2')}}", "in_stock": True}
+            for slot in family.get("carry", []):          # D-7: họ mới khai báo slot phải mang sang / không được hỏi lại
+                if slot not in second["must_carry_over"]:
+                    second["must_carry_over"].append(slot)
+                    second["must_not_ask"].append(slot)
+            if family.get("success_args"):                 # D-7: args_match cho tool của success (vd order.create)
+                second["success_if"]["args_match"] = dict(family["success_args"])
+            if family.get("second_facts"):
+                second["facts_established"] = dict(family["second_facts"])
             if family["id"] == "order_followup":
                 first["facts_established"].pop("payment", None)
                 second["facts_established"] = {"payment": "COD"}
@@ -197,7 +211,8 @@ def materialize():
                                      "notes": "Mẫu mô phỏng mới, không phải sample/hidden test chính thức của BTC; dữ kiện giá và tồn kho lấy từ mock_tools theo ngày gọi.",
                                      "calls": {"call_1": first, "call_2": second}}}
             templates.append(template)
-    target = Path(__file__).with_name("benchmark.json")
+    target = Path(target) if target else Path(__file__).with_name("benchmark.json")
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(templates, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {len(templates)} independent templates to {target}")
 

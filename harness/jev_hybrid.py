@@ -20,7 +20,10 @@ def labels(text, definitions, role, meta=None, context=None):
             instructions=(f"Does the current {role} sentence explicitly contain: {description}? "
                           "Use the conversation context only to resolve references or meaning. "
                           "Return yes only when the current sentence provides or asserts this information; "
-                          "do not copy a value mentioned only in earlier context."),
+                          "do not copy a value mentioned only in earlier context. "
+                          # A7 (01/11): Redactor che PII trước khi gửi → Jev chỉ thấy mã, phải coi mã là giá trị thật
+                          "Privacy codes such as [ĐỊA_CHỈ_1] or [SĐT_1] stand for a real address / phone number that was "
+                          "masked: a sentence containing [ĐỊA_CHỈ_n] DOES state an address (also inside a delivery question)."),
             criteria={"yes": "Explicitly present", "no": "Not explicitly present"})
             for name, description in definitions.items()}
         meta["jev_label_requests"] = meta.get("jev_label_requests", 0) + 1

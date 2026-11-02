@@ -36,9 +36,13 @@ def imports_of(path):
 core_files = [os.path.join(d, f) for top in ("harness", "core", "eval", "mcp_servers")
               for d, _, fs in os.walk(os.path.join(ROOT, top)) for f in fs if f.endswith(".py")]
 core_files.append(os.path.join(ROOT, "run_eval.py"))
+HOOK = os.path.join(ROOT, "harness", "improve_hook.py")   # điểm nối DUY NHẤT (mục E), chỉ được dùng improve.loader
 for f in core_files:
     bad = {m for m in imports_of(f) if m == "improve" or m.startswith("improve.")}
-    ok(not bad, f"{os.path.relpath(f, ROOT)} import {bad} — core phải tách khỏi improve/")
+    if os.path.abspath(f) == HOOK:
+        ok(bad <= {"improve.loader"}, f"harness/improve_hook.py chỉ được import improve.loader, có {bad}")
+        continue
+    ok(not bad, f"{os.path.relpath(f, ROOT)} import {bad} — core phải tách khỏi improve/ (chỉ harness/improve_hook.py)")
 for f in os.listdir(os.path.join(ROOT, "improve")):
     if f.endswith(".py"):
         bad = {m for m in imports_of(os.path.join(ROOT, "improve", f))

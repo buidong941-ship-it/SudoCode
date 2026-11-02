@@ -114,7 +114,8 @@ class Generator:
             system = SYSTEM + ("\n15. Trả lời ngắn: tối đa 2 câu, mỗi câu dưới 25 từ. Vẫn mở đầu bằng \"Dạ\" và giữ \"ạ\" như nói chuyện "
                                "với khách; trả lời đúng điều khách vừa hỏi trước; đủ mọi ý bắt buộc trong GOAL_NOTES (giá, mã đơn, "
                                "ngày giao, tiền hoàn…); điều FACTS không có thì vẫn phải nói \"em chưa có thông tin\". Chỉ bỏ câu lặp ý."
-                               if settings.reply_style == "short" else "") + (PLACEHOLDER_RULE if slots else "")
+                               if settings.reply_style == "short" else "") + (PLACEHOLDER_RULE if slots else "") \
+                + (IMPROVE_RULE if plan.get("PLAYBOOK") or plan.get("EXEMPLARS") else "")
             msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
             text, ttft, total, usage = llm.chat(msgs, temperature=temperature)
             text = _strip_think(text)
@@ -237,6 +238,13 @@ def fill(text, slots):
     for c in re.findall(r"\{[^{}\n]{0,30}\}", text):
         problems.append(f"mã {c} không có trong PLACEHOLDERS")
     return text, problems
+
+
+# Mục E (cơ chế cải tiến): chỉ thêm vào system prompt khi lượt này có PLAYBOOK / EXEMPLARS từ improve/approved
+# (IMPROVE_DIR bật). Tắt → system prompt y hệt trước.
+IMPROVE_RULE = ("\n16. PLAYBOOK (nếu có) là hướng dẫn đã được người duyệt cho tình huống này: làm theo, nhưng GOALS và FACTS vẫn "
+                "ưu tiên hơn. EXEMPLARS (nếu có) là câu trả lời mẫu đã duyệt, chỉ để tham khảo cách nói; không chép sản "
+                "phẩm, số tiền, ngày hay mã đơn từ EXEMPLARS — mọi dữ kiện chỉ lấy từ FACTS.")
 
 
 def payload(plan, red=None, compact=True, slots=None):

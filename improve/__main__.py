@@ -47,6 +47,17 @@ def cmd_collect(a):
         _p(f"  {row['n']:>4}  {row['type']}" + (f" / {row['subtype']}" if row["subtype"] else ""))
 
 
+def cmd_exemplars(a):
+    from improve import exemplars as E
+    props = E.mine(a.trace, a.report, a.per_goal)
+    n = 0
+    for p in props:
+        state, _ = S.propose(p, author="exemplar-miner", root=a.root)
+        n += state == "pending"
+    S.log("exemplars", a.root, trace=a.trace, report=a.report, found=len(props), new=n)
+    _p(f"{len(props)} lượt mẫu đạt điều kiện, {n} đề xuất mới → pending/")
+
+
 def cmd_gaps(a):
     gaps = C.load(S.paths(a.root)["gaps"])
     if a.type:
@@ -152,6 +163,12 @@ def main(argv=None):
     p.add_argument("--config", default="full")
     p.add_argument("--append", action="store_true", help="giữ gap cũ, chỉ thêm id mới")
     p.set_defaults(fn=cmd_collect)
+
+    p = sub.add_parser("exemplars", help="E: lọc lượt mẫu (Exemplar Bank) từ trace + report dev → pending/")
+    p.add_argument("--trace", required=True)
+    p.add_argument("--report", required=True)
+    p.add_argument("--per-goal", type=int, default=3)
+    p.set_defaults(fn=cmd_exemplars)
 
     p = sub.add_parser("gaps", help="xem gaps.jsonl")
     p.add_argument("--type")

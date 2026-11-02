@@ -4,7 +4,8 @@
     streamlit run ui/app.py
 
 Tab:
-- Cuộc gọi     khung chat; Call Brief hiện khi khách gọi lại; chi tiết từng lượt (goal, tool, guardrail, claim)
+- Cuộc gọi     khung chat; Call Brief hiện khi khách gọi lại; chi tiết từng lượt (goal, tool, guardrail, claim);
+               cảnh báo khi agent sắp cam kết sai (bản nháp bị guardrail chặn, câu có cụm cam kết) — đề C.6 mức M2
 - Demo C.6     chạy lần lượt cuộc 1 (tư vấn, báo giá + KM, hẹn hỏi người nhà) → cuộc 2 (chốt đơn) → cuộc 3 (hỏi vận đơn)
 - Bộ nhớ       dòng thời gian của khách: phiên, báo giá, fact (kể cả fact đã bị thay thế, có nguồn)
 - Chỉ số       bảng full so với baseline từ report.json của eval/reference_eval.py
@@ -21,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st  # noqa: E402
 
 from ui import engine as E  # noqa: E402  (đặt env cho core trước khi core được import)
+from improve.store import PROMISE_RX  # noqa: E402  (cùng định nghĩa câu hứa với Exemplar Bank)
 
 st.set_page_config(page_title="SUDO CODE · Telesale agent", layout="wide")
 
@@ -102,6 +104,14 @@ def show_turn(row):
         st.write(row.get("customer_text"))
     with st.chat_message("assistant"):
         st.write(row.get("agent_text"))
+        # F mức M2: cảnh báo khi agent SẮP cam kết sai — bản nháp bị guardrail chặn (số tiền lạ, đọc giá khách nêu,
+        # giá cũ, lộ PII…) và câu cuối còn chứa cụm cam kết
+        g = row.get("guardrail") or {}
+        if g.get("rejected"):
+            why = "; ".join((g.get("problems") or []) + (g.get("coverage") or [])) or g.get("action") or ""
+            st.warning(f"Guardrail đã chặn {len(g['rejected'])} bản nháp ({why}). Bản nháp đầu: “{g['rejected'][0][:160]}”")
+        if PROMISE_RX.search(row.get("agent_text") or ""):
+            st.error("Câu trả lời có cụm cam kết (cam kết / đảm bảo / chắc chắn…). Nhân viên kiểm lại trước khi nói với khách.")
         with st.expander("chi tiết lượt", expanded=False):
             st.markdown(f"**goal:** {', '.join(row.get('goals') or [])} · **intent:** {(row.get('router') or {}).get('intent')}")
             br = (row.get("planner") or {}).get("branches") or []

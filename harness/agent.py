@@ -15,7 +15,7 @@ from core import log as cclog
 from core.config import settings
 from core.llm.generator import Generator, question_slot
 from core.llm.router import Router
-from harness import extractor, guardrails, knowledge
+from harness import extractor, guardrails, improve_hook, knowledge
 from harness.coverage import coverage
 from harness.textnorm import find_money, fold, perceive
 from harness.tools import (ToolBox, find_by_model_token, find_products, find_variant, mt, product_name, public_view)
@@ -118,7 +118,7 @@ class CallSession:
         self.open_questions, self.repeat_asked, self.fail_streak = [], 0, 0
         self.seen_money = set()
         self.last_sentiment = None
-        self.policy_gap, self.privacy_refused, self.plan_why = None, False, []
+        self.policy_gap, self.privacy_refused, self.plan_why, self.llm_plan = None, False, [], None
         self.prior_contact_asked = 0
 
     def start(self):
@@ -307,6 +307,7 @@ class CallSession:
                 "customer_said": text, "intent": route["intent"], "goals": goals, "facts": facts,
                 "KNOWN": {k: v for k, v in self.known.items() if k not in ("self_name",)},
                 "question_slot": question_slot(goals, facts)}
+        improve_used = improve_hook.apply_to_plan(plan, text, goals)   # mục E: tắt mặc định → không đổi plan
         allowed = set(p["money"]) | {v for v in self.known.values() if isinstance(v, int)}
         internal = set()
         for tc in tool_log:
@@ -450,10 +451,14 @@ class CallSession:
                "memory_writes": mem_writes,
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},
-               "goals": goals, "planner": {"backend": "rules", "branches": list(self.plan_why)},
+               "goals": goals, "planner": {"backend": settings.planner_backend, "branches": list(self.plan_why),
+                                                    **({"llm": self.llm_plan} if self.llm_plan else {})},
                "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", settings.extractor_backend), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
+        if improve_hook.enabled():
+            row["improve"] = improve_hook.stamp(improve_used + [h["chunk_id"][4:] for h in facts.get("policy") or []
+                                                                if str(h.get("chunk_id", "")).startswith("FAQ:")])
         if "jev_slot_requests" in agent_meta:
             row["extractor"].update({"question_backend": "jev_slots_experimental",
                                      "jev_slot_requests": agent_meta["jev_slot_requests"],
@@ -465,13 +470,17 @@ class CallSession:
                                      "jev_customer_labels": ext_meta.get("jev_customer_labels"),
                                      "jev_claim_labels": agent_meta.get("jev_claim_labels", []),
                                      "jev_customer_error": ext_meta.get("jev_label_error"),
-                                     "jev_agent_error": agent_meta.get("jev_label_error")})
+                                     "jev_agent_error": agent_meta.get("jev_label_error"),
+                                     # A6: slot luật cắt được mà Jev bỏ (address/payment) + chính sách đã áp
+                                     "jev_dropped_rule_slots": ext_meta.get("jev_dropped_rule_slots"),
+                                     "jev_drop_policy": settings.jev_drop_policy})
         if agent_meta.get("agent_qwen_skipped"):
             row["extractor"]["agent_claim_backend"] = settings.agent_claim_backend
             row["extractor"]["agent_qwen_skipped"] = True
         if settings.extractor_confidence_gate:
             row["extractor"]["confidence_gate"] = True
             row["extractor"]["customer_confidence"] = ext_meta.get("customer_confidence")
+            row["extractor"]["customer_empty_confidence"] = ext_meta.get("customer_empty_confidence")
             row["extractor"]["agent_confidence"] = agent_meta.get("agent_confidence", [])
             row["extractor"]["rule_certified_sentences"] = agent_meta.get("rule_certified_sentences", 0)
             row["extractor"]["customer_qwen_skipped"] = ext_meta.get("customer_qwen_skipped", False)
@@ -554,6 +563,64 @@ class CallSession:
         """B7: ghi nhánh planner đã đi qua và lý do, để phân tích lỗi và làm feedback."""
         self.plan_why.append({"branch": branch, "reason": reason} if reason else {"branch": branch})
 
+    def _llm_fallback(self, text, facts):
+        """B-H: LLM đề xuất goal trong danh sách đóng; code kiểm điều kiện rồi mới thực thi. Ghi cả đề xuất lẫn quyết định."""
+        from harness import planner_llm
+        state = {"focus": self.focus, "turn_no": self.turn_no,
+                 "has_orders": bool(self.orders_created or (self.brief or {}).get("orders") or self.known.get("order_id"))}
+        recent = [f"{h['role']}: {h['text']}" for h in self.history[-4:]]
+        s = planner_llm.suggest(text, recent, state)
+        goals, why = self._apply_llm_goal(s.get("goal"), text, facts)
+        self.llm_plan = {**{k: s.get(k) for k in ("goal", "confidence", "backend", "fallback", "ms", "abstain")},
+                         "accepted": bool(goals), "reason": why}
+        if goals:
+            self._why(f"llm_{s['backend']}", f"{s['goal']} ({why})")
+        return goals
+
+    def _apply_llm_goal(self, g, text, facts):
+        """Code kiểm điều kiện cho goal LLM chọn. → (goals, lý do). Không goal nào tạo / sửa đơn."""
+        if not g:
+            return [], "abstain"
+        if g == "quote":
+            if not self.focus:
+                return [], "từ chối: chưa có sản phẩm đang tư vấn"
+            q = self._quote(self._resolve_variant(self.focus, text), "advised")
+            if not q.get("final_price_vnd"):
+                return [], "từ chối: tool không trả giá"
+            facts["quote"] = q
+            return ["quote"], "giá từ pricing.get_quote"
+        if g == "order_status":
+            goals = self._order_status(facts)
+            return (goals, "order.status") if facts.get("orders") else ([], "từ chối: không có đơn")
+        if g == "policy_answer":
+            hits = knowledge.search(text, k=2)
+            if not hits:
+                return [], "từ chối: không có tài liệu khớp"
+            facts["policy"] = [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits]
+            return ["policy_answer"], "knowledge.search"
+        if g == "defer_ack":
+            self.outcome = self.outcome or "hen_goi_lai"
+            return ["defer_ack"], "ok"
+        if g == "ask_product":
+            return (["ask_product"], "ok") if not self.focus else ([], "từ chối: đã có sản phẩm")
+        if g in ("ask_repeat", "closing"):
+            return [g], "ok"
+        return [], f"từ chối: goal {g} không nằm trong danh sách được phép"
+
+    def _order_status(self, facts):
+        c = self.customer or {}
+        r = self.tools.call("order.status", customer_phone=c.get("phone") or self.phone)
+        facts["orders"] = [{**{k: o.get(k) for k in ("order_id", "sku", "status", "tracking", "created_on", "date", "estimated_delivery", "address")
+                               if o.get(k) is not None}, "product": product_name(o["sku"]) if o.get("sku") else None,
+                            "estimated_delivery_ddmm": _ddmm(o["estimated_delivery"]) if o.get("estimated_delivery") else None}
+                           for o in r.get("orders", [])]
+        for o in facts["orders"]:
+            if not o.get("estimated_delivery") and o["order_id"] == self.known.get("order_id") and self.known.get("estimated_delivery"):
+                o["estimated_delivery"] = self.known["estimated_delivery"]; o["estimated_delivery_ddmm"] = _ddmm(o["estimated_delivery"])
+            if o["order_id"] == self.known.get("order_id") and self.known.get("address"):
+                o["address"] = self.known["address"]
+        return ["order_status"]
+
     def _ask_prior_contact(self, f):
         """B3 (BTCL-016/017): khách nhắc lần trao đổi trước nhưng không tìm được lịch sử (vd chat fanpage rồi gọi hotline
         số khác) → xin SĐT / tài khoản đã dùng để tra lại, thay vì hỏi lại nhu cầu từ đầu. Tối đa 2 lần mỗi cuộc."""
@@ -588,7 +655,7 @@ class CallSession:
     def _plan(self, text, slots, route):
         it, fl = route["intent"], route.get("flags", {})
         goals, facts = [], {}
-        self.plan_why = []
+        self.plan_why, self.llm_plan = [], None
         c = self.customer or {}
         y = lambda k, th=0.6: fl.get(k, 0) >= th
         for k, v in slots.items():
@@ -682,17 +749,7 @@ class CallSession:
             it = "product_inquiry"
         if it == "order_status":
             self._why("order_status")
-            r = self.tools.call("order.status", customer_phone=c.get("phone") or self.phone)
-            facts["orders"] = [{**{k: o.get(k) for k in ("order_id", "sku", "status", "tracking", "created_on", "date", "estimated_delivery", "address")
-                                   if o.get(k) is not None}, "product": product_name(o["sku"]) if o.get("sku") else None,
-                                "estimated_delivery_ddmm": _ddmm(o["estimated_delivery"]) if o.get("estimated_delivery") else None}
-                               for o in r.get("orders", [])]
-            for o in facts["orders"]:
-                if not o.get("estimated_delivery") and o["order_id"] == self.known.get("order_id") and self.known.get("estimated_delivery"):
-                    o["estimated_delivery"] = self.known["estimated_delivery"]; o["estimated_delivery_ddmm"] = _ddmm(o["estimated_delivery"])
-                if o["order_id"] == self.known.get("order_id") and self.known.get("address"):
-                    o["address"] = self.known["address"]
-            goals.append("order_status")
+            goals += self._order_status(facts)
             return goals, facts
         if self.updates_done and re.search(r"\b(hoan|chenh|bu them)\b", f):
             facts["update"] = list(self.updates_done.values())[-1]; goals.append("order_updated")
@@ -850,14 +907,21 @@ class CallSession:
             goals.append("defer_ack"); self.outcome = self.outcome or "hen_goi_lai"
         if not goals:
             garbled = self.input_mode == "asr_transcript" and route.get("confidence", 1) < 0.6
-            if self.turn_no == 1:
-                goals += self._ask_prior_contact(f) or ["greet"]
+            prior = self._ask_prior_contact(f) if self.turn_no == 1 else []
+            # B-H: không nhánh code nào khớp → hỏi planner LLM (PLANNER_BACKEND, mặc định rules = không gọi)
+            llm = [] if prior or settings.planner_backend == "rules" or (self.turn_no == 1 and not asking) \
+                else self._llm_fallback(text, facts)
+            if prior or llm:
+                goals += prior or llm
+            elif self.turn_no == 1:
+                goals.append("greet")
             elif not slots and not mentioned and not CLOSING_RX.search(f) and (asking or garbled) and self.repeat_asked < 2:
                 self.repeat_asked += 1
                 goals.append("ask_repeat")
             else:
                 goals.append("closing")
-            self._why("fallback", goals[-1])
+            if not llm:
+                self._why("fallback", goals[-1])
         if "no_info" in goals or "handoff" in goals:
             self.open_questions.append(text[:200])
         self.fail_streak = self.fail_streak + 1 if "order_failed" in goals else 0

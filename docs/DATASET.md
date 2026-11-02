@@ -95,3 +95,34 @@ Chi tiết từng file: `dataset/asr/report.json` (tập A), `dataset/asr/report
 - CCCD và số tài khoản khách đọc trong hội thoại được che ngay khi nhận câu nói (`harness/textnorm.mask_pii`), nên không xuất hiện trong transcript và không được đọc thành audio.
 - SĐT và địa chỉ được thay bằng mã (`[SĐT_1]`, `[ĐỊA_CHỈ_1]`) trước khi gửi DeepSeek/Jev và ghép lại sau (`core/pii.py`); bước viết lại lượt khách cũng dùng cơ chế này.
 - `dataset/index.json` chỉ lưu băm của SĐT để gom các cuộc của cùng một khách.
+
+## 8. Dữ liệu cho lexicon và các bộ đo mới (01/11/2026, PLAN-2026-11-01 A-D)
+
+### 8.1. Dữ liệu tham khảo thật: CSConDa (hcmut-ura)
+
+- **Nguồn:** Long S. T. Nguyen và cộng sự, *A Benchmark Dataset and Evaluation Framework for Vietnamese Large Language Models in Customer Support*, nhóm URA, ĐH Bách khoa TP.HCM, arXiv [2507.22542](https://arxiv.org/abs/2507.22542), 07/2025. Bản trên Hugging Face: [`ura-hcmut/Vietnamese-Customer-Support-QA`](https://huggingface.co/datasets/ura-hcmut/Vietnamese-Customer-Support-QA).
+- **Giấy phép:** CC BY-NC 4.0. Chỉ được dùng phi thương mại và phải ghi nguồn. Nếu sản phẩm dùng thương mại thì phải bỏ các cue có `source` là `ref:hcmut-ura` trong `harness/lexicon/slots.json`, hoặc xin phép nhóm tác giả.
+- **Không đưa bộ dữ liệu vào repo.** `scripts/mine_lexicon.py` đọc thẳng từ thư mục ngoài (`--ref-dir` hoặc `LEXICON_REF_DIR`). Repo chỉ chứa:
+  - **`tests/extract_eval/real_ref.jsonl`:** 200 câu hỏi của khách. Câu được lấy mẫu có ưu tiên theo nhóm cue (thanh toán, hẹn liên hệ lại, tự xưng tên, câu nhắc "địa chỉ"/"ship" nhưng không phải địa chỉ giao hàng, trì hoãn, có số tiền), cộng 40 câu ngẫu nhiên, seed 20261101.
+  - **Che PII trước khi ghi:** SĐT, số tài khoản và CCCD (`mask_pii`), email, URL, tên sau "mình là…", cùng hai chuỗi che tay (một địa chỉ công ty, một tên). Nhãn `type` của bộ gốc không dùng.
+  - **Nhãn:** Claude gán tay ngày 01/11 theo quy ước của `tests/extract_eval/customer.jsonl`. 24 câu có slot, 25 câu có `skip` vì mơ hồ. Bộ này chủ yếu đo **precision**: đây là chat CSKH phần mềm B2B, không phải telesale, nên có nhiều phản ví dụ thật, ví dụ "ck" nghĩa là *chồng*, "COD" khi nói về cài đặt phần mềm, "cân nhắc" nói về khách hàng của họ.
+- **Đã dùng vào:** bộ đo câu thật `real_ref.jsonl`, nguồn của một số cue và viết tắt trong lexicon (cột `source`), và đếm thô ứng viên cue.
+
+### 8.2. Dữ liệu tự sinh
+
+| Bộ | Người viết | Ở đâu | Quy mô (01/11) | Dùng cho |
+|---|---|---|---|---|
+| Câu đơn theo slot | Claude (claude-opus-5-5, viết tay trong phiên Claude Code; không dùng Qwen) | `datagen/synth_slots/<đợt>.tsv` (commit), đặc tả `datagen/slot_specs.json`, manifest `datagen/synth_slots/manifest.json` | Đợt b1: 101 câu, 12 slot, khoảng 40% là phản ví dụ khó, 3 miền, nhiều văn phong. Mục tiêu khoảng 6.000 câu, viết dần qua nhiều phiên | Rút cue (phần `mine`), đo (phần `eval`), đo precision của CERT |
+| Scenario dev D-7 | Claude (template và lời viết lại `naturalize --backend claude`) | `datagen/templates_btc_like/build_templates_d7.py`, lời viết lại trong `datagen/out_btc_like_d7_claude_rewrites.py`, đầu ra `datagen/out_btc_like_d7/` (không commit, sinh lại được) | 30 scenario dev (`BTCD7-001…030`), 60 cuộc gọi, 147 lượt khách, 5 họ lỗi × 2 diễn biến | Kiểm toàn hệ thống (planner, CCR/RQR/TSR) |
+| BTC-like v1_1 | Script vá | `datagen/patch_crosschannel_v1_1.py` → `datagen/out_btc_like_final_v1_1/` | 5 scenario được vá (dev BTCL-016/017, holdout BTCL-018/019/020) | Sửa ca không thể qua của họ `delivery_address` (B3) |
+
+**Ràng buộc chất lượng:**
+- **Chia 70/30 theo nhóm `prompt_id`** trong từng slot (`datagen/synth_slot_sentences.py`), nên câu rút cue và câu đo không xuất phát từ cùng một lần viết.
+- **Chống trùng:** `scripts/check_overlap.py` so 8-gram sau `fold()` với lời khách của holdout BTC-like (v1, v1_1), `datagen/out_nat/test` và `test_set/public_sample`. Script chỉ in số đếm. Đợt b1 có 0 câu trùng.
+- **Kiểm nhãn hai lớp:** `scripts/label_crosscheck.py` so nhãn Claude với luật hiện tại (hoặc Jev/Qwen khi đóng vai bộ kiểm). Câu lệch nhãn vào `data/lexicon_corpus/review_queue.jsonl`. Mẫu ngẫu nhiên 5% mỗi đợt nằm ở `human_sample_<đợt>.jsonl` để người duyệt đọc.
+- **Không train hay fine-tune:** dữ liệu chỉ dùng để rút luật và để đo.
+- **Hạn chế:** câu tự sinh đều và sạch hơn lời khách thật. Vì vậy mọi kết quả lexicon đều báo thêm số trên `real_ref.jsonl` và `tests/extract_eval`.
+
+### 8.3. Ghi chú liêm chính dữ liệu (01/11)
+
+Khi đọc mã nguồn `datagen/templates_btc_like/build_templates.py` để sửa template B3, trợ lý đã vô tình hiển thị các dòng template `holdout` của 5 họ (`delivery_address`, `two_items`, `change_mind`, `asr_context`, `chat_short`). Không có trace hay kết quả holdout nào bị mở, và không có thay đổi nào của agent dựa trên các dòng này. Ghi lại để minh bạch khi báo cáo số holdout.

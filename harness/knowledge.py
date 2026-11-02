@@ -18,6 +18,10 @@ def search(query, k=3, include_restricted=False, order_date=None):
     global spent_ms
     t0 = time.perf_counter()
     try:
-        return rag.search(query, k=k, include_restricted=include_restricted, order_date=order_date)
+        hits = rag.search(query, k=k, include_restricted=include_restricted, order_date=order_date)
+        from harness import improve_hook          # mục E: FAQ đã duyệt (tắt mặc định → không thêm gì)
+        if improve_hook.enabled():
+            hits = list(hits) + improve_hook.faq_hits(query)
+        return hits
     finally:
         spent_ms += (time.perf_counter() - t0) * 1000

@@ -79,6 +79,8 @@ def empty(text, rules, context=None):
     # Câu mất dấu (ASR/teencode): dùng bản fold, rộng hơn nên dễ abstain hơn.
     accentless = f == re.sub(r"\s+", " ", (text or "").lower()).strip()
     cue = (CUSTOMER_CUE_FOLD_RX if accentless else CUSTOMER_LLM_CUE_RX).search(f if accentless else text)
+    from harness import lexicon
+    cue = cue or lexicon.cue_hit(f)          # cue lexicon đã duyệt (A-L) cũng chặn chứng nhận rỗng
     return _result(not rules, {"Q": not cue,
                                "C": not short_with_context and not CONTEXT.search(f)})
 

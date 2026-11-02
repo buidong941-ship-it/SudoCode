@@ -1,0 +1,4 @@
+# Chỉ cho các script offline (rút cue, đo dữ liệu) — không cần cho agent / run_eval
+#   scripts/mine_lexicon.py ref  (đọc parquet của dữ liệu tham khảo hcmut-ura)
+pandas>=2.0
+pyarrow>=14

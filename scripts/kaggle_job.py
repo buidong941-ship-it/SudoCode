@@ -60,7 +60,8 @@ class K:
         return r.returncode, out
 
 
-DATA_DIRS = ("catalog", "policy", "test_set", "datagen/out_nat", "datagen/out_btc_like_final_v1")
+DATA_DIRS = ("catalog", "policy", "test_set", "datagen/out_nat", "datagen/out_btc_like_final_v1",
+             "datagen/out_btc_like_final_v1_1")
 
 
 def data_hash():

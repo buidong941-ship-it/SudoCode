@@ -121,9 +121,11 @@ def main():
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--temperature", type=float, default=0.7)
-    ap.add_argument("--backend", choices=("deepseek", "qwen"), default="deepseek",
-                    help="deepseek qua API hoặc Qwen trên vLLM; mặc định giữ DeepSeek")
+    ap.add_argument("--backend", choices=("deepseek", "qwen", "claude"), default="deepseek",
+                    help="deepseek qua API, Qwen trên vLLM, hoặc claude: CHỈ ĐỌC cache — lời viết lại do Claude viết trong "
+                         "phiên Claude Code (PLAN-2026-11-01 D-7), không gọi API")
     ap.add_argument("--offline", action="store_true", help="chỉ dùng rewrites.json đã có, không gọi API")
+    ap.add_argument("--import-claude", help="(backend claude) file JSON {khóa: [lượt viết lại]} do Claude viết → gộp vào rewrites.json")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
@@ -131,7 +133,17 @@ def main():
     cache = json.load(open(cache_p, encoding="utf-8")) if os.path.exists(cache_p) else {}
     def cache_key(sc, cname, turns):
         key = _key(sc, cname, turns)
-        return key if a.backend == "deepseek" else f"qwen:{key}"
+        return key if a.backend == "deepseek" else f"{a.backend}:{key}"
+    if a.import_claude:
+        if a.backend != "claude":
+            sys.exit("--import-claude chỉ dùng với --backend claude")
+        new = json.load(open(a.import_claude, encoding="utf-8"))
+        bad = [k for k in new if not k.startswith("claude:") or not isinstance(new[k], list)]
+        if bad:
+            sys.exit(f"khóa phải dạng claude:<băm> và giá trị là danh sách lượt: {bad[:5]}")
+        cache.update(new)
+        json.dump(cache, open(cache_p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print(f"gộp {len(new)} lời viết lại của Claude vào {cache_p}")
     styles = {p["persona_id"]: p["style"] for p in
               json.load(open(os.path.join(ROOT, "simulator", "personas.json"), encoding="utf-8"))["personas"]}
 
@@ -150,7 +162,16 @@ def main():
             k = cache_key(sc, cname, spec["customer_turns"])
             if len(cache.get(k) or []) != len(spec["customer_turns"]):
                 jobs.append((k, sc, cname, spec))
-    if jobs and not a.offline:
+    if jobs and a.backend == "claude":
+        # không gọi API: ghi việc cần viết để Claude viết trong phiên, rồi chạy lại với --import-claude
+        todo_p = os.path.join(a.out, "claude_todo.jsonl")
+        with open(todo_p, "w", encoding="utf-8") as fh:
+            for k, sc, cname, spec in jobs:
+                fh.write(json.dumps({"key": k, "scenario": sc["scenario_id"], "call": cname, "honorific": sc["honorific"],
+                                     "style": styles.get(sc["persona"], "bình thường"), "channel": spec.get("channel", "hotline"),
+                                     "turns": spec["customer_turns"]}, ensure_ascii=False) + "\n")
+        print(f"{len(jobs)} cuộc gọi chưa có lời viết lại của Claude → {todo_p} (viết xong: --import-claude <file>)")
+    elif jobs and not a.offline:
         from openai import OpenAI
         if a.backend == "deepseek":
             if not settings.deepseek_api_key:

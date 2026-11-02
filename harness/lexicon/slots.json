@@ -1,0 +1,437 @@
+{
+  "version": 1,
+  "note": "Lexicon nhận biết slot (PLAN-2026-11-01 A-L). Pattern khớp trên fold() (không dấu, chữ thường). Chỉ entry status=approved được dùng lúc chạy; duyệt bằng scripts/lexicon_review.py. Xem harness/lexicon/__init__.py. Viết tắt đã có trong harness/textnorm.py TEEN (ko, k, dc, bn, mk, v, j...) không lặp lại ở đây.",
+  "slots": {
+    "size": {
+      "description": "size / cỡ / số giày áo khách chọn",
+      "entries": [
+        {
+          "id": "size.neg.so_nha",
+          "kind": "negative",
+          "drop_if_value_in_match": true,
+          "pattern": "\\b((giao|ship|gui|chuyen)( hang)? (ve|toi|den|ra|vo|vao)|dia chi( moi| giao)?( la)?|(nha|minh|chi|anh|em) o) so \\d{1,4}\\b",
+          "examples": [
+            {
+              "text": "Giao về số 12 Nguyễn Trãi, Thanh Xuân, Hà Nội giúp anh.",
+              "expect": {
+                "size": null,
+                "address": "số 12 Nguyễn Trãi, Thanh Xuân, Hà Nội"
+              }
+            },
+            {
+              "text": "Địa chỉ mới là số 7 Lê Lợi, Quận 1 nhé.",
+              "expect": {
+                "size": null
+              }
+            },
+            {
+              "text": "Anh lấy giày số 42 nhé.",
+              "expect": {
+                "size": "42"
+              }
+            },
+            {
+              "text": "Cho chị size 38 màu trắng.",
+              "expect": {
+                "size": "38"
+              }
+            }
+          ],
+          "source": "demo C.6 (docs/LOI-2026-11-01.md L1)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "payment": {
+      "description": "cách thanh toán khách CHỌN (COD / bank)",
+      "entries": [
+        {
+          "id": "payment.neg.hoi_kha_nang",
+          "kind": "negative",
+          "pattern": "\\b(cod|chuyen khoan|ck|thanh toan khi nhan)\\b[^.?!]{0,15}\\b(duoc khong|co duoc khong|duoc ko|the nao|nhu the nao|ra sao)\\b",
+          "examples": [
+            {
+              "text": "Chuyển khoản được không em?",
+              "expect": {
+                "payment": null
+              }
+            },
+            {
+              "text": "Thanh toán khi nhận hàng được không em?",
+              "expect": {
+                "payment": null
+              }
+            },
+            {
+              "text": "Anh chuyển khoản trước nhé.",
+              "expect": {
+                "payment": "bank"
+              }
+            },
+            {
+              "text": "Ship COD giúp chị nha.",
+              "expect": {
+                "payment": "COD"
+              }
+            }
+          ],
+          "source": "PLAN-2026-11-01 A-D2 (phản ví dụ 'chuyển khoản được không')",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        },
+        {
+          "id": "payment.value.bank_teencode",
+          "kind": "value",
+          "value": "bank",
+          "pattern": "\\b(ck (truoc|luon|qua)|chuyen tien (truoc|luon|qua)|qua app ngan hang|internet banking|banking luon)\\b",
+          "examples": [
+            {
+              "text": "Mình ck trước luôn cho nhanh nhé.",
+              "expect": {
+                "payment": "bank"
+              }
+            },
+            {
+              "text": "Chị chuyển tiền trước qua app được chứ?",
+              "expect": {
+                "payment": "bank"
+              }
+            },
+            {
+              "text": "Shop gửi số tài khoản để mình kiểm tra lại đơn nhé.",
+              "expect": {
+                "payment": null
+              }
+            }
+          ],
+          "source": "ref:hcmut-ura (đếm thô 01/11: ~200 câu có ck/chuyển khoản/stk)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        },
+        {
+          "id": "payment.value.cod_noi_tu_nhien",
+          "kind": "value",
+          "value": "COD",
+          "pattern": "\\b(nhan hang (roi )?(moi )?(tra|thanh toan|dua tien)|tra (tien )?khi nhan|giao toi dau tra toi do|tien tay)\\b",
+          "examples": [
+            {
+              "text": "Nhận hàng rồi mới thanh toán nha em.",
+              "expect": {
+                "payment": "COD"
+              }
+            },
+            {
+              "text": "Trả khi nhận được không, à thôi cứ trả khi nhận đi.",
+              "expect": {
+                "payment": "COD"
+              }
+            },
+            {
+              "text": "Bao giờ thì nhận hàng em?",
+              "expect": {
+                "payment": null
+              }
+            }
+          ],
+          "source": "claude-synth (cách nói COD miền Nam/Bắc)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "has_children": {
+      "description": "nhà có trẻ nhỏ / em bé",
+      "entries": [
+        {
+          "id": "has_children.neg.be_ca",
+          "kind": "negative",
+          "pattern": "\\b(be ca|be nuoc|be boi|be chua|be phot|ho ca|be thuy sinh)\\b",
+          "examples": [
+            {
+              "text": "Máy lọc này dùng cho bể cá được không em?",
+              "expect": {
+                "has_children": null
+              }
+            },
+            {
+              "text": "Nhà chị có bé 2 tuổi nên cần loại an toàn.",
+              "expect": {
+                "has_children": true
+              }
+            }
+          ],
+          "source": "claude-synth (fold 'bể' = 'be')",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "room_area_m2": {
+      "description": "diện tích phòng (m²)",
+      "entries": [
+        {
+          "id": "room_area_m2.neg.kich_thuoc_vat",
+          "kind": "negative",
+          "drop_if_value_in_match": true,
+          "pattern": "\\b(cao|dai|rong|sau|cach|day|ke|tu|cua)\\s+(khoang |tam )?\\d{1,3}\\s*(m|met)\\b(?! vuong)",
+          "examples": [
+            {
+              "text": "Kệ cao 1 mét thì đặt máy lên được không?",
+              "expect": {
+                "room_area_m2": null
+              }
+            },
+            {
+              "text": "Phòng ngủ 25 mét vuông thì dùng loại nào em?",
+              "expect": {
+                "room_area_m2": 25
+              }
+            },
+            {
+              "text": "Phòng khách rộng 30m2 em nhé.",
+              "expect": {
+                "room_area_m2": 30
+              }
+            }
+          ],
+          "source": "claude-synth (đơn vị mét không phải diện tích)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "callback_requested": {
+      "description": "thời điểm khách hẹn liên lạc lại (cần ngày giờ, parser parse_relative_datetime)",
+      "entries": [
+        {
+          "id": "callback.trigger.nhan_tin_lai",
+          "kind": "trigger",
+          "pattern": "\\b(nhan tin lai|nhan lai|inbox lai|phan hoi lai|lien he lai|alo lai|hen lai|zalo lai)\\b",
+          "examples": [
+            {
+              "text": "Mai 9h em nhắn tin lại cho chị nhé.",
+              "expect": {
+                "callback_requested": "*"
+              }
+            },
+            {
+              "text": "Shop phản hồi lại chậm quá.",
+              "expect": {
+                "callback_requested": null
+              }
+            }
+          ],
+          "source": "ref:hcmut-ura (đếm thô 01/11: ~80 câu hẹn liên hệ lại)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "blocker": {
+      "description": "rào cản khiến khách chưa quyết",
+      "entries": [
+        {
+          "id": "blocker.value.tham_khao_cho_khac",
+          "kind": "value",
+          "value": "so sanh gia",
+          "pattern": "\\b(tham khao (them )?(vai|may|cac) (cho|noi|ben)|xem (them )?(ben|cho) khac|so (voi|thu) (cho|ben) khac)\\b",
+          "examples": [
+            {
+              "text": "Để chị tham khảo thêm vài chỗ đã nhé.",
+              "expect": {
+                "blocker": "so sanh gia"
+              }
+            },
+            {
+              "text": "Bên em có chỗ nào khác ở Đà Nẵng không?",
+              "expect": {
+                "blocker": null
+              }
+            }
+          ],
+          "source": "claude-synth",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        },
+        {
+          "id": "blocker.value.hoi_nguoi_khac",
+          "kind": "value",
+          "value": "can nhac",
+          "pattern": "\\b(de|cho) (anh|chi|em|minh|co|chu) (hoi|ban|trao doi|xin y kien) (them )?(sep|ke toan|cong ty|ban|team|nhom|y kien)\\b",
+          "examples": [
+            {
+              "text": "Để chị hỏi kế toán bên chị đã rồi báo em.",
+              "expect": {
+                "blocker": "can nhac"
+              }
+            },
+            {
+              "text": "Chị hỏi chút, máy này bảo hành bao lâu?",
+              "expect": {
+                "blocker": null
+              }
+            }
+          ],
+          "source": "ref:hcmut-ura (khách B2B hỏi ý sếp/kế toán)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    },
+    "address": {
+      "description": "địa chỉ giao hàng khách đọc",
+      "entries": [
+        {
+          "id": "address.cue.dia_gioi",
+          "kind": "cue",
+          "pattern": "\\b(quan|huyen|phuong|xa|thi xa|thanh pho|tinh|kiet|ngach)\\s+\\w",
+          "examples": [
+            {
+              "text": "Em gửi ra kiệt 45 Trần Cao Vân giúp chị.",
+              "hit": true
+            },
+            {
+              "text": "Chị cảm ơn em nhiều.",
+              "hit": false
+            }
+          ],
+          "source": "claude-synth (địa danh miền Trung: kiệt; Bắc: ngách)",
+          "added": "2026-11-01",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        }
+      ]
+    }
+  },
+  "abbreviations": [
+    {
+      "id": "ab.k0",
+      "from": "k0",
+      "to": "không",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.đk",
+      "from": "đk",
+      "to": "được",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.stk",
+      "from": "stk",
+      "to": "số tài khoản",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.sdt",
+      "from": "sdt",
+      "to": "số điện thoại",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.sđt",
+      "from": "sđt",
+      "to": "số điện thoại",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.ntn",
+      "from": "ntn",
+      "to": "như thế nào",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.dùm",
+      "from": "dùm",
+      "to": "giùm",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.trc",
+      "from": "trc",
+      "to": "trước",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.vs",
+      "from": "vs",
+      "to": "với",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.mn",
+      "from": "mn",
+      "to": "mọi người",
+      "source": "ref:hcmut-ura",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+    },
+    {
+      "id": "ab.vk",
+      "from": "vk",
+      "to": "vợ",
+      "source": "claude-synth (teencode 'vk' = vợ; 'ck' cố ý KHÔNG thêm vì mơ hồ chuyển khoản/chồng)",
+      "added": "2026-11-01",
+      "added_by": "claude",
+      "status": "proposed"
+    }
+  ]
+}
