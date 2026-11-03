@@ -302,7 +302,30 @@ claims = [price_vnd=4890000 (AirPure X), price_vnd=2990000 (Xiaomi 4 Lite, đún
 
 SAMPLE-02 có `alt_suggested: "SKU-XM-4L"`, nên agent làm đúng kịch bản sẽ gặp trường hợp này.
 
-Hỏi: claim giá của sản phẩm khác sản phẩm chính nên xuất với `field` nào để không bị tính sai?
+Trường hợp khách so sánh hai sản phẩm còn rõ hơn. Ví dụ trong bộ thử nội bộ của team, cuộc gọi có đáp án `price_vnd = 5200000` (AirPure Y):
+
+```
+Khách: "Anh đang phân vân giữa AirPure Y và AirPure Pro."
+Khách: "Giá từng chiếc hiện tại ra sao em?"
+Agent: "AirPure Y giá 5.200.000đ, AirPure Pro giá 7.690.000đ."   (cả hai giá đúng theo pricing.get_quote)
+claims = [price_vnd=5200000 (SKU-AP-Y), price_vnd=7690000 (SKU-AP-PRO)]
+→ claim giá AirPure Pro bị tính là bịa
+```
+
+Khách đã hỏi giá từng chiếc thì câu trả lời đầy đủ bắt buộc phải có giá của cả hai sản phẩm. Như vậy:
+
+- câu trả lời đúng và đầy đủ bị tính HR = 50%;
+- agent chỉ báo giá sản phẩm chính, tức là trả lời thiếu câu hỏi của khách, lại được HR = 0%;
+- agent không nêu con số nào cũng được HR = 0%.
+
+Cách chấm này khuyến khích agent giấu bớt thông tin. Điều đó ngược với mục đích của HR theo mục A.4 của đề: đo phát ngôn bịa so với nguồn sự thật. Team không đổi tên `field` của claim để né phép chấm, vì như vậy dễ bị coi là "ăn gian" khi BTC rà tay extractor.
+
+Hỏi:
+
+- Claim giá của sản phẩm khác sản phẩm chính nên xuất với `field` nào để không bị tính sai?
+- HR có đối chiếu theo `sku` của claim không? Nếu không, BTC có cho phép thêm `sku` vào `ground_truth_facts` (vd. `{"price_vnd": {"SKU-AP-Y": 5200000, "SKU-AP-PRO": 7690000}}`), hoặc bỏ qua claim có `sku` khác sản phẩm chính không?
+- Nếu BTC muốn kiểm tra rằng agent tư vấn đúng sản phẩm, thì việc đó được chấm bằng `success_if` (vd. `must_say_any`, `args_match`) hay bằng HR?
+- Bộ test ẩn có ca khách so sánh nhiều sản phẩm trong cùng một cuộc gọi không (persona `khach_mua_nhieu_mon`)?
 
 **C5. [Lệch kết quả] Mẫu PII trong `guardrail_violations`**
 

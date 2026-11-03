@@ -156,6 +156,8 @@ def main():
     a = ap.parse_args()
     a.router = os.environ.get("SUITE_ROUTER") or a.router
     a.extractor = os.environ.get("SUITE_EXTRACTOR") or a.extractor
+    if os.environ.get("SUITE_CONFIGS"):        # biến thể ablation chỉ chạy Full (D42): SUITE_CONFIGS=full
+        a.configs = [c for c in os.environ["SUITE_CONFIGS"].split(",") if c]
 
     tag = a.tag or time.strftime("suite-%Y%m%d-%H%M%S")
     out = os.path.abspath(a.out or os.path.join(os.environ.get("RUN_OUT", "runs/suite"), tag))

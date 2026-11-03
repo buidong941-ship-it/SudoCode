@@ -86,6 +86,11 @@ class Settings:
     # A6: khi Jev không chọn slot address/payment mà luật đã cắt được giá trị:
     # accept = theo Jev (cũ) | qwen = để Qwen làm trọng tài | rules = giữ giá trị của luật
     jev_drop_policy: str = field(default_factory=lambda: _env("JEV_DROP_POLICY", "qwen").lower())
+    # D18–D21: phiên bản chứng chỉ luật (harness/rule_confidence.py). 1 = hành vi cũ (mặc định tới khi D21 đạt điều kiện);
+    # 2 = CERT v2 (NEG/QUES, sửa bug m2, ghép câu hỏi–trả lời, khớp bản có dấu, theo từng slot, thêm slot) + phủ định trong luật
+    extractor_cert_version: int = field(default_factory=lambda: int(_env("EXTRACTOR_CERT_VERSION", "1")))
+    # D16/D27: cờ CHỈ DÙNG KHI ĐO các bước nới CERT v2, cộng dồn, cách nhau dấu phẩy (blocker,budget). Rỗng = không nới (mặc định)
+    cert_v2_relax: str = field(default_factory=lambda: _env("CERT_V2_RELAX", "").lower())
     # Mục E: thư mục improve/ có approved/ để agent nạp (harness/improve_hook.py). Rỗng = tắt (mặc định, cấu hình đo vòng 0)
     improve_dir: str = field(default_factory=lambda: _env("IMPROVE_DIR", ""))
     # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
@@ -122,6 +127,7 @@ class Settings:
                 "extractor_backend": self.extractor_backend, "extractor_llm": self.extractor_llm,
                 "extractor_async": self.extractor_async, "extractor_confidence_gate": self.extractor_confidence_gate,
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
+                "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
                 "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
                 "improve_dir": self.improve_dir,
                 "question_clf": self.question_clf,

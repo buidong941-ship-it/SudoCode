@@ -149,6 +149,34 @@ python tests/ui_check.py       # chạy kịch bản C.6 không giao diện; n�
 
 `tests/smoke.sh` đã gồm bước này.
 
+## 6. Cơ chế cải tiến (`improve/`)
+
+Vòng cải tiến gồm các bước: gom lỗi từ dev → viết đề xuất → người duyệt → agent nạp các đề xuất đã duyệt → đo lại → quay lui nếu kết quả tệ hơn. Phần này tách khỏi core: `improve/` chỉ đọc trace, và agent chỉ nạp `improve/approved/` qua `harness/improve_hook.py` khi đặt `IMPROVE_DIR`. Mặc định `IMPROVE_DIR` tắt.
+
+```bash
+python -m improve collect --trace runs/<x>/dev/full.jsonl --report runs/<x>/dev/report.json   # gom lỗi → improve/gaps.jsonl
+python -m improve exemplars --trace runs/<x>/dev/full.jsonl --report runs/<x>/dev/report.json # lọc lượt mẫu → pending/
+python -m improve propose de_xuat.json            # thêm FAQ / playbook / cue → pending/ (chặn số tiền, SĐT, câu hứa)
+python -m improve review                          # liệt kê; review approve|reject <id> --by <tên> --reason ...
+python -m improve round save r0 --report dev=<report.json> --by <tên>     # chụp vòng
+IMPROVE_DIR=improve python run_eval.py ...        # chạy agent có nạp approved/
+python -m improve check --prev r0 --report dev=<report mới>              # TSR tụt quá 3 điểm hoặc HR tăng → mã thoát 2
+python -m improve rollback --to r0 --by <tên>
+python scripts/compare_rounds.py --round improve/rounds/r0 --round improve/rounds/r1
+```
+
+Chi tiết ở [docs/HAM-IMPROVE.md](docs/HAM-IMPROVE.md). Tab **Cải tiến** của UI (mục 5) cũng duyệt được đề xuất.
+
+## 7. Cờ cấu hình thêm từ 01–02/11/2026
+
+| Cờ | Mặc định | Ý nghĩa |
+|---|---|---|
+| `JEV_DROP_POLICY` | `qwen` | Jev bỏ slot `address`/`payment` mà luật đã cắt được thì gọi Qwen làm trọng tài (`accept` = hành vi cũ) |
+| `EXTRACTOR_CERT_VERSION` | `1` | `2` = CERT v2 (`docs/DE-XUAT-CERT-V2-2026-11-02.md`) |
+| `PLANNER_BACKEND` / `PLANNER_JEV_MIN_CONF` | `rules` / `0.6` | Planner LLM có giới hạn, chỉ dùng ở nhánh fallback (`harness/planner_llm.py`) |
+| `LEXICON_INCLUDE` | `approved` | Mức nạp lexicon slot (`harness/lexicon/slots.json`, duyệt bằng `scripts/lexicon_review.py`) |
+| `IMPROVE_DIR` | (trống) | Nạp đề xuất đã duyệt của `improve/` |
+
 ---
 
 # Gói dữ liệu BTC — AI Challenge Vòng 1 (Harness Agent Call Center)

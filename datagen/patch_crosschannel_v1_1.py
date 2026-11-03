@@ -13,6 +13,7 @@ phẩm nào (không kích hoạt KM trade-in).
 Chống rò rỉ: script KHÔNG in lời thoại hay đáp án của bất kỳ scenario nào (kể cả holdout); chỉ in mã scenario đã vá.
 
     python datagen/patch_crosschannel_v1_1.py            # v1 → datagen/out_btc_like_final_v1_1 (bản v1 giữ nguyên)
+    python datagen/patch_crosschannel_v1_1.py --src datagen/out_btc_like_final_v2 --dst datagen/out_btc_like_final_v2_1         --date 2026-11-02                                # D29: cùng bản vá cho v2 (lời khách viết lại tay)
 """
 import glob
 import json
@@ -36,6 +37,14 @@ def crm_pool():
 
 
 def main():
+    import argparse
+    global SRC, DST
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--src", default=SRC)
+    ap.add_argument("--dst", default=DST)
+    ap.add_argument("--date", default="2026-11-01")
+    a = ap.parse_args()
+    SRC, DST = os.path.join(ROOT, a.src), os.path.join(ROOT, a.dst)
     if not os.path.isdir(SRC):
         sys.exit(f"không thấy {SRC}")
     if os.path.exists(DST):
@@ -62,7 +71,7 @@ def main():
             if first.get("channel") == "chat_fanpage":
                 first["channel_identity"] = c["fb_id"]
             s["_meta"].update(customer_id=c["customer_id"], synthetic_customer=False,
-                              patched={"by": "datagen/patch_crosschannel_v1_1.py", "date": "2026-11-01",
+                              patched={"by": "datagen/patch_crosschannel_v1_1.py", "date": a.date,
                                        "reason": "B3: khách đa kênh fanpage→hotline phải có trong CRM (fb_id) mới nối được",
                                        "old": old})
             with open(f, "w", encoding="utf-8") as fh:
@@ -70,9 +79,15 @@ def main():
             patched.append((split, s["scenario_id"], c["customer_id"]))
     m_path = os.path.join(DST, "manifest.json")
     m = json.load(open(m_path, encoding="utf-8"))
-    m["patches"] = m.get("patches", []) + [{"date": "2026-11-01", "script": "datagen/patch_crosschannel_v1_1.py",
-                                             "from": "out_btc_like_final_v1", "scenarios": [p[1] for p in patched],
+    m["patches"] = m.get("patches", []) + [{"date": a.date, "script": "datagen/patch_crosschannel_v1_1.py",
+                                             "from": os.path.basename(SRC), "scenarios": [p[1] for p in patched],
                                              "reason": "B3 cross-channel identity"}]
+    if isinstance((m.get("frozen") or {}).get("sha256"), dict):     # băm lại các file đã vá để manifest khớp nội dung
+        import hashlib
+        for split, sid, _ in patched:
+            rel = f"final/{split}/{sid}.json"
+            if rel in m["frozen"]["sha256"]:
+                m["frozen"]["sha256"][rel] = hashlib.sha256(open(os.path.join(DST, rel), "rb").read()).hexdigest()
     json.dump(m, open(m_path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     for split, sid, cid in patched:
         print(f"vá {split}/{sid} → khách CRM {cid}")

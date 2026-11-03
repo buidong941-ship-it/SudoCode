@@ -26,28 +26,48 @@ from harness.textnorm import find_money, fold, parse_relative_datetime
 
 log = cclog.get("extract")
 
+# D10 (duyệt 02/11/2026, docs/DINH-NGHIA-SLOT-DE-XUAT.md): mỗi slot = khi nào CÓ + giá trị + khi nào KHÔNG. Jev và Qwen dùng chung.
+CUSTOMER_RULES = (
+    "Quy tắc chung: (1) CÓ slot khi câu hiện tại của khách NÓI RA giá trị đó, dù ở dạng khẳng định, câu hỏi hay câu yêu cầu "
+    "('ship đến 5 Trần Phú mất mấy ngày?' vẫn có địa chỉ). (2) KHÔNG có slot khi khách HỎI shop về giá trị đó mà không tự nêu "
+    "('phòng bao nhiêu mét thì hợp?', 'có màu gì?'). (3) Chỉ xét câu hiện tại; ngữ cảnh trước chỉ để hiểu nghĩa, không chép giá "
+    "trị đã nói ở lượt trước; câu xác nhận ngắn ('ừ đúng rồi', 'vẫn địa chỉ đó') không phải giá trị mới. (4) Mã che như "
+    "[ĐỊA_CHỈ_1], [SĐT_1] là giá trị thật đã bị che: câu có mã đó CÓ giá trị tương ứng. (5) Khách tự sửa ('45, à không, 50 mét') "
+    "thì lấy giá trị cuối. (6) Giá trị nói về người khác (con, chồng, khách khác) chỉ tính với has_children, household_size, baby_age.")
 CUSTOMER_SLOTS = {
-    "room_area_m2": "diện tích phòng khách nói (m², mét vuông)",
-    "has_children": "khách khẳng định nhà có trẻ nhỏ / em bé (label=co) hoặc không có (label=khong)",
-    "budget_vnd": "số tiền khách định chi / ngân sách của khách. KHÔNG phải khi khách nhắc giá shop báo hay giá nơi khác",
-    "competitor_price_vnd": "giá khách nói thấy ở cửa hàng, sàn, trang khác (Shopee, Lazada, bên kia…). KHÔNG phải khi không nêu "
-                            "nơi bán khác, và không phải giá trên fanpage / Zalo của chính shop",
-    "claimed_price_vnd": "giá khách nói shop ĐÃ báo trước đó hoặc giá khách nhớ từ lần trước (không phải ngân sách, không phải giá nơi khác)",
-    "size": "size / cỡ / số giày, áo khách chọn",
-    "color": "màu khách chọn",
-    "address": "địa chỉ giao hàng khách đọc, có số nhà / ngõ / tên đường cụ thể (span = nguyên địa chỉ, không kèm 'giao về'). "
-               "TÍNH CẢ khi địa chỉ nằm trong câu hỏi giao hàng ('ship đến 5 Trần Phú, Nha Trang mất mấy ngày?', "
-               "'giao về 54 Hùng Vương, Việt Trì được không?'). KHÔNG phải khi khách chỉ nhắc nơi ở chung chung ('nhà ở Huế')",
-    "payment": "cách thanh toán khách chọn (label=COD: tiền mặt khi nhận; label=bank: chuyển khoản, momo, zalopay)",
-    "blocker": "rào cản khiến khách chưa quyết (label: can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac). "
-               "'can hoi …' chỉ khi khách nhắc rõ người nhà. KHÔNG phải khi khách đã chốt mua, chỉ hỏi thông tin, hoặc từ chối dứt khoát",
-    "callback_requested": "thời điểm khách hẹn shop gọi lại / liên lạc lại (span = cụm chỉ thời gian)",
-    "self_name": "tên khách tự xưng (span = cụm chứa tên, vd 'chị Dung đây')",
-    "household_size": "số người trong nhà / số người dùng khách nói (span = cụm có con số, vd 'nhà chị 3 người')",
-    "baby_age": "tuổi của bé khách nói (span = cụm có số tháng/tuổi, vd 'bé nhà chị 6 tháng')",
-    "objection": "phản đối về giá (label: dat_qua = chê đắt / thấy chênh so với bên khác; ep_gia = đòi bớt, ép giá). "
-                 "KHÔNG phải khi khách chỉ hỏi giá, hỏi có khuyến mãi không, hỏi tiền hoàn / tiền chênh khi đổi hàng",
-    "owned_product": "sản phẩm khách nói đang dùng / đã có (span = tên sản phẩm). KHÔNG phải sản phẩm khách đang xem / hỏi mua",
+    "room_area_m2": "CÓ khi khách nêu diện tích phòng sẽ dùng sản phẩm (m², mét vuông, 'phòng 20 mét'), kể cả đọc bằng chữ; giá trị "
+                    "= số m². KHÔNG khi là kích thước đồ vật / khoảng cách ('kệ cao 1 mét', 'dây dài 2 mét') hoặc khách hỏi máy dùng "
+                    "cho phòng bao nhiêu m²",
+    "has_children": "CÓ khi khách khẳng định nhà có trẻ nhỏ / em bé / cháu nhỏ (label=co) hoặc khẳng định không có (label=khong). "
+                    "KHÔNG khi là 'bể cá', 'bể nước', tên mẫu có chữ 'bé', hay con đã lớn / đi học xa mà không nói rõ có hay không",
+    "budget_vnd": "CÓ khi khách nêu số tiền mình định chi / tối đa / tầm cho lần mua này. KHÔNG khi là giá shop đã báo, giá nơi "
+                  "khác, khách hỏi giá, hay nhận xét 'giá này hơi cao'",
+    "competitor_price_vnd": "CÓ khi khách nêu giá thấy ở nơi bán khác (Shopee, Lazada, cửa hàng khác, 'bên kia'). KHÔNG khi là "
+                            "ngân sách, giá trên fanpage / Zalo của chính shop, hay nhắc nơi bán khác mà không nêu giá",
+    "claimed_price_vnd": "CÓ khi khách nêu giá mà khách nhớ shop ĐÃ báo trước đó ('hôm trước em báo 5 triệu 2'). KHÔNG khi là "
+                         "ngân sách, giá nơi khác, hay giá khách tự đoán",
+    "size": "CÓ khi khách CHỌN size / cỡ / số giày áo; giá trị in hoa (42, L, XL). KHÔNG khi là số nhà trong địa chỉ ('số 12 "
+            "Nguyễn Trãi'), số lượng ('lấy 2 đôi'), hay khách hỏi size nào hợp",
+    "color": "CÓ khi khách CHỌN màu cho sản phẩm định mua. KHÔNG khi khách hỏi có màu gì hoặc nói màu của đồ đang dùng",
+    "address": "CÓ khi khách đọc địa chỉ giao hàng có số nhà / ngõ / hẻm / kiệt / tên đường, kể cả trong câu hỏi giao hàng và "
+               "kể cả dạng mã [ĐỊA_CHỈ_n] (span = nguyên địa chỉ, không kèm 'giao về', 'bên em…', 'anh trả tiền…'). KHÔNG khi "
+               "là nơi ở chung chung ('nhà ở Huế'), hỏi 'giao đến khi nào', người nhận ('gửi về cho mẹ'), địa chỉ cửa hàng, "
+               "hay 'địa chỉ cũ / như cũ'",
+    "payment": "CÓ khi khách CHỌN cách trả (label=COD: tiền mặt khi nhận; label=bank: chuyển khoản, momo, zalopay, ví). KHÔNG "
+               "khi khách hỏi shop có COD / chuyển khoản được không, nói về cài đặt thanh toán của phần mềm, hay 'ck' nghĩa là chồng",
+    "blocker": "CÓ khi khách nói lý do chưa quyết mua (label: can hoi chong | can hoi vo | can hoi nguoi nha — phải nhắc rõ người "
+               "nhà; so sanh gia — muốn so giá, xem chỗ khác; can nhac — suy nghĩ, xem thêm, để sau, bàn lại). KHÔNG khi khách đã "
+               "hỏi người nhà xong và chốt, từ chối hẳn, chỉ hỏi thông tin, hay 'cân nhắc' nói về khách hàng của khách",
+    "callback_requested": "CÓ khi khách hẹn shop gọi / nhắn lại vào thời điểm cụ thể ('mai 9h', 'thứ 7'); span = cụm thời gian. "
+                          "KHÔNG khi hẹn mà không có thời điểm ('có gì em gọi lại'), phàn nàn shop chưa gọi lại, hay hỏi bao giờ shop gọi",
+    "self_name": "CÓ khi khách tự xưng tên mình ('chị Dung đây', 'anh là Minh'); span = cụm chứa tên. KHÔNG khi là vai trò ('chị là "
+                 "khách cũ', 'anh là chủ quán') hay tên người khác ('con gái cô tên Lan')",
+    "household_size": "CÓ khi khách nêu số người trong nhà / số người sẽ dùng ('nhà chị 3 người'). KHÔNG khi là số lượng sản phẩm "
+                      "hay số người ở chỗ khác",
+    "baby_age": "CÓ khi khách nêu tuổi của bé nhà mình ('bé nhà chị 6 tháng'). KHÔNG khi là tuổi người lớn hay tuổi sản phẩm",
+    "objection": "CÓ khi khách phản đối giá (label: dat_qua — chê đắt / thấy chênh hơn bên khác; ep_gia — đòi bớt, ép giá). KHÔNG "
+                 "khi khách chỉ hỏi giá, hỏi có khuyến mãi không, hay hỏi tiền chênh khi đổi hàng",
+    "owned_product": "CÓ khi khách nói sản phẩm đang dùng / đã có (span = tên sản phẩm). KHÔNG khi là sản phẩm đang xem / hỏi mua",
 }
 LABELS = ["co", "khong", "COD", "bank", "can hoi chong", "can hoi vo", "can hoi nguoi nha", "so sanh gia", "can nhac",
           "dat_qua", "ep_gia"]
@@ -198,6 +218,7 @@ def customer_slots(text, today, rules, mode, meta=None, context=None):
             if context else "")
     prompt = ("Trích các thông tin KHÁCH vừa nói trong câu dưới đây. Chỉ trích điều khách nói rõ trong câu này, không suy đoán. "
               "Khách trả lời ngắn ('dạ 3', 'tầm 5 củ') thì dựa vào câu nhân viên vừa hỏi để biết đó là thông tin gì.\n"
+              f"{CUSTOMER_RULES}\n"
               f"Các loại thông tin:\n{_defs(CUSTOMER_SLOTS)}\n"
               "Mỗi kết quả: slot, span (đoạn chữ NGUYÊN VĂN trong câu chứa thông tin), label (chỉ cho has_children, payment, blocker, objection).\n"
               "Ví dụ đối chứng:\n"

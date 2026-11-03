@@ -217,15 +217,21 @@ _RULES = [
     ("out_of_scope", r"(khang sinh|thuoc (gi|nay|kia|tri)|uong thuoc|benh|bac si|tieu duong|cho con bu|mang thai|gap nguoi (phu trach|that|quan ly)|nguoi phu trach|khieu nai)"),
     ("policy_question", r"(phi doi|chinh sach|doi tra (trong|may|bao)|bao hanh (the nao|bao lau|may)|tra gop|dieu khoan|quy dinh)"),
     ("order_change", r"(doi len|doi sang|muon doi|lam thu tuc doi|doi (cho|giup)|chat qua|hoi chat|rong qua|hoi rong|tra hang|hoan tien|doi dia chi don)"),
-    ("order_status", r"(don (hang )?(cua|den|toi)|bao gio (toi|den|giao)|ma don|trang thai don|van don|dang o dau)"),
-    ("place_order", r"(len don|chot|dat (hang|luon)|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay|mua luon|ok (em )?len|giao (cho|ve) cho cu|giao cho cu)"),
+    ("order_status", r"(don (hang )?(cua|den|toi)|bao gio (toi|den|giao)|ma don|trang thai don|van don|dang o dau"
+                     # D12 (02/11, lỗi L2): "đơn máy lọc của anh giao tới đâu rồi", "đơn hôm trước bao giờ tới", "khi nào nhận"
+                     r"|\bdon\b.{0,40}\b(toi|den) dau( roi)?|(giao|ship|hang) (toi|den) dau( roi)?|\bdon\b.{0,40}\bbao gio (toi|den|nhan|giao)"
+                     r"|khi nao (thi )?(nhan|giao|toi) (duoc )?(hang|don)|bao gio (nhan|co) (duoc )?hang)"),
+    ("place_order", r"(len don|chot|dat (hang|luon)|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay|mua luon|ok (em )?len|giao (cho|ve) cho cu|giao cho cu"
+                    # D-7 (02/11): "Lấy cho anh cái mẫu hôm trước nhé", "Anh quyết lấy AirPure Y rồi"
+                    r"|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))"),
     ("negotiate", r"(giam (them|gia)|bot (cho|di)|ben kia|ben khac|shopee|lazada|re hon|gia nhap|gia von|gia goc)"),
     ("callback", r"(goi lai|hoi (chong|vo|ong xa|ba xa|nguoi nha|con)|can nhac|suy nghi|dang ban|de (chi|anh|co|em) (hoi|xem|tinh))"),
     ("price_promo", r"(gia|bao nhieu|khuyen mai|km|giam|uu dai|con hang|het hang|ship|phi|bao lau|may ngay)"),
     ("product_inquiry", r"(may|mau|loai|phong|met vuong|m2|ngan sach|tre|be|size|tu van|phu hop|nen mua)"),
 ]
 _FLAG_RULES = {
-    "agrees_to_buy": r"(len don|chot|dat luon|mua luon|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay)",
+    "agrees_to_buy": r"(len don|chot|dat luon|mua luon|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay"
+                     r"|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))",
     "defers_decision": r"(de (chi|anh|co|em|minh) (hoi|tinh|xem|nghi)|hoi (chong|vo|ong xa|ba xa|nguoi nha)|can nhac|suy nghi|dang ban|bao lai|goi lai (cho|sau|em))",
     "asks_if_bot": r"(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi)",
     "wants_data_deleted": r"(xoa (du lieu|thong tin|het|so))",

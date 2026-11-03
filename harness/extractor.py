@@ -18,6 +18,9 @@ from harness.textnorm import find_money, fold, parse_relative_datetime
 log = logging.getLogger("extractor")
 
 KIDS_RX = re.compile(r"(?<!mau )\b(be|con nho|em be|tre nho|tre con|chau nho)\b")
+# "co" (fold) trùng cả "cô" lẫn "có" ("em có gọi lại không") → với "cô" phải có "sẽ"
+CUSTOMER_CALLS_RX = re.compile(r"\b((anh|chi|minh|toi|tui|chu|bac)\s+(se\s+|de\s+|lai\s+)?|co\s+se\s+)"
+                               r"(goi lai|goi cho|lien lac( lai)?|bao lai|nhan lai)\b")
 
 BLOCKERS = [(r"(hoi|ban voi) (chong|ong xa|anh nha|bo no)", "can hoi chong"), (r"(hoi|ban voi) (vo|ba xa|chi nha|me no)", "can hoi vo"),
             (r"hoi (con|nguoi nha|gia dinh|bo me|me)", "can hoi nguoi nha"), (r"(so sanh|so gia|tham khao) (gia|them)", "so sanh gia"),
@@ -25,7 +28,9 @@ BLOCKERS = [(r"(hoi|ban voi) (chong|ong xa|anh nha|bo no)", "can hoi chong"), (r
 # A5 (01/11): thêm "ship/gửi/chuyển (hàng) đến/về/tới…" (BTCL-047) và dừng trước "không" cuối câu hỏi (BTCL-046).
 # Giá trị vẫn phải bắt đầu bằng số/ngõ/hẻm nên "gửi về cho mẹ", "giao đến khi nào" không thành địa chỉ.
 ADDRESS_RX = re.compile(r"(?:(?:giao|ship|gửi|chuyển)(?: hàng)? (?:về|tới|đến|ra|vô|vào)|giao cho \w+ (?:về|tới|ở)|địa chỉ(?: mới| giao)?(?: là|:)?|(?:giờ|hiện|nhà) (?:chị|anh|em|cô|chú)? ?ở|chuyển nhà (?:ra|vào|về|tới))\s+"
-                        r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=,?\s+(?:(?:nhé|nha|nhá|ạ|rồi)(?=\s*(?:[.!?,]|$))|(?:em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|không|hả|vậy)\b)|[.!?]|$)", re.I)
+                        r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=,?\s+(?:(?:nhé|nha|nhá|ạ|rồi)(?=\s*(?:[.!?,]|$))|(?:em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|không|hả|vậy)\b"
+                        # D-7 (02/11): dừng trước "bên em…" và "anh trả tiền…" ("80 Ngô Quyền, Đà Nẵng, bên em có giao…")
+                        r"|bên (?:em|mình|shop)\b|(?:anh|chị|cô|chú|mình|tôi|em) (?:trả|thanh toán|nhận|lấy)\b|trả tiền\b)|[.!?]|$)", re.I)
 
 CUSTOMER_LLM_CUE_RX = re.compile(
     r"\d|m2|m²|mét vuông|diện tích|phòng|bé|em bé|trẻ nhỏ|trẻ con|con nhỏ|ngân sách|tầm|khoảng|"
@@ -42,14 +47,14 @@ CUSTOMER_LLM_CUE_RX = re.compile(
 CUSTOMER_CUE_FOLD_RX = re.compile(fold(CUSTOMER_LLM_CUE_RX.pattern), re.I)
 
 
-def customer_slots(text, today, meta=None, context=None):
+def customer_slots(text, today, meta=None, context=None, asked=None):
     rules = customer_slots_rules(text, today)
     if settings.extractor_backend == "rules":
         return rules
     if settings.extractor_backend == "hybrid" and settings.extractor_confidence_gate:
         from harness.rule_confidence import customer as certify_customer, empty as certify_empty
 
-        cert = certify_customer(text, rules, context)
+        cert = certify_customer(text, rules, context, asked)
         if meta is not None:
             meta["customer_confidence"] = cert
         if cert["certified"]:
@@ -72,9 +77,20 @@ def customer_slots(text, today, meta=None, context=None):
             if meta is not None:
                 meta["backend"] = "hybrid:jev_grounded_rules"
                 meta["customer_qwen_skipped"] = True
-            return jev_slots
+            return _lock(jev_slots, rules, meta)
     from harness import llm_extract
-    return llm_extract.customer_slots(text, today, rules, settings.extractor_backend, meta, context)
+    return _lock(llm_extract.customer_slots(text, today, rules, settings.extractor_backend, meta, context), rules, meta)
+
+
+def _lock(result, rules, meta):
+    """CERT v2 (3.5): slot đã được chứng nhận riêng thì giữ giá trị luật, Jev/Qwen không được ghi đè hay làm mất."""
+    locked = ((meta or {}).get("customer_confidence") or {}).get("certified_slots") or []
+    if not locked or result is None:
+        return result
+    out = dict(result)
+    out.update({k: rules[k] for k in locked if k in rules})
+    meta["cert_locked_slots"] = list(locked)
+    return out
 
 
 def customer_llm_candidate(text, context=None):
@@ -149,7 +165,7 @@ def _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_
                 qwen_sentences.append(s)
             elif selected_claims is not None:
                 jev_grounded_claims.extend(selected_claims)
-        uncertain_c = jev_grounded_claims
+        uncertain_c = jev_grounded_claims + [c for c in uncertain_c if c["text"] in qwen_sentences]
         if meta is not None:
             meta["claim_route"] = "jev_then_qwen_if_unresolved"
     else:
@@ -189,7 +205,7 @@ def _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_
     return [by_text[s] for s in sentences if s in by_text], claims
 
 
-def customer_slots_start(text, today, meta=None, context=None):
+def customer_slots_start(text, today, meta=None, context=None, asked=None):
     if settings.extractor_backend != "hybrid" or not settings.extractor_async:
         return customer_slots(text, today, meta, context), None
     from harness import llm_extract
@@ -197,7 +213,7 @@ def customer_slots_start(text, today, meta=None, context=None):
     if settings.extractor_confidence_gate:
         from harness.rule_confidence import customer as certify_customer, empty as certify_empty
 
-        cert = certify_customer(text, rules, context)
+        cert = certify_customer(text, rules, context, asked)
         if meta is not None:
             meta["customer_confidence"] = cert
         if cert["certified"]:
@@ -220,17 +236,25 @@ def customer_slots_start(text, today, meta=None, context=None):
             if meta is not None:
                 meta["customer_qwen_skipped"] = True
                 meta["backend"] = "hybrid:jev_grounded_rules"
-            return dict(jev_slots), None
+            return _lock(dict(jev_slots), rules, meta), None
     if not customer_llm_candidate(text, context):
         if meta is not None:
             meta["customer_llm_skipped"] = "no_slot_cue"
         return dict(rules), None
-    return dict(rules), llm_extract.submit_customer_slots(text, today, rules, meta, context)
+    pending = llm_extract.submit_customer_slots(text, today, rules, meta, context)
+    locked = ((meta or {}).get("customer_confidence") or {}).get("certified_slots") or []
+    if locked and isinstance(pending, dict):
+        pending["cert_locked"] = {k: rules[k] for k in locked if k in rules}
+    return dict(rules), pending
 
 
 def customer_slots_finish(pending, slots, wait):
     from harness import llm_extract
-    return llm_extract.collect_customer_slots(pending, slots, wait)
+    out = llm_extract.collect_customer_slots(pending, slots, wait)
+    locked = (pending or {}).get("cert_locked") if isinstance(pending, dict) else None
+    if locked and isinstance(slots, dict):
+        slots.update(locked)                 # CERT v2 (3.5): giữ giá trị luật của slot đã chứng nhận
+    return out
 
 
 def customer_slots_rules(text, today, lexicon_hits=None):
@@ -263,7 +287,9 @@ def customer_slots_rules(text, today, lexicon_hits=None):
         if re.search(rx, f):
             out["blocker"] = label; break
     w = parse_relative_datetime(text, today)
-    if w and (re.search(r"goi lai|lien lac|bao lai|goi cho", f) or lexicon.trigger("callback_requested", f)):
+    # D32: KHÁCH tự gọi lại ("mai anh sẽ gọi lại em", "mai anh gọi lại được không") không phải hẹn shop gọi (định nghĩa D10)
+    if w and (re.search(r"goi lai|lien lac|bao lai|goi cho", f) or lexicon.trigger("callback_requested", f)) \
+            and not CUSTOMER_CALLS_RX.search(f):
         out["callback_requested"] = f"{w[0]}T{w[1] or '09:00'}"
     m = re.search(r"(?:chị|anh|cô|chú|em|tôi|mình) (?:là|tên là|tên) ([A-ZĐ][a-zà-ỹ]+)", text) \
         or re.search(r"\b(?:chị|anh|cô|chú|bác|em) ([A-ZĐ][a-zà-ỹ]+) (?:đây|nè|này)\b", text)
@@ -281,6 +307,12 @@ def customer_slots_rules(text, today, lexicon_hits=None):
         from harness.tools import find_products
         owned = find_products(text[m.start():m.end() + 10])
         if owned: out["owned_product"] = owned[0]
+    if settings.extractor_cert_version >= 2:
+        # D18: khách phủ định thì không phải lựa chọn ("chị không lấy màu đen", "COD không được à") — bỏ ngay ở luật
+        from harness.rule_confidence import _anchor, negated
+        for k in ("color", "size", "payment"):
+            if k in out and negated(text, _anchor(text, k, out[k])):
+                out.pop(k)
     return lexicon.apply(text, out, hits=lexicon_hits)   # value / negative đã duyệt trong harness/lexicon/slots.json
 
 

@@ -17,7 +17,8 @@ Mỗi entry (trong `slots.<slot>.entries`):
 `abbreviations`: bảng viết tắt / teencode → dạng đầy đủ, áp lên câu khách TRƯỚC khi chạy luật (chỉ trong extractor).
 
 Chỉ entry `approved` được dùng lúc chạy. `LEXICON_INCLUDE=proposed` nạp thêm entry `proposed` để đo thử trước khi duyệt
-(chỉ dùng khi đo, không dùng cho cấu hình nộp bài). Duyệt bằng `python scripts/lexicon_review.py`.
+(chỉ dùng khi đo, không dùng cho cấu hình nộp bài). `none` tắt hẳn lexicon (ablation, D40), `all` nạp cả `rejected`
+(chỉ cho tests/lexicon_check.py). Giá trị khác → ValueError. Duyệt bằng `python scripts/lexicon_review.py`.
 """
 import json
 import os
@@ -31,9 +32,15 @@ KINDS = ("cue", "value", "trigger", "negative")
 STATUSES = ("proposed", "approved", "rejected")
 
 
+INCLUDE_MODES = {"none": set(), "approved": {"approved"}, "proposed": {"approved", "proposed"},
+                 "all": {"approved", "proposed", "rejected"}}
+
+
 def _include():
-    v = (os.environ.get("LEXICON_INCLUDE") or "approved").lower()
-    return {"approved"} if v == "approved" else {"approved", "proposed"} if v == "proposed" else {"approved", "proposed", "rejected"}
+    v = (os.environ.get("LEXICON_INCLUDE") or "approved").strip().lower()
+    if v not in INCLUDE_MODES:
+        raise ValueError(f"LEXICON_INCLUDE={v!r} không hợp lệ, chỉ nhận {sorted(INCLUDE_MODES)}")
+    return INCLUDE_MODES[v]
 
 
 def load_raw(path=PATH):
@@ -137,6 +144,8 @@ def validate(data):
             for k in ("pattern", "source", "added", "added_by"):
                 if not e.get(k):
                     errs.append(f"{eid}: thiếu {k}")
+            if re.search(r"[\x00-\x1f]", e.get("pattern") or ""):
+                errs.append(f"{eid}: pattern có ký tự điều khiển (thường do viết \"\\b\" một gạch trong JSON → backspace)")
             try:
                 rx = re.compile(e.get("pattern") or "")
                 if rx.pattern != rx.pattern.lower() or fold(rx.pattern) != rx.pattern:

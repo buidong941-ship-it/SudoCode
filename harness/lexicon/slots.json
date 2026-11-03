@@ -85,6 +85,20 @@
           "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
         },
         {
+          "id": "payment.cue.ck",
+          "kind": "cue",
+          "pattern": "\\bck\\b",
+          "examples": [
+            {"text": "A vừa ck, kích hoạt giúp a.", "hit": true},
+            {"text": "Dạ em cảm ơn nhé.", "hit": false}
+          ],
+          "source": "real_ref (cert_v2_check 02/11: 7 câu 'ck' = chuyển khoản bị chứng nhận rỗng sai). Chỉ là cue → bỏ phiếu trắng, không đặt giá trị (ck cũng có nghĩa 'chồng')",
+          "added": "2026-11-02",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "claude (user-delegated 02/11, D14)"
+        },
+        {
           "id": "payment.value.bank_teencode",
           "kind": "value",
           "value": "bank",
@@ -294,6 +308,74 @@
           "added_by": "claude",
           "status": "approved",
           "reviewed_by": "Bùi Thành Đồng (duyệt cả lô, 2026-11-01)"
+        },
+        {
+          "id": "blocker.value.de_xem_qua",
+          "kind": "value",
+          "value": "can nhac",
+          "pattern": "\\b(de|cho) (minh|em|anh|chi|co|chu|toi) (xem (qua|lai|them)|tinh (lai|them)|nghi (them|lai)|xem)\\b(?! (gia|mau|hang|san pham|giup|ho|cho|don|thu))",
+          "examples": [
+            {
+              "text": "Okie cảm ơn, để mình xem qua nha.",
+              "expect": {
+                "blocker": "can nhac"
+              }
+            },
+            {
+              "text": "Vậy để chị xem lại.",
+              "expect": {
+                "blocker": "can nhac"
+              }
+            },
+            {
+              "text": "Ok để anh xem.",
+              "expect": {
+                "blocker": "can nhac"
+              }
+            },
+            {
+              "text": "Để anh xem giá bên em thế nào đã.",
+              "expect": {
+                "blocker": null
+              }
+            },
+            {
+              "text": "Em xem lại giúp chị đơn hàng nhé.",
+              "expect": {
+                "blocker": null
+              }
+            }
+          ],
+          "source": "ref:hcmut-ura (mine_lexicon 02/11: 'de minh xem' 6, 'de minh xem qua' 4)",
+          "added": "2026-11-02",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "claude (user-delegated 02/11, D14)"
+        },
+        {
+          "id": "blocker.value.trao_doi_them",
+          "kind": "value",
+          "value": "can nhac",
+          "pattern": "\\b(de|cho) (minh|em|anh|chi|co|chu|toi) (trao doi|ban bac|thong nhat) (them|lai|da)\\b",
+          "examples": [
+            {
+              "text": "Để mình trao đổi thêm rồi báo lại nha.",
+              "expect": {
+                "blocker": "can nhac"
+              }
+            },
+            {
+              "text": "Chị muốn trao đổi về chính sách đổi trả.",
+              "expect": {
+                "blocker": null
+              }
+            }
+          ],
+          "source": "ref:hcmut-ura (mine_lexicon 02/11: 'trao doi voi' 8)",
+          "added": "2026-11-02",
+          "added_by": "claude",
+          "status": "approved",
+          "reviewed_by": "claude (user-delegated 02/11, D14)"
         }
       ]
     },
@@ -431,7 +513,88 @@
       "source": "claude-synth (teencode 'vk' = vợ; 'ck' cố ý KHÔNG thêm vì mơ hồ chuyển khoản/chồng)",
       "added": "2026-11-01",
       "added_by": "claude",
-      "status": "proposed"
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.ng",
+      "from": "ng",
+      "to": "người",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.bt",
+      "from": "bt",
+      "to": "bình thường",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.nt",
+      "from": "nt",
+      "to": "nhắn tin",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.tn",
+      "from": "tn",
+      "to": "tin nhắn",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.pk",
+      "from": "pk",
+      "to": "phải không",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.tl",
+      "from": "tl",
+      "to": "trả lời",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.tks",
+      "from": "tks",
+      "to": "cảm ơn",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
+    },
+    {
+      "id": "ab.thks",
+      "from": "thks",
+      "to": "cảm ơn",
+      "source": "ref:hcmut-ura (mine_lexicon 02/11)",
+      "added": "2026-11-02",
+      "added_by": "claude",
+      "status": "approved",
+      "reviewed_by": "claude (user-delegated 02/11, D14)"
     }
   ]
 }

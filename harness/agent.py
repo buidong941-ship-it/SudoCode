@@ -50,7 +50,11 @@ _NUM_WORD = {"mot": (1, "một"), "hai": (2, "hai"), "ba": (3, "ba"), "bon": (4,
 _UNIT = {"nam": (365, "năm"), "thang": (30, "tháng"), "tuan": (7, "tuần"), "ngay": (1, "ngày")}
 # B2: xin SĐT/địa chỉ/đơn của khách khác (BTCL-061/062)
 OTHER_PII_RX = re.compile(r"\b(so|sdt|so dien thoai|dia chi|thong tin|zalo|don hang)\b.{0,20}\b(khach|nguoi)( mua)? "
-                          r"(khac|tung mua|da mua|mua truoc|mua mau)\b")
+                          r"(khac|tung mua|da mua|mua truoc|mua mau)\b"
+                          # D-7 (02/11): "địa chỉ nhà người mua gần đây", "xin số họ" (họ = người mua trước)
+                          r"|\b(so|sdt|so dien thoai|dia chi|so zalo|zalo|thong tin lien he)\b( nha| cua)?.{0,12}"
+                          r"\b(nguoi|khach)( da| tung)? mua\b"
+                          r"|\bxin (so|sdt|so dien thoai|so zalo|zalo|dia chi)( cua)? (ho|nguoi ta|nguoi do|khach do)\b")
 
 
 def _ddmm(d):
@@ -120,6 +124,27 @@ class CallSession:
         self.last_sentiment = None
         self.policy_gap, self.privacy_refused, self.plan_why, self.llm_plan = None, False, [], None
         self.prior_contact_asked = 0
+        self.last_q_slot = None
+        self.call_promo_active, self.call_promo_expired = set(), set()
+
+    def _call_promos(self, tool_log):
+        """D22: KM theo kết quả tool của CẢ cuộc gọi (lượt chào kết không gọi tool vẫn kiểm được); bỏ COD-0/freeship."""
+        for tc in tool_log:
+            r = tc.get("result")
+            if not isinstance(r, dict) or "applied_promos" not in r:
+                continue
+            self.call_promo_active |= {a["promo_code"] for a in r.get("applied_promos") or []
+                                       if a.get("type") not in ("freecod", "freeship") and a["promo_code"] not in STACKABLE_SKIP}
+            self.call_promo_expired |= {x.get("promo_code") if isinstance(x, dict) else x for x in r.get("expired_promos") or []}
+        by_code = {x["promo_code"]: x for x in mt.PROMOS}
+
+        def view(code):
+            pr = dict(by_code.get(code) or {"promo_code": code})
+            if pr.get("gift_sku"):
+                pr["gift_name"] = product_name(pr["gift_sku"])
+            return pr
+        return {"active": [view(c) for c in sorted(self.call_promo_active)],
+                "expired": [view(c) for c in sorted(self.call_promo_expired - self.call_promo_active)]}
 
     def start(self):
         t0 = time.perf_counter()
@@ -250,7 +275,8 @@ class CallSession:
             f"Hội thoại gần đây:\n{recent_context}" if recent_context else "",
         ) if part)
         slots, pending = extractor.customer_slots_start(
-            text, self.today, meta=ext_meta, context=extraction_context or None)
+            text, self.today, meta=ext_meta, context=extraction_context or None,
+            asked=self.last_q_slot)          # CERT v2 (3.3): slot agent vừa hỏi ở lượt trước (question_slot của planner)
         t_slots = time.perf_counter()
         if p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
             cid = self.customer["customer_id"]
@@ -308,6 +334,8 @@ class CallSession:
                 "KNOWN": {k: v for k, v in self.known.items() if k not in ("self_name",)},
                 "question_slot": question_slot(goals, facts)}
         improve_used = improve_hook.apply_to_plan(plan, text, goals)   # mục E: tắt mặc định → không đổi plan
+        self.last_q_slot = plan["question_slot"]
+        promos = self._call_promos(tool_log)
         allowed = set(p["money"]) | {v for v in self.known.values() if isinstance(v, int)}
         internal = set()
         for tc in tool_log:
@@ -344,7 +372,7 @@ class CallSession:
             text_out = candidates[0]["text"]
             for i, candidate in enumerate(candidates):
                 self.gen.fill_problems = candidate["fill_problems"]
-                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
+                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
                 c = coverage(candidate["text"], plan)
                 if not p and not c:
                     text_out, problems, cov = candidate["text"], p, c
@@ -354,11 +382,11 @@ class CallSession:
                     break
             if problems is None:
                 self.gen.fill_problems = candidates[0]["fill_problems"]
-                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
+                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
                 cov = coverage(text_out, plan)
                 if len(candidates) > 1:
                     guard["candidate_rejections"] = [{"temperature": c["temperature"],
-                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals, cust_money)
+                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals, cust_money, promos)
                                                        + c["fill_problems"], "coverage": coverage(c["text"], plan)}
                                                       for c in candidates]
         except Exception as e:
@@ -369,7 +397,7 @@ class CallSession:
         t_gen1 = time.perf_counter()
         llm1_ttft, llm1_total = ttft, int((t_gen1 - t_gen) * 1000)
         if problems is None:
-            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
+            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
             cov = coverage(text_out, plan)
         t_guard = time.perf_counter()
         guard["problems"], guard["coverage"] = problems, cov
@@ -384,7 +412,7 @@ class CallSession:
             except Exception as e:
                 log.error("generator %s lỗi khi sinh lại → câu mẫu: %s", self.gen.backend, type(e).__name__)
                 text2, tot2 = render_offline(plan), 0
-            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals, cust_money) + self.gen.fill_problems
+            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
             c2 = [] if p2 else coverage(text2, plan)
             if not p2 and not c2:
                 text_out, guard["action"] = text2, "regenerated"
@@ -1013,8 +1041,11 @@ class CallSession:
             facts["cod_total_vnd"] = total; facts["cart"] = {"items": [{"name": q["name"], "final_price_vnd": q["final_price_vnd"]} for q in quotes], "total_vnd": total}
             return ["cod_limit"]
         made = []
+        # D13 (02/11, SAMPLE-06): kênh chat/Zalo chưa có SĐT → ToolBox bỏ đối số None nên order.create thiếu customer_phone
+        # và mock báo tool_exception. Vẫn lên đơn (khách đã chốt) với SĐT rỗng, rồi xin SĐT ngay để shipper liên hệ.
+        phone = c.get("phone") or self.phone or ""
         for q in quotes:
-            args = dict(customer_phone=c.get("phone") or self.phone, sku=q["sku"], qty=1, price_vnd=q["final_price_vnd"],
+            args = dict(customer_phone=phone, sku=q["sku"], qty=1, price_vnd=q["final_price_vnd"],
                         promo_code=(q["promo_codes"] or [None])[0], payment=payment, address=self.known.get("address"),
                         basket_skus=[x for x in new if x != q["sku"]] or None)
             r = self.tools.call("order.create", **args)
@@ -1038,7 +1069,9 @@ class CallSession:
             self.known["variant_sku"] = sku
         self.outcome = "chot_don"
         goals = ["order_created"]
-        if not self.known.get("address"):
+        if not phone:
+            goals.append("ask_phone")
+        elif not self.known.get("address"):
             goals.append("ask_address")
         return goals
 

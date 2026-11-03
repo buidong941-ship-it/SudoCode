@@ -64,10 +64,57 @@ PRICE_CUE_RX = re.compile(r"\b(muc gia|gia( ban| niem yet| hien tai| uu dai| sau
                           r"\s*(la|chi|:)?\s*(chi\s*|khoang\s*)?$")
 
 
-def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_money=(), goals=(), customer_money=()):
+PROMO_NOUN_RX = re.compile(r"(khuyen mai|uu dai|chuong trinh|qua tang|tang kem|duoc tang|\btang\b|giam gia)")
+PROMO_POS_RX = re.compile(r"(dang co|van con|con dang|dang (duoc )?ap dung|van (duoc )?ap dung|dang chay|con hieu luc|tang kem|duoc tang|"
+                          r"nhan (them )?(uu dai|qua|khuyen mai)|huong (uu dai|khuyen mai)|kem (uu dai|khuyen mai|qua tang))")
+PROMO_NEG_RX = re.compile(r"(het han|da het|ket thuc|khong con|ngung"
+                          r"|(khong|chua|chang)(\s+\w+){0,3}\s+(co\s+)?(khuyen mai|uu dai|chuong trinh|qua|tang|giam))")
+SHIP_ONLY_RX = re.compile(r"(mien phi|free)\s*(van chuyen|giao( hang)?|ship|thu ho|cod)|freeship")
+
+
+def _promo_signature(pr, s):
+    f = fold(s)
+    if pr.get("type") == "gift" and pr.get("gift_name"):
+        if re.search(r"\btang\b", f) and " ".join(fold(pr["gift_name"]).split()[:2]) in f:
+            return True
+    if pr.get("type") == "fixed" and pr.get("discount_vnd") and any(v == pr["discount_vnd"] for _, _, v in find_money(s)):
+        return True
+    if pr.get("discount_percent") and re.search(rf"\b{pr['discount_percent']}\s*%", f):
+        return True
+    end = pr.get("end") or ""
+    if len(end) == 10:
+        d, m = int(end[8:]), int(end[5:7])
+        if re.search(rf"\b0?{d}/0?{m}\b", f):
+            return True
+    return False
+
+
+def promo_problems(text, promos):
+    """D22: câu khẳng định đang có KM phải có căn cứ trong kết quả tool CỦA CUỘC GỌI NÀY.
+    promos = {"active": [KM đang áp dụng, không tính COD-0/freeship], "expired": [KM hết hạn]} (dict theo catalog)."""
+    out = []
+    for s in re.split(r"(?<=[.!?])\s+", text):
+        f = fold(s)
+        if s.rstrip().endswith("?") or not PROMO_POS_RX.search(f) or not PROMO_NOUN_RX.search(f) or PROMO_NEG_RX.search(f):
+            continue
+        if SHIP_ONLY_RX.search(f) and not re.search(r"(giam|\btang\b|qua tang|%)", SHIP_ONLY_RX.sub(" ", f)):
+            continue
+        if not promos.get("active"):
+            out.append("khẳng định đang có khuyến mãi nhưng tool trong cuộc gọi không có khuyến mãi nào đang áp dụng; "
+                       "không được nói có khuyến mãi/ưu đãi/quà tặng")
+            break
+        old = [pr for pr in promos.get("expired") or () if _promo_signature(pr, s)]
+        if old and not any(_promo_signature(pr, s) for pr in promos["active"]):
+            out.append(f"nói chương trình {old[0]['promo_code']} đã hết hạn như còn hiệu lực")
+            break
+    return out
+
+
+def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_money=(), goals=(), customer_money=(), promos=None):
     """customer_money: số tiền khách tự nói (ngân sách, giá bên khác) và không có trong tool — được nhắc lại
-    ("ngân sách 5,5 triệu của anh") nhưng không được đọc như giá bán (B5, BTCL-031)."""
-    problems = []
+    ("ngân sách 5,5 triệu của anh") nhưng không được đọc như giá bán (B5, BTCL-031).
+    promos: trạng thái KM theo tool của cuộc gọi (D22); None = không kiểm."""
+    problems = [] if promos is None else promo_problems(text, promos)
     for s, _, v in find_money(text):
         if v in IMPORT_PRICES or v in internal_numbers:
             problems.append(f"lộ giá nội bộ {v}")

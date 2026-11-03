@@ -3,9 +3,27 @@
   "note": "Đặc tả câu đơn theo slot (PLAN-2026-11-01 A-D2, D-3). Người viết câu: Claude (claude-opus-5-5, Claude Code, viết tay trong phiên) — không dùng Qwen. Mỗi đợt ghi vào datagen/synth_slots/<đợt>.tsv; datagen/synth_slot_sentences.py kiểm định dạng, chia 70/30 theo prompt_id và cập nhật manifest. 'today' khi gán giá trị ngày giờ: 2026-10-15 (thứ Năm).",
   "today": "2026-10-15",
   "coverage": {
-    "region": ["bac", "trung", "nam"],
-    "style": ["du_dau", "mat_dau", "teencode", "viet_tat", "loi_chinh_ta", "so_bang_chu"],
-    "structure": ["dau_cau", "giua_cau", "cuoi_cau", "trong_cau_hoi", "hai_slot", "tu_sua"],
+    "region": [
+      "bac",
+      "trung",
+      "nam"
+    ],
+    "style": [
+      "du_dau",
+      "mat_dau",
+      "teencode",
+      "viet_tat",
+      "loi_chinh_ta",
+      "so_bang_chu"
+    ],
+    "structure": [
+      "dau_cau",
+      "giua_cau",
+      "cuoi_cau",
+      "trong_cau_hoi",
+      "hai_slot",
+      "tu_sua"
+    ],
     "hard_negative_ratio": 0.3
   },
   "label_kinds": {
@@ -14,17 +32,114 @@
     "multi": "câu mang 2 slot; dòng ghi slot chính, cột extra ghi slot thứ hai dạng slot=value"
   },
   "slots": {
-    "room_area_m2": {"value": "int (m²)", "positive": "diện tích phòng khách nói, kể cả số đọc bằng chữ", "hard_negative": ["kích thước vật (kệ cao 1 mét)", "khoảng cách", "diện tích hỏi lại shop ('máy dùng cho phòng bao nhiêu m2?')"]},
-    "has_children": {"value": "true", "positive": "nhà có trẻ nhỏ / em bé / cháu nhỏ", "hard_negative": ["bể cá, bể nước", "mẫu 'Bé'", "nói con đã lớn / đi học xa", "'không có bé'"]},
-    "budget_vnd": {"value": "int VND", "positive": "số tiền khách định chi", "hard_negative": ["giá bên khác (Shopee…)", "giá shop đã báo", "giá hỏi lại"]},
-    "competitor_price_vnd": {"value": "int VND", "positive": "giá khách thấy ở nơi bán khác", "hard_negative": ["ngân sách", "giá shop báo trên fanpage của chính shop"]},
-    "claimed_price_vnd": {"value": "int VND", "positive": "giá khách nhớ shop đã báo trước đó", "hard_negative": ["ngân sách", "giá nơi khác"]},
-    "size": {"value": "str in hoa (40, L, XL)", "positive": "size / cỡ / số giày áo khách chọn", "hard_negative": ["số nhà trong địa chỉ", "số lượng", "số điện thoại", "hỏi size nào hợp"]},
-    "color": {"value": "tên màu (đen, trắng, xám, xanh navy, be, đỏ…)", "positive": "màu khách chọn", "hard_negative": ["hỏi có màu gì", "màu của sản phẩm khác đang dùng"]},
-    "address": {"value": "nguyên địa chỉ có số nhà / ngõ / hẻm / kiệt", "positive": "địa chỉ giao hàng khách đọc, kể cả trong câu hỏi giao hàng", "hard_negative": ["giao đến khi nào", "gửi về cho mẹ (người nhận)", "địa chỉ cửa hàng ở đâu", "nhà ở Huế (chung chung)"]},
-    "payment": {"value": "COD | bank", "positive": "cách khách CHỌN trả tiền", "hard_negative": ["hỏi có COD không", "chuyển khoản được không", "'ck' = chồng"]},
-    "blocker": {"value": "can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac", "positive": "rào cản khiến khách chưa quyết", "hard_negative": ["đã hỏi xong và chốt", "hỏi thông tin rồi chốt luôn", "từ chối dứt khoát"]},
-    "callback_requested": {"value": "YYYY-MM-DDTHH:MM (today 2026-10-15, mặc định 09:00 nếu không nói giờ)", "positive": "thời điểm khách hẹn shop gọi / nhắn lại", "hard_negative": ["phàn nàn shop chưa gọi lại", "hỏi bao giờ shop gọi", "hẹn mà không có thời điểm"]},
-    "self_name": {"value": "tên riêng", "positive": "khách tự xưng tên", "hard_negative": ["'chị là khách cũ'", "'anh là chủ quán'", "tên người khác (con, chồng)"]}
-  }
+    "room_area_m2": {
+      "value": "int (m²)",
+      "positive": "diện tích phòng khách nói, kể cả số đọc bằng chữ",
+      "hard_negative": [
+        "kích thước vật (kệ cao 1 mét)",
+        "khoảng cách",
+        "diện tích hỏi lại shop ('máy dùng cho phòng bao nhiêu m2?')"
+      ]
+    },
+    "has_children": {
+      "value": "true",
+      "positive": "nhà có trẻ nhỏ / em bé / cháu nhỏ",
+      "hard_negative": [
+        "bể cá, bể nước",
+        "mẫu 'Bé'",
+        "nói con đã lớn / đi học xa",
+        "'không có bé'"
+      ]
+    },
+    "budget_vnd": {
+      "value": "int VND",
+      "positive": "số tiền khách định chi",
+      "hard_negative": [
+        "giá bên khác (Shopee…)",
+        "giá shop đã báo",
+        "giá hỏi lại"
+      ]
+    },
+    "competitor_price_vnd": {
+      "value": "int VND",
+      "positive": "giá khách thấy ở nơi bán khác",
+      "hard_negative": [
+        "ngân sách",
+        "giá shop báo trên fanpage của chính shop"
+      ]
+    },
+    "claimed_price_vnd": {
+      "value": "int VND",
+      "positive": "giá khách nhớ shop đã báo trước đó",
+      "hard_negative": [
+        "ngân sách",
+        "giá nơi khác"
+      ]
+    },
+    "size": {
+      "value": "str in hoa (40, L, XL)",
+      "positive": "size / cỡ / số giày áo khách chọn",
+      "hard_negative": [
+        "số nhà trong địa chỉ",
+        "số lượng",
+        "số điện thoại",
+        "hỏi size nào hợp"
+      ]
+    },
+    "color": {
+      "value": "tên màu (đen, trắng, xám, xanh navy, be, đỏ…)",
+      "positive": "màu khách chọn",
+      "hard_negative": [
+        "hỏi có màu gì",
+        "màu của sản phẩm khác đang dùng"
+      ]
+    },
+    "address": {
+      "value": "nguyên địa chỉ có số nhà / ngõ / hẻm / kiệt",
+      "positive": "địa chỉ giao hàng khách đọc, kể cả trong câu hỏi giao hàng",
+      "hard_negative": [
+        "giao đến khi nào",
+        "gửi về cho mẹ (người nhận)",
+        "địa chỉ cửa hàng ở đâu",
+        "nhà ở Huế (chung chung)"
+      ]
+    },
+    "payment": {
+      "value": "COD | bank",
+      "positive": "cách khách CHỌN trả tiền",
+      "hard_negative": [
+        "hỏi có COD không",
+        "chuyển khoản được không",
+        "'ck' = chồng"
+      ]
+    },
+    "blocker": {
+      "value": "can hoi chong | can hoi vo | can hoi nguoi nha | so sanh gia | can nhac",
+      "positive": "rào cản khiến khách chưa quyết",
+      "hard_negative": [
+        "đã hỏi xong và chốt",
+        "hỏi thông tin rồi chốt luôn",
+        "từ chối dứt khoát"
+      ]
+    },
+    "callback_requested": {
+      "value": "YYYY-MM-DDTHH:MM (today 2026-10-15, mặc định 09:00 nếu không nói giờ)",
+      "positive": "thời điểm khách hẹn shop gọi / nhắn lại",
+      "hard_negative": [
+        "phàn nàn shop chưa gọi lại",
+        "hỏi bao giờ shop gọi",
+        "hẹn mà không có thời điểm"
+      ]
+    },
+    "self_name": {
+      "value": "tên riêng",
+      "positive": "khách tự xưng tên",
+      "hard_negative": [
+        "'chị là khách cũ'",
+        "'anh là chủ quán'",
+        "tên người khác (con, chồng)"
+      ]
+    }
+  },
+  "definitions": "Định nghĩa chuẩn của từng slot (khi nào CÓ / giá trị / khi nào KHÔNG) và 6 quy tắc chung nằm ở harness/llm_extract.py (CUSTOMER_RULES, CUSTOMER_SLOTS — D10, duyệt 02/11/2026; bản đọc: docs/DINH-NGHIA-SLOT-DE-XUAT.md). Câu tự sinh phải gán nhãn theo đúng định nghĩa đó; phần 'slots' dưới đây chỉ là gợi ý độ phủ khi viết câu."
 }

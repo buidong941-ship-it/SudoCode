@@ -1,7 +1,7 @@
 {
   "generator": "claude-opus-5-5 (Claude Code, viết tay trong phiên)",
   "spec": "datagen/slot_specs.json",
-  "updated": "2026-11-01",
+  "updated": "2026-11-02",
   "split_rule": "theo từng slot: nhóm prompt_id xếp theo sha1, ~30% nhóm đầu → eval (đo), còn lại → mine (rút cue)",
   "overlap_removed": 0,
   "batches": [
@@ -22,8 +22,26 @@
         "self_name": 6,
         "size": 9
       }
+    },
+    {
+      "batch": "b2",
+      "n": 52,
+      "by_slot": {
+        "address": 11,
+        "blocker": 6,
+        "budget_vnd": 4,
+        "callback_requested": 4,
+        "claimed_price_vnd": 0,
+        "color": 5,
+        "competitor_price_vnd": 0,
+        "has_children": 3,
+        "payment": 7,
+        "room_area_m2": 4,
+        "self_name": 4,
+        "size": 4
+      }
     }
   ],
-  "total": 101,
+  "total": 153,
   "stop_rule": "dừng khi một đợt mới không cho cue mới được duyệt và không đổi recall/precision trên real_ref.jsonl quá 1 điểm (PLAN A-D2)"
 }

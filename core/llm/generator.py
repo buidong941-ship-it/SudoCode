@@ -52,6 +52,8 @@ GOAL_NOTES = {
     "gift_status": "Trả lời đúng câu hỏi quà tặng theo FACTS.gift: active=true thì nói mua gift.product được tặng gift.gift_name "
                    "(chương trình gift.promo_name, đến gift.end_ddmm); active=false thì nói rõ chương trình tặng đó đã kết thúc, "
                    "hiện không kèm quà. Không báo giá món quà như một sản phẩm riêng.",
+    "ask_phone": "Đơn đã lên nhưng chưa có số điện thoại của khách (kênh chat): xin số điện thoại và địa chỉ nhận hàng để shipper "
+                 "liên hệ. Không hỏi lại thông tin đã có trong KNOWN.",
     "budget_fit": "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và "
                   "có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS.",
     "is_bot": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn.",
@@ -76,7 +78,7 @@ GOAL_NOTES = {
 
 QUESTION_GOALS = {
     "greet": "other", "ask_identity": "customer_name", "ask_product": "product_advised", "ask_variant": "size",
-    "ask_address": "address", "ask_new_size": "size", "ask_size_for_price": "size", "exchange_offer": "confirm_order",
+    "ask_address": "address", "ask_phone": "phone", "ask_new_size": "size", "ask_size_for_price": "size", "exchange_offer": "confirm_order",
     "confirm_old_address": "address", "confirm_order": "confirm_order", "confirm_new_price": "confirm_order",
     "cod_limit": "payment", "ask_repeat": "other", "order_not_found": "order_id", "ask_prior_contact": "customer_phone",
 }
@@ -275,6 +277,18 @@ def _dm(d):
     return f"{int(d[8:10])}/{int(d[5:7])}" if d and len(d) >= 10 else d
 
 
+ORDER_STATUS_VI = {"shipping": "đang giao", "delivered": "đã giao", "created": "đang chờ xử lý", "queued": "đang chờ xử lý",
+                   "pickup_scheduled": "đang chờ lấy hàng", "updated": "đã được cập nhật"}
+
+
+def _price_phrase(q):
+    """D24: giá có KM giảm → nói rõ niêm yết → ưu đãi → giá khách trả; KM quà tặng → "kèm ưu đãi"."""
+    final, lst, names = q.get("final_price_vnd"), q.get("list_price_vnd"), q.get("promo_names") or []
+    if names and lst and final and lst > final:
+        return f"giá niêm yết {_vnd(lst)}, áp dụng ưu đãi {', '.join(names)} nên còn {_vnd(final)}"
+    return f"giá {_vnd(final)}" + (f", kèm ưu đãi {', '.join(names)}" if names else "")
+
+
 def render_offline(plan):
     h = plan.get("honorific") or "anh/chị"
     F = plan.get("facts", {})
@@ -291,7 +305,7 @@ def render_offline(plan):
                 if need.get("room_area_m2"): s += f" cho phòng {need['room_area_m2']}m²"
                 elif need.get("baby_age"): s += f" cho bé {need['baby_age']}"
                 elif need.get("household_size"): s += f" cho nhà {need['household_size']} người"
-                if b.get("price_quoted_vnd"): s += f" giá {_vnd(b['price_quoted_vnd'])}"
+                if b.get("price_quoted_vnd"): s += f", lúc đó em báo giá {_vnd(b['price_quoted_vnd'])}"
                 s += "."
             if b.get("blocker"): s += f" {h.capitalize()} đã trao đổi với người nhà chưa ạ?"
             out.append(s)
@@ -301,12 +315,11 @@ def render_offline(plan):
             out.append(f"Dạ số này bên em có nhiều hồ sơ, cho em xin tên của {h} để em hỗ trợ đúng ạ?")
         elif g in ("recommend", "quote"):
             if q:
-                s = ("Dạ em gợi ý " if g == "recommend" else "Dạ ") + f"mẫu {q['name']} giá {_vnd(q['final_price_vnd'])}"
-                if q.get("promo_names"): s += f", đang có ưu đãi {', '.join(q['promo_names'])}"
+                s = ("Dạ em gợi ý " if g == "recommend" else "Dạ ") + f"mẫu {q['name']} {_price_phrase(q)}"
                 if q.get("in_stock") is False: s += ", hiện mẫu này đang tạm hết hàng"
                 out.append(s + " ạ.")
         elif g == "alternative_quote" and F.get("alternative"):
-            a = F["alternative"]; out.append(f"Còn mẫu {a['name']} giá {_vnd(a['final_price_vnd'])} ạ.")
+            a = F["alternative"]; out.append(f"Ngoài ra bên em có mẫu {a['name']}, {_price_phrase(a)} ạ.")
         elif g == "stale_promo":
             out.append("Dạ chương trình khuyến mãi hôm trước đã hết hạn rồi ạ, em báo lại giá hiện tại cho mình.")
         elif g == "out_of_stock":
@@ -320,8 +333,12 @@ def render_offline(plan):
             out.append(f"Dạ {h} lấy size và màu nào ạ?")
         elif g == "ask_address":
             out.append(f"Dạ {h} cho em xin địa chỉ nhận hàng ạ?")
+        elif g == "ask_phone":
+            out.append(f"Dạ {h} cho em xin số điện thoại để shipper liên hệ khi giao hàng ạ?" if (plan.get("KNOWN") or {}).get("address")
+                       else f"Dạ {h} cho em xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ giao ạ?")
         elif g == "order_created":
-            o = F["order"]; out.append(f"Dạ em đã lên đơn {o['order_id']} cho {h}, tổng {_vnd(o['total_vnd'])}, dự kiến giao ngày {_dm(o.get('estimated_delivery'))} ạ.")
+            o = F["order"]; out.append(f"Dạ em đã lên đơn {o['order_id']} cho {h}, tổng {_vnd(o['total_vnd'])}"
+                                       + (f", dự kiến giao ngày {_dm(o['estimated_delivery'])}" if o.get("estimated_delivery") else "") + " ạ.")
         elif g == "ask_need":
             miss = F.get("need_slots_missing") or []
             out.append(f"Dạ nhà mình có bé nhỏ không {h} ạ?" if "has_children" in miss else f"Dạ {h} dự định ngân sách khoảng bao nhiêu ạ?")
@@ -329,8 +346,9 @@ def render_offline(plan):
             out.append(f"Dạ {h} muốn đổi sang size mấy ạ?")
         elif g == "exchange_offer":
             e = F.get("exchange_preview", {})
-            out.append(f"Dạ {e.get('new_variant')} " + ("còn hàng" if e.get("in_stock") else "đang tạm hết") +
-                       f", đổi size lần đầu bên em miễn phí ạ. Em làm thủ tục đổi cho {h} nhé?")
+            out.append(f"Dạ {e.get('new_variant')} còn hàng ạ, theo chính sách bên em đổi size lần đầu của mỗi đơn được miễn phí. "
+                       f"Em làm thủ tục đổi cho {h} nhé?" if e.get("in_stock")
+                       else f"Dạ {e.get('new_variant')} hiện đang tạm hết hàng ạ. {h.capitalize()} muốn chọn mẫu khác cùng giá hay hoàn tiền ạ?")
         elif g == "exchange_window_passed":
             o = F.get("old_order", {}); out.append(f"Dạ đơn {o.get('product')} mua ngày {_dm(o.get('date'))} đã quá thời hạn đổi trả 7 ngày ạ.")
         elif g == "explain_price_change":
@@ -347,7 +365,8 @@ def render_offline(plan):
                             "hiện mẫu này không kèm quà tặng.")
         elif g == "budget_fit" and F.get("budget_fit"):
             bf = F["budget_fit"]
-            out.append(f"Dạ mức này {'nằm trong' if bf['within_budget'] else 'cao hơn'} ngân sách {_vnd(bf['budget_vnd'])} của {h} ạ.")
+            out.append(("Dạ giá " + _vnd(bf["final_price_vnd"]) if bf.get("final_price_vnd") else "Dạ mức này")
+                       + f" {'nằm trong' if bf['within_budget'] else 'cao hơn'} ngân sách {_vnd(bf['budget_vnd'])} của {h} ạ.")
         elif g == "cod_ok":
             out.append("Dạ đơn này mình thanh toán khi nhận hàng (COD) được ạ.")
         elif g == "address_updated":
@@ -359,9 +378,10 @@ def render_offline(plan):
         elif g == "confirm_order":
             out.append(f"{h.capitalize()} xác nhận giúp em để em lên đơn luôn nhé?")
         elif g == "ask_size_for_price":
-            out.append(f"Dạ giá và ưu đãi mẫu này khác nhau theo size, {h} đi size mấy để em báo đúng giá ạ?")
+            out.append(f"Dạ giá mẫu này có thể khác nhau theo size, {h} đi size mấy để em báo đúng giá ạ?")
         elif g == "order_exists":
-            o = F["order"]; out.append(f"Dạ đơn {o['order_id']} của {h} em đã lên rồi ạ, dự kiến giao ngày {o.get('estimated_delivery')}.")
+            o = F["order"]; out.append(f"Dạ đơn {o['order_id']} của {h} em đã lên rồi"
+                                       + (f", dự kiến giao ngày {_dm(o['estimated_delivery'])}" if o.get("estimated_delivery") else "") + " ạ.")
         elif g == "confirm_new_price":
             out.append(f"{h.capitalize()} có muốn em lên đơn với giá hiện tại không ạ?")
         elif g == "cod_limit":
@@ -372,20 +392,22 @@ def render_offline(plan):
             out.append(f"Dạ em xin lỗi, em nghe chưa rõ ý {h}, {h} nói lại giúp em được không ạ?")
         elif g == "order_updated":
             u = F["update"]; s = f"Dạ em đã tạo yêu cầu cho đơn {u.get('order_id')}"
-            if u.get("refund_vnd"): s += f", bên em hoàn lại {_vnd(u['refund_vnd'])}"
+            if u.get("refund_vnd"): s += f", bên em hoàn lại {_vnd(u['refund_vnd'])}" + (f" trong {u['refund_days']}" if u.get("refund_days") else "")
             if u.get("extra_payment_vnd"): s += f", {h} bù thêm {_vnd(u['extra_payment_vnd'])}"
-            out.append(s + ", bên vận chuyển sẽ qua lấy hàng ạ.")
+            if u.get("fee_vnd"): s += f", phí đổi {_vnd(u['fee_vnd'])}"
+            if u.get("status") == "pickup_scheduled": s += ", bên vận chuyển sẽ qua lấy hàng"
+            out.append(s + " ạ.")
         elif g == "order_not_found":
             out.append(f"Dạ em chưa tìm thấy đơn của {h}, {h} đọc giúp em mã đơn ạ?")
         elif g == "order_status":
             os_ = F.get("orders") or []
-            out.append("Dạ " + "; ".join(f"đơn {o['order_id']} đang {o.get('status')}" + (f", mã vận đơn {o['tracking']}" if o.get("tracking") else "") + (f", dự kiến giao ngày {o['estimated_delivery_ddmm']}" if o.get("estimated_delivery_ddmm") else "") for o in os_) + " ạ." if os_ else f"Dạ em chưa thấy đơn nào của {h} ạ.")
+            out.append("Dạ " + "; ".join(f"đơn {o['order_id']} {ORDER_STATUS_VI.get(o.get('status'), 'đang ' + str(o.get('status')))}" + (f", mã vận đơn {o['tracking']}" if o.get("tracking") else "") + (f", dự kiến giao ngày {o['estimated_delivery_ddmm']}" if o.get("estimated_delivery_ddmm") else "") for o in os_) + " ạ." if os_ else f"Dạ em chưa thấy đơn nào của {h} ạ.")
         elif g == "callback_scheduled":
-            c = F["callback"]; s = f"Dạ em hẹn gọi lại {h} lúc {c['callback_at'][11:16]} {c.get('weekday', '')} ngày {c.get('ddmm')}"
+            c = F["callback"]; s = " ".join(x for x in (f"Dạ em hẹn gọi lại {h} lúc {c['callback_at'][11:16]}", c.get("weekday"), f"ngày {c.get('ddmm')}") if x)
             if c.get("moved_reason"): s += f" vì {c['moved_reason']}"
             out.append(s + " ạ.")
         elif g == "defer_ack":
-            out.append(f"Dạ vâng, {h} cứ trao đổi thêm, em gọi lại cho {h} sau ạ.")
+            out.append(f"Dạ vâng, {h} cứ trao đổi thêm ạ, khi nào cần {h} liên hệ lại em nhé.")
         elif g == "refuse_discount":
             out.append("Dạ giá em báo là mức tốt nhất hiện có rồi, em không giảm thêm được ạ.")
         elif g == "refuse_other_customer":

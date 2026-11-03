@@ -107,5 +107,13 @@ c1, c2 = calls("b3r", [("2026-10-19", "hotline", None, ["Chị đang tính mua P
                        ("2026-10-22", "hotline", None, ["Chị gọi lại về món hôm trước."])], phone="0970000777")
 ok("ask_prior_contact" not in goals(c2[0]) and "opening_returning" in goals(c2[0]), f"B3: khách cũ phải được nhận ra: {goals(c2[0])}")
 
+# ---------- D13: kênh chat chưa có SĐT vẫn lên đơn được, rồi xin SĐT (SAMPLE-06) ----------
+(c1,) = calls("d13", [("2026-10-20", "zalo_oa", None, ["Cho anh hỏi máy lọc không khí AirPure Y giá bao nhiêu?",
+                                                       "Ok lên đơn cho anh nhé, ship COD."])], phone=None)
+last = c1[-1]
+created = [t for t in last.get("tool_calls") or [] if t["name"] == "order.create"]
+ok(created and not (created[0]["result"] or {}).get("error"), f"D13: order.create không được lỗi khi chưa có SĐT: {created}")
+ok("ask_phone" in goals(last) and "order_failed" not in goals(last), f"D13: phải lên đơn rồi xin SĐT: {goals(last)}")
+
 print("TẤT CẢ OK" if not FAILS else f"{len(FAILS)} LỖI")
 sys.exit(1 if FAILS else 0)

@@ -61,7 +61,7 @@ class K:
 
 
 DATA_DIRS = ("catalog", "policy", "test_set", "datagen/out_nat", "datagen/out_btc_like_final_v1",
-             "datagen/out_btc_like_final_v1_1")
+             "datagen/out_btc_like_final_v1_1", "datagen/out_btc_like_final_v2_1")
 
 
 def data_hash():
@@ -156,14 +156,23 @@ def push(k, a):
     job = {"job": a.job, "suite_args": suite, "needs_qwen": needs_qwen, "needs_secrets": needs,
            "max_seconds": int(a.max_hours * 3600), "env": dict(x.split("=", 1) for x in a.env),
            "setup": not a.no_setup}
-    if a.pre:
-        import shlex
-        job["pre"] = [shlex.split(x) for x in a.pre]
-        job["pre_only"] = a.pre_only
-    if a.variant:
-        job["variants"] = [{"tag": f"{a.job}-{v.split(':', 1)[0]}",
-                            "env": dict(x.split("=", 1) for x in v.split(":", 1)[1].split(";") if x)} for v in a.variant]
+    # Luôn ghi pre/variants (kể cả rỗng): runner gộp JOB nhúng trong notebook với file trong dataset bằng dict.update,
+    # thiếu khóa thì bước cũ của notebook vẫn chạy (02/11: smoke cũ của eval-b chạy lại và làm job B dừng).
+    import shlex
+    job["pre"] = [shlex.split(x) for x in a.pre]
+    job["pre_only"] = a.pre_only
+    job["variants"] = [{"tag": f"{a.job}-{v.split(':', 1)[0]}",
+                        "env": dict(x.split("=", 1) for x in v.split(":", 1)[1].split(";") if x)} for v in a.variant]
     extra = {f"kaggle/jobs/{a.job}.json": json.dumps(job, ensure_ascii=False, indent=2).encode()}
+    for item in a.include:                      # file ngoài gói (vd trace trong runs/) → repo/<đích>
+        src, sep, dst = item.rpartition(":")
+        if not sep or len(src) <= 1 or not dst or "\\" in dst:     # không có đích, hoặc chỉ là ổ đĩa Windows (C:/...)
+            src, dst = item, item
+        extra[dst.replace(os.sep, "/")] = open(os.path.join(ROOT, src), "rb").read()
+    if a.save_job:                              # chỉ ghi cấu hình job ra file (để gộp nhiều job vào một version dataset)
+        open(a.save_job, "wb").write(extra[f"kaggle/jobs/{a.job}.json"])
+        print(f"đã ghi cấu hình job {a.job} → {a.save_job}")
+        return
     if a.dataset and not a.dataset_only:
         ds = a.dataset
     else:
@@ -279,6 +288,9 @@ def main():
     p.add_argument("--pre", action="append", default=[],
                    help="lệnh chạy trên Kaggle sau setup, trước run_suite ({python}, {out} được thay), vd \"{python} scripts/router_agreement.py ...\"")
     p.add_argument("--pre-only", action="store_true", help="chỉ chạy các bước --pre, không chạy run_suite")
+    p.add_argument("--save-job", help="chỉ ghi kaggle/jobs/<job>.json ra file này rồi dừng, không đẩy gì")
+    p.add_argument("--include", action="append", default=[],
+                   help="NGUỒN[:ĐÍCH] thêm một file vào gói (vd trace trong runs/, vốn bị loại); đích tương đối trong repo")
     p.add_argument("--env", nargs="*", default=[], help="KEY=VALUE thêm cho lần chạy (vd QWEN_MODEL=Qwen/Qwen2.5-7B-Instruct-AWQ)")
     for name in ("status", "pull", "wait", "logs"):
         q = sub.add_parser(name)

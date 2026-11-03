@@ -138,10 +138,17 @@ def find_variant(sku, text, fallback_size=None, fallback_color=None):
 
 
 def find_color(text, prefix=""):
+    """D31: câu CÓ DẤU thì so trên bản có dấu ("mẫu đó" không phải "màu đỏ", "em bé" không phải màu be);
+    câu mất dấu (ASR/teencode) vẫn so trên bản fold như cũ."""
+    import unicodedata
     ft, best = fold(text), (0, None)
+    lt = unicodedata.normalize("NFC", (text or "").lower())
+    accented = ft != re.sub(r"\s+", " ", lt).strip()
+    pre = (r"(?:màu|mau)\s+" if accented else prefix) if prefix else ""
     for code, words in COLORS.items():
         for w in words:
-            if re.search(r"\b" + prefix + re.escape(fold(w)) + r"\b", ft) and len(w) > best[0]:
+            pat = pre + re.escape(w.lower() if accented else fold(w))
+            if re.search(r"(?<![\wÀ-ỹ])" + pat + r"(?![\wÀ-ỹ])", lt if accented else ft) and len(w) > best[0]:
                 best = (len(w), code)
     return best[1]
 

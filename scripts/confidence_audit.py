@@ -46,11 +46,27 @@ def audit_trace(path):
     side = {"customer": defaultdict(Counter), "agent": defaultdict(Counter)}
     sole = {"customer": Counter(), "agent": Counter()}
     total = {"customer": Counter(), "agent": Counter()}
-    for r in rows:
+    prev_q, slot_cert = {}, Counter()
+    slot_fail, slot_examples, x_examples = defaultdict(Counter), defaultdict(list), []
+    for r in sorted(rows, key=lambda x: (x["scenario_id"], x["call"], x["turn"])):
         has_context = r["turn"] > 1 or r["call"] != "call_1"
         text = r.get("customer_text") or ""
         rules = customer_slots_rules(text, "2026-10-15")
-        cert = customer(text, rules, "ctx" if has_context else None)
+        # CERT v2 (3.3): slot agent hỏi ở lượt trước trong cùng cuộc gọi (question_slot của planner, ghi trong trace)
+        asked = prev_q.get((r["scenario_id"], r["call"]))
+        prev_q[(r["scenario_id"], r["call"])] = r.get("question_slot")
+        cert = customer(text, rules, "ctx" if has_context else None, asked)
+        slot_cert.update(cert.get("certified_slots") or [])
+        for k, p in (cert.get("slots") or {}).items():          # D27: check con nào trượt, theo từng slot (CERT v2)
+            if not p["certified"]:
+                bad = [c for c, v in p["checks"].items() if not v]
+                slot_fail[k].update(bad)
+                if len(slot_examples[k]) < 4:
+                    slot_examples[k].append({"turn": f"{r['scenario_id']}/{r['call']}/{r['turn']}", "text": text[:140],
+                                             "value": rules.get(k), "failed": bad, "asked": asked})
+        if cert.get("version") == 2 and cert["checks"].get("S") and not cert["checks"].get("X"):
+            x_examples.append({"turn": f"{r['scenario_id']}/{r['call']}/{r['turn']}", "text": text[:140],
+                               "slots": sorted(rules), "extra_cues": cert.get("extra_cues")})
         slot = next(iter(rules), "-") if len(rules) == 1 else ("none" if not rules else "multi")
         _tally(side["customer"][slot], sole["customer"], total["customer"], cert)
         for s in _sentences(r.get("agent_text") or ""):
@@ -58,8 +74,13 @@ def audit_trace(path):
             cert = question(s, q)
             slot = q[0]["slot"] if len(q) == 1 else ("none" if not q else "multi")
             _tally(side["agent"][slot], sole["agent"], total["agent"], cert)
-    out = {"trace": str(path), "rows": len(rows)}
-    jev_empty = [not (r["extractor"].get("jev_customer_labels") or []) for r in rows
+    from core.config import settings
+    out = {"trace": str(path), "rows": len(rows), "cert_version": settings.extractor_cert_version,
+           "cert_v2_relax": settings.cert_v2_relax,
+           "customer_slots_certified": dict(slot_cert.most_common()),
+           "slot_failed_checks": {k: dict(c.most_common()) for k, c in sorted(slot_fail.items())},
+           "slot_failed_examples": dict(sorted(slot_examples.items())), "x_failed_examples": x_examples[:10]}
+    jev_empty = [not ((r.get("extractor") or {}).get("jev_customer_labels") or []) for r in rows
                  if empty(r.get("customer_text") or "", customer_slots_rules(r.get("customer_text") or "", "2026-10-15"),
                           "ctx" if r["turn"] > 1 or r["call"] != "call_1" else None)["certified"]]
     out["customer_empty_vs_jev"] = {"certified": len(jev_empty), "jev_disagrees": jev_empty.count(False)}

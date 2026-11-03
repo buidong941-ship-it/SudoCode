@@ -21,7 +21,11 @@ def labels(text, definitions, role, meta=None, context=None):
                           "Use the conversation context only to resolve references or meaning. "
                           "Return yes only when the current sentence provides or asserts this information; "
                           "do not copy a value mentioned only in earlier context. "
-                          # A7 (01/11): Redactor che PII trước khi gửi → Jev chỉ thấy mã, phải coi mã là giá trị thật
+                          # D10 (02/11): quy tắc chung của định nghĩa slot (harness/llm_extract.CUSTOMER_RULES), bản tiếng Anh
+                          "A value stated inside a question or request still counts (e.g. 'ship to 5 Tran Phu, how many days?' "
+                          "states an address); asking the shop about the value without stating it does not count; a short "
+                          "confirmation such as 'yes, same address' is not a new value; if the speaker corrects themselves, use "
+                          "the last value. "
                           "Privacy codes such as [ĐỊA_CHỈ_1] or [SĐT_1] stand for a real address / phone number that was "
                           "masked: a sentence containing [ĐỊA_CHỈ_n] DOES state an address (also inside a delivery question)."),
             criteria={"yes": "Explicitly present", "no": "Not explicitly present"})

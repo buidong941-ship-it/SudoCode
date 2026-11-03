@@ -44,8 +44,13 @@ python tests/confidence_gate_check.py | tail -1
 python tests/jev_hybrid_check.py | tail -1
 python tests/planner_rules_check.py | tail -1
 python tests/planner_b345_check.py
+python tests/d7_fixes_check.py
+python tests/cert_v2_check.py
+python tests/c5_fixes_check.py
+python tests/template_review_check.py
 python tests/planner_llm_check.py
 python tests/lexicon_check.py
+python tests/lexicon_include_check.py
 python tests/hr_by_sku_check.py
 # khung cơ chế cải tiến (improve/, tách khỏi core)
 python tests/improve_check.py
