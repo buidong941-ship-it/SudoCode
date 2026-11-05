@@ -1,0 +1,11 @@
+{
+  "doc": "D51 (PLAN-2026-11-05-PLANNER-TABLE mục 6.3): cách đọc phiên âm tên thương hiệu cho tầng tra sản phẩm (harness/tools.find_products), chỉ dùng khi PRODUCT_LEXICON=1. Bổ sung cho SPOKEN trong code. status: approved (dùng) | proposed (chờ duyệt, giai đoạn 3: loại đề xuất product_alias). Dạng ASR của mã model (s1 → smột, 4L → bốnl, 6.2L → 6 chấm hai l) sinh tự động từ catalog, không ghi ở đây.",
+  "spoken_brands": [
+    {"brand": "moaz bebe", "forms": ["mo a bê bê", "mô a bê bê", "mo át bê bê"], "status": "approved",
+     "source": "D51 05/11, cách đọc tên Moaz Bebe (ca gặp: V3-123 dev — đo trên bộ khác theo D38)"},
+    {"brand": "lock&lock", "forms": ["lóc en lóc", "lốc en lốc", "lock en lock", "lóc and lóc"], "status": "approved",
+     "source": "D51 05/11, cách đọc tên Lock&Lock (ca gặp: V3-127 dev)"},
+    {"brand": "spectra", "forms": ["spéc tờ ra", "xpéc tra"], "status": "approved", "source": "D51 05/11, bổ sung SPOKEN"},
+    {"brand": "philips", "forms": ["phi líp", "phi lip"], "status": "approved", "source": "D51 05/11, bổ sung SPOKEN"}
+  ]
+}

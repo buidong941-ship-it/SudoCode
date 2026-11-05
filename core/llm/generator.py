@@ -60,6 +60,10 @@ GOAL_NOTES = {
     "order_created": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn.",
     "order_updated": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
     "address_updated": "Xác nhận đã cập nhật địa chỉ giao mới cho đơn. Không hỏi lại.",
+    "refund_amount": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; "
+                     "nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm.",
+    "cancel_handoff": "Khách muốn hủy đơn: nói em đã chuyển yêu cầu hủy đơn sang nhân viên phụ trách để xử lý và liên hệ lại; "
+                      "KHÔNG nói là đã hủy xong. Không hỏi thêm.",
     "order_status": "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có.",
     "confirm_delivery_address": "Khẳng định đơn giao về đúng địa chỉ FACTS.order.address, nêu ngày giao dự kiến nếu có. Không hỏi lại.",
     "explain_price_change": "Nói rõ mức giá thấp hơn khách nhắc là giá khi còn khuyến mãi và chương trình đó đã hết hạn (không đọc lại con số cũ); báo giá hiện tại.",
@@ -189,7 +193,7 @@ PLACEHOLDER_SPEC = [
     ("TONG_TIEN", "tổng tiền", [("order", "total_vnd"), ("cart", "total_vnd"), ("cod_total_vnd",)], "vnd"),
     ("MA_DON", "mã đơn", [("order", "order_id")], "str"),
     ("NGAY_GIAO", "ngày giao dự kiến (ngày/tháng)", [("order", "estimated_delivery"), ("order", "estimated_delivery_ddmm")], "dm"),
-    ("TIEN_HOAN", "số tiền hoàn lại cho khách", [("update", "refund_vnd")], "vnd"),
+    ("TIEN_HOAN", "số tiền hoàn lại cho khách", [("update", "refund_vnd"), ("refund", "refund_vnd")], "vnd"),
     ("TIEN_BU", "số tiền khách bù thêm", [("update", "extra_payment_vnd")], "vnd"),
     ("GIO_HEN", "giờ hẹn gọi lại", [("callback", "callback_at")], "hm"),
     ("NGAY_CO_HANG", "ngày dự kiến có hàng lại", [("restock_expected",)], "dm"),
@@ -397,6 +401,12 @@ def render_offline(plan):
             if u.get("fee_vnd"): s += f", phí đổi {_vnd(u['fee_vnd'])}"
             if u.get("status") == "pickup_scheduled": s += ", bên vận chuyển sẽ qua lấy hàng"
             out.append(s + " ạ.")
+        elif g == "refund_amount":
+            r = F["refund"]
+            out.append(f"Dạ số tiền hoàn cho đơn {r.get('order_id')} của {h} là {_vnd(r['refund_vnd'])}"
+                       + (f", hoàn trong {r['refund_days']}" if r.get("refund_days") else "") + " ạ.")
+        elif g == "cancel_handoff":
+            out.append(f"Dạ em đã chuyển yêu cầu hủy đơn của {h} sang nhân viên phụ trách để xử lý, bên em sẽ liên hệ lại {h} sớm ạ.")
         elif g == "order_not_found":
             out.append(f"Dạ em chưa tìm thấy đơn của {h}, {h} đọc giúp em mã đơn ạ?")
         elif g == "order_status":

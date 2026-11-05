@@ -53,6 +53,8 @@ def content(text, goals, facts):
             for k, name in (("refund_vnd", "tiền hoàn lại"), ("extra_payment_vnd", "tiền bù thêm")):
                 if u.get(k) and not _has_money(text, u[k]):
                     out.append(f"thiếu {name} {u[k]:,}đ".replace(",", "."))
+        elif g == "refund_amount" and facts.get("refund") and not _has_money(text, facts["refund"].get("refund_vnd")):
+            out.append(f"thiếu số tiền hoàn {facts['refund']['refund_vnd']:,}đ".replace(",", "."))
         elif g == "cart_total" and facts.get("cart") and not _has_money(text, facts["cart"].get("total_vnd")):
             out.append(f"thiếu tổng tiền giỏ {facts['cart']['total_vnd']:,}đ".replace(",", "."))
         elif g == "callback_scheduled" and facts.get("callback") and not _has_time(text, facts["callback"].get("callback_at")):

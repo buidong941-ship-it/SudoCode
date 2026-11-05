@@ -105,10 +105,82 @@ def _spoken_digits(f):
     return " ".join(_DIGITS.get(w, w) for w in f.split())
 
 
+_DIGIT_WORD = {"0": "khong", "1": "mot", "2": "hai", "3": "ba", "4": "bon", "5": "nam", "6": "sau", "7": "bay", "8": "tam", "9": "chin"}
+_LEX_INDEX = {"key": None, "index": None}
+
+
+def _token_variants(tok):
+    """D51 (tầng tra SP): cách ASR viết một mã model, sinh TỪ CATALOG (không theo câu cụ thể).
+    's1' → 'smot' / 's 1'; '4l' → 'bonl' / '4 l'; '6.2l' → '6 cham hail' / '6 cham 2 l'. Chỉ chữ số đơn 0–9 mới có dạng chữ."""
+    m = re.fullmatch(r"([a-z]*)(\d)(?:\.(\d))?([a-z]*)", tok)
+    if not m:
+        return [tok]
+    pre, a, b, suf = m.groups()
+    if b is None:
+        glued = pre + _DIGIT_WORD[a] + suf
+        spaced = " ".join(x for x in (pre, a, suf) if x)
+        return list(dict.fromkeys([tok, glued, spaced]))
+    return list(dict.fromkeys([tok, f"{pre}{a} cham {_DIGIT_WORD[b]}{suf}".strip(), " ".join(x for x in (pre + a, "cham", b, suf) if x)]))
+
+
+def _lexicon_index():
+    """Chỉ mục alias mở rộng khi PRODUCT_LEXICON=1: thêm cách đọc phiên âm thương hiệu (harness/lexicon/products.json, mục
+    approved) và dạng ASR của mã model. Sắp alias dài trước như _INDEX."""
+    from harness import improve_hook               # D52: cách đọc do người duyệt qua improve/ (loại product_alias)
+    path = os.path.join(os.path.dirname(__file__), "lexicon", "products.json")
+    extra = improve_hook.product_aliases()
+    mtime = os.path.getmtime(path) if os.path.exists(path) else None
+    key = (mtime, tuple(e["id"] for e in extra))
+    if _LEX_INDEX["key"] == key and _LEX_INDEX["index"] is not None:
+        return _LEX_INDEX["index"]
+    import json
+    lex = json.load(open(path, encoding="utf-8")) if mtime else {}
+    spoken = {b: list(v) for b, v in SPOKEN.items()}
+    for e in lex.get("spoken_brands", []) + [dict(x, status="approved") for x in extra]:
+        if e.get("status") == "approved":
+            spoken.setdefault(e["brand"].lower(), []).extend(e["forms"])
+    # giữ NGUYÊN thứ tự của _INDEX (alias dài bằng nhau thì SP đứng trước trong catalog thắng, vd AirPure Pro trước
+    # màng lọc AirPure Pro); alias mới thêm sau, sort ổn định theo độ dài → không đổi kết quả của câu không có cách đọc mới
+    idx = dict.fromkeys(_INDEX)
+    for p in mt.PRODUCTS:
+        base = set(_aliases(p))
+        name = p["name"].lower()
+        raw = {name} | {name[len(pre) + 1:] for pre in NAME_PREFIXES if name.startswith(pre + " ")}
+        for a in list(raw):
+            for brand, forms in spoken.items():
+                if brand in a:
+                    raw |= {a.replace(brand, f) for f in forms}
+        for a in raw | base:
+            fa = fold(a)
+            toks = fa.split()
+            if not 1 <= len(toks) <= 8:
+                continue
+            variants = [""]
+            for t in toks:
+                variants = [(v + " " + x).strip() for v in variants for x in _token_variants(t)][:16]
+            for v in variants:
+                if len(v) >= 3:
+                    idx.setdefault((v, p["sku"]))
+    _LEX_INDEX.update(key=key, index=sorted(idx, key=lambda x: -len(x[0])))
+    return _LEX_INDEX["index"]
+
+
+def _prefer_bundle(f, out):
+    """D51 (N05): câu có "combo / trọn bộ" và nhắc SP nằm trong một bundle → chọn SKU bundle (attributes.bundle_of)."""
+    if not re.search(r"\b(combo|tron bo|tron goi)\b", f):
+        return out
+    for p in mt.PRODUCTS:
+        parts = (p.get("attributes") or {}).get("bundle_of") or []
+        if parts and (p["sku"] in out or any(mt._parent(s)[0] and mt._parent(s)[0]["sku"] in parts for s in out)):
+            return [p["sku"]] + [s for s in out if s != p["sku"] and not (mt._parent(s)[0] and mt._parent(s)[0]["sku"] in parts)]
+    return out
+
+
 def find_products(text):
     f = " " + _spoken_digits(fold(text)) + " "
     hits, used = [], []
-    for alias, sku in _INDEX:
+    index = _lexicon_index() if settings.product_lexicon else _INDEX
+    for alias, sku in index:
         for m in re.finditer(r"(?<![a-z0-9])" + re.escape(alias) + r"(?![a-z0-9])", f):
             if any(s <= m.start() < e for s, e in used):
                 continue
@@ -117,7 +189,7 @@ def find_products(text):
     for _, s in sorted(hits):
         if s not in seen:
             seen.add(s); out.append(s)
-    return out
+    return _prefer_bundle(f, out) if settings.product_lexicon else out
 
 
 def find_variant(sku, text, fallback_size=None, fallback_color=None):

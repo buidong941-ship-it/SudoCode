@@ -29,8 +29,23 @@ KINDS = {
     "playbook": ("trigger", "instruction"),
     "exemplar": ("customer_text", "agent_text"),
     "cue": ("slot", "pattern"),
+    # D52 (PLAN-2026-11-05-PLANNER-TABLE mục 8): thay đổi kỹ thuật suy ra từ một thẻ context, mỗi cái duyệt riêng
+    "planner_rule": ("when", "do", "priority"),        # dòng bảng planner (origin=approved), chỉ handler an toàn
+    "router_cue": ("target", "pattern"),               # target = intent:<tên> (router rules) | flag:<tên>
+    "product_alias": ("brand", "forms"),               # cách đọc phiên âm thương hiệu cho tầng tra sản phẩm
 }
-STATES = ("pending", "approved", "rejected")
+# Loại kỹ thuật: duyệt xong chưa có hiệu lực ngay mà vào gated/, chỉ lên approved/ khi qua cổng hồi quy (python -m improve gate)
+GATED_KINDS = ("planner_rule", "router_cue", "product_alias")
+STATES = ("pending", "gated", "approved", "rejected")
+# Bản sao danh sách handler an toàn của harness/planner_table.SAFE_HANDLERS (improve/ không được import harness;
+# tests/improve_d52_check.py kiểm hai danh sách khớp nhau)
+SAFE_PLANNER_HANDLERS = {"add_goal", "quote", "policy_answer", "order_status", "refuse_other_customer", "attr_check", "gift_status",
+                         "cart_total", "defer_ack", "handoff_scope", "warranty_fact", "policy_peek", "order_updated_note",
+                         "ask_repeat", "refund_amount", "defer_close", "handoff_reason"}
+ROUTER_INTENTS = {"product_inquiry", "price_promo", "policy_question", "place_order", "order_change", "order_status", "callback",
+                  "negotiate", "out_of_scope", "meta", "greeting_or_other"}
+ROUTER_FLAGS = {"agrees_to_buy", "defers_decision", "asks_if_bot", "wants_data_deleted", "medical_question", "asks_internal_cost",
+                "mentions_competitor"}
 MONEY_RX = re.compile(
     r"\d[\d.,]*\s*(?:đ|đồng|vnd|vnđ|k|nghìn|ngàn|triệu|tr|củ|%)(?!\w)|"
     r"\b(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|trăm)\s+(?:triệu|nghìn|ngàn|trăm nghìn)\b|"
@@ -103,11 +118,68 @@ def validate(prop):
         m = PROMISE_RX.search(str(pl.get("agent_text") or ""))
         if m:
             errs.append(f"exemplar là câu hứa/cam kết '{m.group(0)}' — không lấy làm mẫu")
-    if kind == "cue":
+    if kind in ("cue", "router_cue"):
         try:
             re.compile(str(pl.get("pattern") or ""))
         except re.error as e:
             errs.append(f"payload.pattern không phải regex hợp lệ: {e}")
+    if kind in GATED_KINDS:
+        errs += _validate_technical(kind, pl)
+    return errs
+
+
+def _texts(x):
+    if isinstance(x, str):
+        return [x]
+    if isinstance(x, dict):
+        return [t for v in x.values() for t in _texts(v)]
+    if isinstance(x, list):
+        return [t for v in x for t in _texts(v)]
+    return []
+
+
+def _validate_technical(kind, pl):
+    """D52: luật chặn cho planner_rule / router_cue / product_alias (trước khi người duyệt thấy)."""
+    errs = []
+    ex = pl.get("examples") or {}
+    if kind != "product_alias" and (not ex.get("match") or not ex.get("no_match")):
+        errs.append("phải có examples.match và examples.no_match (mỗi loại ≥ 1 câu)")
+    for t in _texts(ex) + _texts(pl.get("forms") or []):
+        if MONEY_RX.search(t) or PHONE_RX.search(t):
+            errs.append(f"câu ví dụ / cách đọc chứa số tiền hoặc SĐT: '{t[:60]}'")
+            break
+    if kind == "planner_rule":
+        w, do = pl.get("when") or {}, pl.get("do") or {}
+        if not isinstance(w, dict) or not w:
+            errs.append("when phải là object khác rỗng")
+        elif set(w) - {"intent", "intent_not", "flags", "text", "any"}:
+            errs.append(f"when chỉ được dùng intent / intent_not / flags / text / any, có {sorted(set(w) - {'intent', 'intent_not', 'flags', 'text', 'any'})}")
+        for i in (w.get("intent") or []) + (w.get("intent_not") or []):
+            if i not in ROUTER_INTENTS:
+                errs.append(f"intent lạ '{i}'")
+        for fl, cond in (w.get("flags") or {}).items():
+            if fl not in ROUTER_FLAGS or not re.fullmatch(r"(>=|<)\d+(\.\d+)?", str(cond)):
+                errs.append(f"điều kiện cờ sai '{fl}: {cond}'")
+        if "text" in w:
+            try:
+                re.compile(w["text"])
+            except (re.error, TypeError) as e:
+                errs.append(f"when.text không phải regex hợp lệ: {e}")
+        if do.get("handler") not in SAFE_PLANNER_HANDLERS:
+            errs.append(f"handler '{do.get('handler')}' không nằm trong danh sách an toàn (không tạo / sửa đơn)")
+        if not isinstance(pl.get("priority"), (int, float)) or not 1 <= pl["priority"] <= 899:
+            errs.append("priority phải trong 1–899 (trước fallback)")
+        if pl.get("mode", "add") not in ("add", "terminal"):
+            errs.append("mode chỉ được add hoặc terminal")
+    if kind == "router_cue":
+        tgt = str(pl.get("target") or "")
+        typ, _, name = tgt.partition(":")
+        if not ((typ == "intent" and name in ROUTER_INTENTS) or (typ == "flag" and name in ROUTER_FLAGS)):
+            errs.append(f"target phải là intent:<tên> hoặc flag:<tên> hợp lệ, có '{tgt}'")
+    if kind == "product_alias":
+        forms = pl.get("forms")
+        if not isinstance(forms, list) or not forms or not all(isinstance(x, str) and len(x.strip()) >= 3 for x in forms):
+            errs.append("forms phải là danh sách cách đọc (mỗi cách ≥ 3 ký tự)")
     return errs
 
 
@@ -179,13 +251,33 @@ def _move(pid, to, by, reason, root=None, event=None):
     prop["status"] = to
     prop["review"] = {"by": by, "at": now(), "reason": reason or "", "from": state}
     _write(to, prop, root)
-    log(event or {"approved": "approve", "rejected": "reject", "pending": "reopen"}[to], root,
+    log(event or {"approved": "approve", "rejected": "reject", "pending": "reopen", "gated": "approve_gated"}[to], root,
         id=pid, by=by, reason=reason or "", from_state=state)
     return prop
 
 
 def approve(pid, by, reason="", root=None):
+    """Người duyệt đồng ý. Loại kỹ thuật (GATED_KINDS) vào gated/ — chưa có hiệu lực cho tới khi qua cổng hồi quy."""
+    state, prop = find(pid, root)
+    if prop.get("kind") in GATED_KINDS and state != "gated":
+        return _move(pid, "gated", by, reason, root)
     return _move(pid, "approved", by, reason, root)
+
+
+def gate_pass(pid, by, reason="", root=None):
+    """Cổng hồi quy đạt → approved/ (agent được nạp)."""
+    state, _ = find(pid, root)
+    if state != "gated":
+        raise ProposalError(f"{pid} không ở gated/ (đang {state})")
+    return _move(pid, "approved", by, reason, root, event="gate_pass")
+
+
+def gate_fail(pid, by, reason="", root=None):
+    """Cổng hồi quy trượt → về pending/ kèm danh sách ca hỏng để người duyệt sửa hoặc loại."""
+    state, _ = find(pid, root)
+    if state != "gated":
+        raise ProposalError(f"{pid} không ở gated/ (đang {state})")
+    return _move(pid, "pending", by, reason, root, event="gate_fail")
 
 
 def reject(pid, by, reason="", root=None):

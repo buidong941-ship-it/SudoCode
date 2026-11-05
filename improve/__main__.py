@@ -12,6 +12,9 @@
     python -m improve check --prev r0 --report dev=runs/y/dev/report.json [--apply --by "Đồng"]
     python -m improve rollback --to r0 --by "Đồng" --reason "TSR tụt"
     python -m improve status
+    python -m improve contexts --trace runs/x/dev/full.jsonl [--cards the.json]   # D52: lượt lạ → thẻ context → đề xuất
+    python -m improve review context CTX-1a2b3c4d          # xem một thẻ và các mục của nó (mỗi mục duyệt riêng)
+    python -m improve gate [--sets ...] --by gate          # D52: cổng hồi quy cho mục ở gated/ (chạy trên Kaggle)
 
 Mọi lệnh nhận `--root DIR` (mặc định thư mục improve/, hoặc env IMPROVE_ROOT).
 """
@@ -93,6 +96,20 @@ def _show(prop):
 
 
 def cmd_review(a):
+    if a.action == "context":
+        props = [p for s in ("pending", "gated", "approved", "rejected") for p in S.list_state(s, a.root)
+                 if (p.get("context") or {}).get("id") == a.id]
+        if not props:
+            sys.exit(f"không có đề xuất nào thuộc {a.id}")
+        ctx = props[0]["context"]
+        _p(f"══ {ctx['id']}  ({ctx.get('scenario')}/{ctx.get('call')}/t{ctx.get('turn')}, tín hiệu {', '.join(ctx.get('signals') or [])})")
+        _p(f"   khách: {ctx.get('customer_text')}\n   agent: {ctx.get('agent_text')}")
+        _p(f"   tình huống: {ctx.get('summary')}\n   cách xử lý: {ctx.get('handling')}")
+        _p("   Mỗi mục duyệt RIÊNG (python -m improve review approve|reject <id> --by ...):")
+        for p in props:
+            _show(p)
+            _p(f"   trạng thái: {p['status']}")
+        return
     if a.action == "show":
         _show(S.find(a.id, a.root)[1])
     elif a.action in ("approve", "reject", "reopen"):
@@ -115,6 +132,28 @@ def cmd_review(a):
         for prop in props:
             _p(f"{prop['id']}  [{prop['kind']}]  {prop.get('title', '')[:70]}")
         _p(f"({len(props)} đề xuất ở {state}/)")
+
+
+def cmd_contexts(a):
+    """D52: lượt lạ trong trace dev → thẻ context (LLM hoặc --cards) → từng đề xuất riêng vào pending/."""
+    from improve import contexts as X
+    views, out = X.run(a.trace, a.root, a.cards, a.limit, a.config, a.author)
+    _p(f"{len(views)} lượt lạ; {len(out)} thẻ context")
+    for cid, made, errors in out:
+        _p(f"  {cid}: " + ", ".join(f"{k}:{pid}({st})" for st, pid, k in made) + (f"  · bị chặn {len(errors)}" if errors else ""))
+        for e in errors:
+            _p(f"      BỊ CHẶN {e['kind']}: {e['error'][:160]}")
+
+
+def cmd_gate(a):
+    """D52: chạy cổng hồi quy cho mọi mục ở gated/ (chạy trên Kaggle CPU)."""
+    from improve import gate as G
+    res = G.run(a.sets or None, a.by, a.root, a.python, a.max_unrelated, apply=not a.dry_run)
+    for r in res:
+        _p(f"{r['id']} [{r['kind']}] {'ĐẠT → approved' if r['pass'] else 'TRƯỢT → pending'}"
+           + ("" if r["pass"] else "  " + "; ".join(r["reasons"])[:400]))
+    _p(f"({len(res)} mục ở gated/)")
+    sys.exit(0 if all(r["pass"] for r in res) else 3)
 
 
 def cmd_round(a):
@@ -181,13 +220,29 @@ def main(argv=None):
     p.set_defaults(fn=cmd_propose)
 
     p = sub.add_parser("review", help="D3: liệt kê / xem / duyệt / loại đề xuất")
-    p.add_argument("action", nargs="?", choices=["show", "approve", "reject", "reopen"])
+    p.add_argument("action", nargs="?", choices=["show", "approve", "reject", "reopen", "context"])
     p.add_argument("id", nargs="?")
     p.add_argument("--by", help="người duyệt (bắt buộc khi approve/reject)")
     p.add_argument("--reason", default="")
     p.add_argument("--state", choices=S.STATES)
     p.add_argument("-i", "--interactive", action="store_true")
     p.set_defaults(fn=cmd_review)
+
+    p = sub.add_parser("contexts", help="D52: lượt lạ trong trace dev → thẻ context → đề xuất duyệt tách vào pending/")
+    p.add_argument("--trace", required=True)
+    p.add_argument("--cards", help="file JSON {context_id hoặc scenario:call:turn: thẻ} thay cho gọi LLM")
+    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--config", default="full")
+    p.add_argument("--author", default="llm")
+    p.set_defaults(fn=cmd_contexts)
+
+    p = sub.add_parser("gate", help="D52: cổng hồi quy cho các mục ở gated/ (đạt → approved, trượt → pending)")
+    p.add_argument("--sets", nargs="*", help="bộ kịch bản dev (mặc định 6 bộ dev, không holdout)")
+    p.add_argument("--by", default="gate")
+    p.add_argument("--python", default=None)
+    p.add_argument("--max-unrelated", type=int, default=0, help="số lượt không liên quan được phép đổi goal")
+    p.add_argument("--dry-run", action="store_true", help="chỉ báo kết quả, không chuyển trạng thái")
+    p.set_defaults(fn=cmd_gate)
 
     p = sub.add_parser("round", help="D5: chụp approved/ + report của một vòng")
     p.add_argument("op", choices=["save"])
@@ -215,8 +270,8 @@ def main(argv=None):
     p.set_defaults(fn=cmd_status)
 
     a = ap.parse_args(argv)
-    if a.cmd == "review" and a.action in ("show", "approve", "reject", "reopen") and not a.id:
-        ap.error("cần id đề xuất")
+    if a.cmd == "review" and a.action in ("show", "approve", "reject", "reopen", "context") and not a.id:
+        ap.error("cần id đề xuất (hoặc id thẻ context CTX-…)")
     if a.cmd == "check" and a.apply and not a.by:
         ap.error("--apply cần --by")
     try:

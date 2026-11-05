@@ -214,12 +214,24 @@ with tab_improve:
     st.markdown("Đề xuất trong `improve/pending/`. Chỉ bản trong `approved/` mới được agent nạp (khi bật ở mục E).")
     by = st.text_input("Người duyệt", st.session_state.get("reviewer", ""))
     st.session_state["reviewer"] = by
-    pend = S.list_state("pending")
+    pend = sorted(S.list_state("pending"), key=lambda p: ((p.get("context") or {}).get("id") or "~", p["id"]))
     if not pend:
         st.caption("Không có đề xuất chờ duyệt.")
+    last_ctx = None
     for p in pend:
+        ctx = p.get("context") or {}
+        if ctx.get("id") and ctx["id"] != last_ctx:      # D52: thẻ context — mỗi mục bên dưới vẫn duyệt RIÊNG
+            last_ctx = ctx["id"]
+            st.subheader(f"Thẻ {ctx['id']}")
+            st.markdown(f"**Khách:** {ctx.get('customer_text')}  \n**Agent:** {ctx.get('agent_text')}  \n"
+                        f"**Tình huống:** {ctx.get('summary')}  \n**Cách xử lý:** {ctx.get('handling')}")
+            st.caption("Mục kỹ thuật (planner_rule / router_cue / product_alias) duyệt xong vào gated/, "
+                       "chỉ có hiệu lực khi qua cổng hồi quy (`python -m improve gate`).")
         with st.container(border=True):
             st.markdown(f"**{p['id']}** · `{p['kind']}` · {p.get('title', '')}")
+            ex = (p["payload"] or {}).get("examples") or {}
+            if ex:
+                st.markdown("Khớp: " + " / ".join(ex.get("match") or []) + "  \nKhông khớp: " + " / ".join(ex.get("no_match") or []))
             st.json(p["payload"], expanded=False)
             st.caption(f"tác giả {p.get('author')} · gap {', '.join(p.get('source_gaps') or []) or '—'}")
             reason = st.text_input("Lý do", key=f"r-{p['id']}")
@@ -231,6 +243,11 @@ with tab_improve:
                     S.reject(p["id"], by, reason); st.rerun()
             except S.ProposalError as e:
                 st.error(str(e))
+    gated = S.list_state("gated") if "gated" in S.STATES else []
+    if gated:
+        with st.expander(f"Chờ cổng hồi quy ({len(gated)})"):
+            for p in gated:
+                st.markdown(f"- **{p['id']}** `{p['kind']}` {p.get('title', '')} — {p['review']['by']}")
     with st.expander(f"Đã duyệt ({len(S.list_state('approved'))}) · hash {S.approved_hash()}"):
         for p in S.list_state("approved"):
             st.markdown(f"- **{p['id']}** `{p['kind']}` {p.get('title', '')} — {p['review']['by']}: {p['review'].get('reason')}")

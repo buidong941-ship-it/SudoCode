@@ -99,6 +99,58 @@ def cue_patterns():
     return out
 
 
+def planner_rows():
+    """D50/D52: dòng bảng planner đã duyệt (loại `planner_rule`) → origin=approved. Tắt hoặc chưa có loại này → []."""
+    a = approved()
+    if not a:
+        return []
+    return [{**{k: v for k, v in it.items() if k != "id"}, "id": f"IMP:{it['id']}", "origin": "approved"}
+            for it in a["items"].get("planner_rule", [])]
+
+
+def router_cues():
+    """D52: cue router đã duyệt → [(id, kiểu 'intent'|'flag', tên, regex)]. Tắt → []."""
+    a = approved()
+    if not a:
+        return []
+    out = []
+    for it in a["items"].get("router_cue", []):
+        typ, _, name = str(it.get("target", "")).partition(":")
+        try:
+            out.append((it["id"], typ, name, re.compile(it["pattern"])))
+        except re.error:
+            continue
+    return out
+
+
+# cờ an toàn: cue đã duyệt được nâng cờ cả khi router là Jev (lưới an toàn); cờ khác và intent chỉ áp cho router rules
+SAFETY_FLAGS = {"asks_internal_cost", "medical_question", "wants_data_deleted", "asks_if_bot"}
+
+
+def apply_router_cues(text, out, backend):
+    """Áp cue router đã duyệt lên kết quả router (tại chỗ). → danh sách id đã dùng."""
+    cues = router_cues()
+    if not cues:
+        return []
+    f, used = fold(text), []
+    for pid, typ, name, rx in cues:
+        if not rx.search(f):
+            continue
+        if typ == "flag" and (backend == "rules" or name in SAFETY_FLAGS):
+            out.setdefault("flags", {})[name] = max(out["flags"].get(name, 0), 0.95); used.append(pid)
+        elif typ == "intent" and backend == "rules" and (out.get("intent") == "greeting_or_other" or out.get("confidence", 0) < 0.8):
+            out.update(intent=name, confidence=0.85); used.append(pid)
+    return used
+
+
+def product_aliases():
+    """D52: cách đọc thương hiệu đã duyệt → [{brand, forms}] (tầng tra SP, khi PRODUCT_LEXICON=1). Tắt → []."""
+    a = approved()
+    if not a:
+        return []
+    return [{"brand": it["brand"], "forms": list(it.get("forms") or []), "id": it["id"]} for it in a["items"].get("product_alias", [])]
+
+
 def apply_to_plan(plan, text, goals):
     """Gắn PLAYBOOK / EXEMPLARS vào plan của generator. → danh sách id đề xuất đã dùng (rỗng khi tắt)."""
     if not enabled():
