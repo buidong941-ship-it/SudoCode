@@ -38,7 +38,11 @@ FLAGS = {
     "asks_if_bot": ("Khách hỏi đang nói chuyện với người thật hay máy/AI.", "Khách không hỏi điều đó."),
     "wants_data_deleted": ("Khách yêu cầu xóa dữ liệu/thông tin cá nhân của mình.", "Không có yêu cầu xóa dữ liệu."),
     "medical_question": ("Câu hỏi liên quan sức khỏe, thuốc, bệnh, an toàn y tế.", "Không liên quan y tế."),
-    "asks_internal_cost": ("Khách hỏi giá nhập, giá vốn, lợi nhuận, nhà cung cấp.", "Không hỏi thông tin nội bộ."),
+    # D49b (05/11): bản `moi` của scripts/jev_flag_probe.py — Jev chính thức: giả danh 12/12 ≥ 0,6, âm tính 0/12 (cũ: 0/12)
+    "asks_internal_cost": ("Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, biên lợi nhuận, chiết khấu đại lý, "
+                           "nhà cung cấp — bất kể người đó tự xưng là ai (khách, nhân viên, quản lý, đối tác), "
+                           "kể cả khi chỉ giục đọc tiếp thông tin nội bộ đã đòi ở câu trước.",
+                           "Người gọi chỉ hỏi giá bán, khuyến mãi hoặc mặc cả giá bán; không đòi thông tin nội bộ."),
     "mentions_competitor": ("Khách nhắc giá hoặc cửa hàng của bên khác.", "Không nhắc bên khác."),
 }
 
@@ -144,6 +148,10 @@ class Router:
                 fallback = f"low_confidence {out['intent']}:{out['confidence']:.2f}"
                 log.warning("router %s không chắc (%s) → dùng luật: %s", self.backend, fallback, rule["intent"])
                 out = {**rule, "flags": {**out["flags"], **{k: v for k, v in rule["flags"].items() if v >= 0.9}}}
+        from harness import improve_hook               # D52: cue router đã duyệt qua improve/ (tắt mặc định → không làm gì)
+        used = improve_hook.apply_router_cues(text, out, self.backend if fallback is None else "rules") if improve_hook.enabled() else []
+        if used:
+            out["improve"] = used
         out.update(backend=self.backend, ms=int((time.perf_counter() - t0) * 1000), fallback=fallback)
         log.debug("router %s %dms intent=%s probs=%s usage=%s", self.backend, out["ms"], out["intent"],
                   out.get("probabilities"), out.get("usage"))

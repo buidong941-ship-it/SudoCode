@@ -107,6 +107,17 @@ def promo_problems(text, promos):
         if old and not any(_promo_signature(pr, s) for pr in promos["active"]):
             out.append(f"nói chương trình {old[0]['promo_code']} đã hết hạn như còn hiệu lực")
             break
+    # V3-011 (05/11): "giảm 50%" không kèm chữ "khuyến mãi" lọt qua vòng trên. Mức giảm phần trăm khẳng định trong câu trả lời
+    # phải trùng discount_percent của một KM đang áp dụng theo tool của cuộc gọi (câu hỏi lại / câu phủ định thì bỏ qua).
+    ok_pct = {int(pr["discount_percent"]) for pr in promos.get("active") or () if pr.get("discount_percent")}
+    for s in re.split(r"(?<=[.!?])\s+", text):
+        f = fold(s)
+        if s.rstrip().endswith("?") or PROMO_NEG_RX.search(f) or re.search(r"\b(khong|chua|chang)\b", f):
+            continue
+        for m in re.finditer(r"(giam|bot|chiet khau|off|uu dai)\D{0,12}?(\d{1,2})\s*%", f):
+            if int(m.group(2)) not in ok_pct:
+                out.append(f"nói giảm {m.group(2)}% nhưng tool của cuộc gọi không có KM {m.group(2)}% đang áp dụng")
+                return out
     return out
 
 
