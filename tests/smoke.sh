@@ -57,6 +57,8 @@ python tests/hr_by_sku_check.py
 # khung cơ chế cải tiến (improve/, tách khỏi core)
 python tests/improve_check.py
 python tests/improve_hook_check.py
+# D52: thẻ context, duyệt tách, gated/ + cổng hồi quy, nạp planner_rule / router_cue / product_alias
+python tests/improve_d52_check.py
 python tests/naturalize_backend_check.py
 # UI demo (ui/, tách khỏi core; AppTest chỉ chạy khi có streamlit)
 python tests/ui_check.py
@@ -64,6 +66,12 @@ python tests/ui_check.py
 # MCP: 2 server đúng giao thức + trace qua MCP == gọi trực tiếp
 python tests/mcp_check.py | tail -1
 python tests/mcp_parity.py --out-dir "$OUT/parity" | tail -1
+# D50: bảng quyết định planner (PLANNER_TABLE=1) cho cùng trace với _plan cũ (bộ mẫu; bộ dev đầy đủ chạy riêng trên Kaggle)
+python tests/planner_table_parity.py --sets test_set/public_sample --out-dir "$OUT/table_parity" | tail -1
+# D51: điều kiện các dòng bảng mới + tầng tra sản phẩm (PRODUCT_LEXICON)
+python tests/planner_table_d51_check.py
+# 05/11: D49b (mô tả cờ), D33 (câu mẫu KM hết hạn), D54 (nhớ variant_sku khi hẹn chốt sau), D58 (cờ mặc định bật)
+python tests/fixes_1105_check.py --out-dir "$OUT/fix1105" | tail -1
 # PII không ra ngoài / không vào log (7 kịch bản mẫu)
 GEN_PLACEHOLDERS=0 python tests/pii_check.py --scenarios test_set/public_sample | tail -1
 # hậu xử lý ASR (không cần audio)

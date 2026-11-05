@@ -60,7 +60,7 @@ def _check_set(name, allowed):
 class Settings:
     router_backend: str = field(default_factory=lambda: _env("ROUTER_BACKEND", "jev"))
     typesafe_api_key: str = field(default_factory=lambda: _env("TYPESAFE_API_KEY"))
-    jev_model: str = field(default_factory=lambda: _env("JEV_MODEL", "jev-1.14.0"))
+    jev_model: str = field(default_factory=lambda: _env("JEV_MODEL", "jev-latest"))  # 05/11: key TypeSafe chính thức (không đặt TYPESAFE_BASE_URL); proxy portixapi cần jev-1.14.0
     jev_base_url: str = field(default_factory=lambda: _env("TYPESAFE_BASE_URL"))
     jev_timeout_s: float = field(default_factory=lambda: float(_env("JEV_TIMEOUT_S", "8")))
     router_min_confidence: float = field(default_factory=lambda: float(_env("ROUTER_MIN_CONFIDENCE", "0.45")))
@@ -111,6 +111,21 @@ class Settings:
     # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
     planner_backend: str = field(default_factory=lambda: _env("PLANNER_BACKEND", "rules").lower())
     planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
+    # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json thay cho _plan bằng code.
+    # D58 (duyệt 05/11): mặc định BẬT. PLANNER_TABLE=0 = _plan cũ; bảng chỉ có nhánh cũ phải cho trace trùng 100 % (tests/planner_table_parity.py)
+    planner_table: bool = field(default_factory=lambda: _env("PLANNER_TABLE", "1") not in ("0", "off", "false"))
+    # L1 (05/11): gọi router song song với bước trích slot (router không cần slot). D58: mặc định BẬT; =0 = nối tiếp như cũ (trace trùng, tests/latency_parallel_check.py).
+    # Chỉ song song ở lượt không đọc SĐT và không đang hỏi danh tính (định danh có thể đổi tóm tắt phiên trước).
+    parallel_router: bool = field(default_factory=lambda: _env("PARALLEL_ROUTER", "1") not in ("0", "off", "false"))
+    # L3 (05/11): endpoint Qwen RIÊNG cho extractor + summarizer (vd vLLM thứ hai ở GPU 1), để không tranh GPU với generator.
+    # Rỗng = dùng chung QWEN_BASE_URL như cũ. scripts/serve_llm.sh tự bật thêm server cho cổng này.
+    qwen_extract_base_url: str = field(default_factory=lambda: _env("QWEN_EXTRACT_BASE_URL", ""))
+    # D51: tầng tra sản phẩm mở rộng (harness/lexicon/products.json + dạng ASR của mã model + ưu tiên SKU combo). D58: mặc định BẬT; =0 = tra SP như cũ
+    product_lexicon: bool = field(default_factory=lambda: _env("PRODUCT_LEXICON", "1") not in ("0", "off", "false"))
+    # E04 (05/11): số lượng mua (slot qty, luật) → order.create qty, tổng tiền / hạn mức COD và KM theo số lượng (min_qty).
+    # Mặc định tắt cho tới khi A/B offline xong (tests/order_qty_ab.py)
+    order_qty: bool = field(default_factory=lambda: _env("ORDER_QTY", "0") not in ("0", "off", "false"))
+    planner_rules_path: str = field(default_factory=lambda: _env("PLANNER_RULES", os.path.join(ROOT, "harness", "planner_rules.json")))
     question_clf: bool = field(default_factory=lambda: _env("QUESTION_CLF", "0") not in ("0", "off", "false"))
     question_classifier_backend: str = field(default_factory=lambda: _env("QUESTION_CLF_BACKEND", "jev").lower())
     question_clf_tau: float = field(default_factory=lambda: float(_env("QUESTION_CLF_TAU", "0.75")))
@@ -152,6 +167,8 @@ class Settings:
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
                 "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
                 "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
+                "planner_table": self.planner_table, "product_lexicon": self.product_lexicon,
+                "parallel_router": self.parallel_router, "order_qty": self.order_qty, "qwen_extract_base_url": self.qwen_extract_base_url or None,
                 "improve_dir": self.improve_dir,
                 "strip_questions": self.strip_questions, "guard_mode": self.guard_mode,
                 "mem_ablate": sorted(self.mem_ablate),
