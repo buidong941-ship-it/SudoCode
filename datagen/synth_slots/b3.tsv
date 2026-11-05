@@ -1,0 +1,114 @@
+prompt_id	label	slot	value	span	region	style	structure	extra	text
+b3-area-1	positive	room_area_m2	22	hai mươi hai mét vuông	trung	so_bang_chu	giua_cau		Phòng ngủ của cô hai mươi hai mét vuông, máy nào chạy êm em?
+b3-area-1	positive	room_area_m2	35	35 met vuong	nam	mat_dau	cuoi_cau		phong khach nha anh tam 35 met vuong
+b3-area-1	positive	room_area_m2	16	16m2	bac	teencode	giua_cau		p ngu nha e 16m2 thoi, dung loai nao dc a
+b3-area-1	positive	room_area_m2	50	50 mét	nam	du_dau	trong_cau_hoi		Phòng khách thông bếp khoảng 50 mét thì máy này kham nổi không em?
+b3-area-2	positive	room_area_m2	20	20 mét vuông	bac	du_dau	tu_sua		Phòng chị 18… à không, đo lại là 20 mét vuông em ạ.
+b3-area-2	positive	room_area_m2	12	mười hai mét	trung	so_bang_chu	dau_cau		Mười hai mét vuông thôi, phòng con gái cô nhỏ lắm.
+b3-area-2	positive	room_area_m2	40	40 mét vuông	nam	loi_chinh_ta	giua_cau		Phòng nhà chị 40 mét vuông lận, cửa sổ nhiều nên bụi lắm.
+b3-area-2	multi	room_area_m2	30	30m²	bac	du_dau	hai_slot	budget_vnd=5000000	Phòng 30m², ngân sách anh tầm 5 triệu, em tư vấn giúp.
+b3-area-n	hard_negative	room_area_m2			bac	du_dau	trong_cau_hoi		Cái AirPure Pro chạy được cho phòng rộng tối đa bao nhiêu mét vuông em?
+b3-area-n	hard_negative	room_area_m2			nam	du_dau	giua_cau		Tủ lạnh nhà chị cao 1 mét 8, đặt máy bên cạnh được không?
+b3-area-n	hard_negative	room_area_m2			trung	du_dau	giua_cau		Nhà cô cách đường lớn 30 mét nên đỡ bụi hơn.
+b3-area-n	hard_negative	room_area_m2			nam	teencode	giua_cau		may nay day dien dai 1m5 hay 2m vay shop
+b3-area-n	hard_negative	room_area_m2			bac	du_dau	cuoi_cau		Đất nhà anh 100 mét vuông nhưng anh hỏi máy cho văn phòng công ty.
+b3-kid-1	positive	has_children	true	bé mới 6 tháng	nam	du_dau	giua_cau		Nhà chị có bé mới 6 tháng nên chị sợ bụi lắm.
+b3-kid-1	positive	has_children	true	hai đứa nhỏ	trung	du_dau	dau_cau		Hai đứa nhỏ nhà cô hay ho về đêm, máy này có ích không em?
+b3-kid-1	positive	has_children	true	be nha minh	nam	teencode	giua_cau		be nha minh 2 tuoi, may co khoa tre em k shop
+b3-kid-1	positive	has_children	true	cháu nội	bac	du_dau	cuoi_cau		Ông mua cho phòng có đứa cháu nội.
+b3-kid-2	positive	has_children	true	con nhỏ	bac	du_dau	trong_cau_hoi		Nhà có con nhỏ thì nên chọn nồi chiên nào an toàn em?
+b3-kid-2	positive	has_children	true	sắp sinh em bé	nam	du_dau	giua_cau		Vợ chồng anh sắp sinh em bé nên mua máy lọc trước.
+b3-kid-n	hard_negative	has_children			bac	du_dau	giua_cau		Con chị học đại học trên Hà Nội rồi, nhà còn hai vợ chồng.
+b3-kid-n	hard_negative	has_children			nam	du_dau	giua_cau		Bể cá nhà anh để gần chỗ đặt máy lọc có sao không?
+b3-kid-n	hard_negative	has_children			trung	du_dau	cuoi_cau		Nhà cô không có trẻ nhỏ đâu em.
+b3-kid-n	hard_negative	has_children			nam	du_dau	giua_cau		Chị hỏi máy hâm sữa để mua tặng em gái mới sinh.
+b3-kid-n	hard_negative	has_children			bac	teencode	giua_cau		bao gio ship toi e, be nho cua hang e lam a
+b3-bud-1	positive	budget_vnd	3500000	ba triệu rưỡi	bac	so_bang_chu	cuoi_cau		Anh chỉ tính chi khoảng ba triệu rưỡi.
+b3-bud-1	positive	budget_vnd	7000000	7tr	nam	viet_tat	giua_cau		Ngân sách tầm 7tr thôi nha em, hơn là anh không lấy.
+b3-bud-1	positive	budget_vnd	2000000	2 củ	nam	teencode	giua_cau		co 2 củ thoi, mua dc noi chien nao shop
+b3-bud-1	positive	budget_vnd	4500000	4 triệu 5	trung	du_dau	dau_cau		4 triệu 5 là cô mua được, hơn thì cô phải hỏi chồng.
+b3-bud-2	positive	budget_vnd	6000000	không quá 6 triệu	bac	du_dau	giua_cau		Chị muốn máy lọc nước không quá 6 triệu em ạ.
+b3-bud-2	positive	budget_vnd	1500000	1 triệu rưỡi	nam	du_dau	tu_sua		Chị tính 1 triệu thôi, à mà thôi, 1 triệu rưỡi cũng được.
+b3-bud-2	multi	budget_vnd	3000000	3 triệu	trung	du_dau	hai_slot	blocker=can hoi chong	Tầm 3 triệu thôi, để cô hỏi ông xã rồi chốt.
+b3-bud-n	hard_negative	budget_vnd			nam	du_dau	giua_cau		Em báo 4 triệu 890 hôm trước đúng không?
+b3-bud-n	hard_negative	budget_vnd			bac	du_dau	giua_cau		Bên kia bán có 3 triệu 2 thôi em.
+b3-bud-n	hard_negative	budget_vnd			trung	du_dau	trong_cau_hoi		Máy này mấy triệu vậy em?
+b3-bud-n	hard_negative	budget_vnd			nam	teencode	giua_cau		luong thang nay chua ve nen chua mua dc
+b3-bud-n	hard_negative	budget_vnd			bac	du_dau	cuoi_cau		Tiền ship 30 nghìn thì chị chịu được.
+b3-cmp-1	positive	competitor_price_vnd	4590000	4tr590	nam	viet_tat	giua_cau		Trên sàn người ta bán 4tr590 à em.
+b3-cmp-1	positive	competitor_price_vnd	1200000	một triệu hai	bac	so_bang_chu	cuoi_cau		Cửa hàng gần nhà anh bán có một triệu hai.
+b3-cmp-1	positive	competitor_price_vnd	5200000	5 triệu 2	trung	du_dau	giua_cau		Siêu thị điện máy họ để 5 triệu 2, rẻ hơn bên em đó.
+b3-cmp-1	positive	competitor_price_vnd	790000	790k	nam	teencode	giua_cau		shop kia ban 790k thoi, e giam dc k
+b3-cmp-n	hard_negative	competitor_price_vnd			bac	du_dau	giua_cau		Fanpage bên em hôm qua báo 1 triệu 690 mà.
+b3-cmp-n	hard_negative	competitor_price_vnd			nam	du_dau	giua_cau		Chị có 2 triệu thôi, bên nào rẻ hơn chị mua.
+b3-cmp-n	hard_negative	competitor_price_vnd			trung	du_dau	trong_cau_hoi		Bên khác bán bao nhiêu em có biết không?
+b3-clm-1	positive	claimed_price_vnd	4290000	4 triệu 290	bac	du_dau	giua_cau		Hôm trước em báo chị 4 triệu 290 mà sao giờ khác?
+b3-clm-1	positive	claimed_price_vnd	1521000	1521k	nam	viet_tat	giua_cau		Tuần rồi em nói 1521k, giờ còn giá đó không?
+b3-clm-1	positive	claimed_price_vnd	7690000	bảy triệu sáu trăm chín mươi nghìn	trung	so_bang_chu	cuoi_cau		Bữa trước bên em báo cô bảy triệu sáu trăm chín mươi nghìn.
+b3-clm-n	hard_negative	claimed_price_vnd			bac	du_dau	giua_cau		Shopee bán 4 triệu 290 đó em.
+b3-clm-n	hard_negative	claimed_price_vnd			nam	du_dau	trong_cau_hoi		Hôm trước em báo bao nhiêu chị quên mất rồi?
+b3-size-1	positive	size	42	size 42	nam	du_dau	giua_cau		Chân anh đi size 42 là vừa.
+b3-size-1	positive	size	XL	XL	bac	viet_tat	cuoi_cau		Áo khoác lấy cho anh cỡ XL.
+b3-size-1	positive	size	39	sai 39	trung	loi_chinh_ta	giua_cau		Chị đi sai 39 em nhé.
+b3-size-1	positive	size	M	size m	nam	teencode	giua_cau		lay cho minh size m mau den nha
+b3-size-2	positive	size	41	bốn mốt	bac	so_bang_chu	giua_cau		Lấy đôi bốn mốt cho chị nhé.
+b3-size-2	positive	size	43	43	nam	du_dau	tu_sua		Size 42 nha… à không, 43 mới vừa chân anh.
+b3-size-2	multi	size	40	size 40	trung	du_dau	hai_slot	color=trắng	Cho cô size 40 màu trắng nghe.
+b3-size-n	hard_negative	size			bac	du_dau	giua_cau		Nhà chị số 42 Nguyễn Trãi đó em.
+b3-size-n	hard_negative	size			nam	du_dau	trong_cau_hoi		Chân dài 26 phân thì đi size nào em?
+b3-size-n	hard_negative	size			trung	du_dau	giua_cau		Cô lấy 2 đôi giống nhau nghe.
+b3-size-n	hard_negative	size			nam	teencode	giua_cau		sdt minh 0912 345 678 nha shop
+b3-col-1	positive	color	xanh navy	xanh than	bac	du_dau	giua_cau		Chị lấy màu xanh than nhé em.
+b3-col-1	positive	color	đen	mau den	nam	mat_dau	cuoi_cau		lay cho anh mau den
+b3-col-1	positive	color	be	màu be	trung	du_dau	tu_sua		Màu xám đi… à thôi, màu be đi em.
+b3-col-1	positive	color	trắng	trang	nam	teencode	giua_cau		e lay doi trang nha shop
+b3-col-n	hard_negative	color			bac	du_dau	trong_cau_hoi		Áo này có những màu gì em?
+b3-col-n	hard_negative	color			nam	du_dau	giua_cau		Đôi giày cũ của anh màu đen mòn hết rồi.
+b3-col-n	hard_negative	color			trung	du_dau	giua_cau		Máy lọc màu trắng hay màu xám thì đẹp hơn em?
+b3-addr-1	positive	address	hẻm 12 Lê Văn Sỹ, Quận 3, TP HCM	hẻm 12 Lê Văn Sỹ, Quận 3, TP HCM	nam	du_dau	giua_cau		Giao vô hẻm 12 Lê Văn Sỹ, Quận 3, TP HCM giùm chị nha.
+b3-addr-1	positive	address	ngõ 15 Xã Đàn, Đống Đa, Hà Nội	ngõ 15 Xã Đàn, Đống Đa, Hà Nội	bac	du_dau	cuoi_cau		Em gửi về ngõ 15 Xã Đàn, Đống Đa, Hà Nội.
+b3-addr-1	positive	address	34 duong Le Loi, TP Hue	34 duong Le Loi, TP Hue	trung	mat_dau	giua_cau		giao ve 34 duong Le Loi, TP Hue nhe em
+b3-addr-1	positive	address	88 Nguyễn Huệ, Quận 1, TP HCM	88 Nguyễn Huệ, Quận 1, TP HCM	nam	du_dau	tu_sua		Giao số 86… à nhầm, 88 Nguyễn Huệ, Quận 1, TP HCM.
+b3-addr-2	positive	address	kiệt 7 Hùng Vương, TP Huế	kiệt 7 Hùng Vương, TP Huế	trung	du_dau	dau_cau		Kiệt 7 Hùng Vương, TP Huế, em ghi giúp cô.
+b3-addr-2	positive	address	số 5 ngách 3 ngõ 120 Trần Duy Hưng, Cầu Giấy	số 5 ngách 3 ngõ 120 Trần Duy Hưng, Cầu Giấy	bac	du_dau	giua_cau		Nhà chị ở số 5 ngách 3 ngõ 120 Trần Duy Hưng, Cầu Giấy nhé.
+b3-addr-2	multi	address	21 Phan Chu Trinh, Hải Châu, Đà Nẵng	21 Phan Chu Trinh, Hải Châu, Đà Nẵng	trung	du_dau	hai_slot	payment=COD	Giao 21 Phan Chu Trinh, Hải Châu, Đà Nẵng, cô trả tiền khi nhận.
+b3-addr-n	hard_negative	address			bac	du_dau	trong_cau_hoi		Cửa hàng bên em ở đâu để chị qua xem?
+b3-addr-n	hard_negative	address			nam	du_dau	giua_cau		Nhà chị ở Thủ Đức mà chưa biết bao giờ giao tới.
+b3-addr-n	hard_negative	address			trung	du_dau	giua_cau		Giao cho mẹ cô được không, mẹ cô ở quê.
+b3-addr-n	hard_negative	address			nam	teencode	giua_cau		ship toi nha minh mat may ngay vay
+b3-addr-n	hard_negative	address			bac	du_dau	giua_cau		Địa chỉ cũ chị đổi rồi, để chị nhắn sau.
+b3-pay-1	positive	payment	COD	nhận hàng rồi trả	nam	du_dau	cuoi_cau		Anh nhận hàng rồi trả nha em.
+b3-pay-1	positive	payment	bank	chuyển khoản trước	bac	du_dau	giua_cau		Chị chuyển khoản trước cho nhanh nhé.
+b3-pay-1	positive	payment	bank	ck truoc	nam	teencode	giua_cau		minh ck truoc luon nha shop
+b3-pay-1	positive	payment	COD	thanh toán lúc giao	trung	du_dau	giua_cau		Cô thanh toán lúc giao hàng nghe.
+b3-pay-2	positive	payment	bank	quẹt thẻ	bac	du_dau	tu_sua		Trả tiền mặt… thôi chị chuyển khoản, à không quẹt thẻ online.
+b3-pay-n	hard_negative	payment			bac	du_dau	trong_cau_hoi		Bên em có nhận COD không em?
+b3-pay-n	hard_negative	payment			nam	teencode	giua_cau		ck minh no bao mua cai nay
+b3-pay-n	hard_negative	payment			trung	du_dau	trong_cau_hoi		Chuyển khoản thì có được giảm thêm không em?
+b3-pay-n	hard_negative	payment			nam	du_dau	giua_cau		Lần trước chị trả tiền mặt, lần này chưa biết.
+b3-blk-1	positive	blocker	can hoi vo	hỏi ý vợ	nam	du_dau	giua_cau		Để anh hỏi ý vợ đã rồi tính.
+b3-blk-1	positive	blocker	can hoi chong	hoi chong	bac	teencode	cuoi_cau		de c hoi chong da
+b3-blk-1	positive	blocker	can hoi nguoi nha	bàn với ba mẹ	trung	du_dau	giua_cau		Con phải bàn với ba mẹ rồi mới mua được chị ơi.
+b3-blk-1	positive	blocker	so sanh gia	so giá	nam	du_dau	giua_cau		Anh còn so giá với mấy chỗ khác đã.
+b3-blk-1	positive	blocker	can nhac	nghĩ thêm	bac	du_dau	cuoi_cau		Chị cần thời gian nghĩ thêm.
+b3-blk-2	positive	blocker	can nhac	để từ từ	trung	du_dau	giua_cau		Thôi để từ từ cô tính em ạ.
+b3-blk-2	positive	blocker	can hoi chong	bàn với ông xã	nam	du_dau	tu_sua		Chị chốt luôn… à khoan, để bàn với ông xã đã.
+b3-blk-n	hard_negative	blocker			bac	du_dau	giua_cau		Vợ anh đồng ý rồi, em lên đơn luôn.
+b3-blk-n	hard_negative	blocker			nam	du_dau	giua_cau		Chị không mua đâu, em đừng gọi nữa.
+b3-blk-n	hard_negative	blocker			trung	du_dau	giua_cau		Cô suy nghĩ kỹ rồi, lấy luôn cái AirPure Y.
+b3-blk-n	hard_negative	blocker			nam	teencode	giua_cau		so sanh xong r, chot cai nay nha
+b3-cb-1	positive	callback_requested	2026-10-16T15:00	mai 3 giờ chiều	bac	du_dau	giua_cau		Mai 3 giờ chiều em gọi lại cho chị nhé.
+b3-cb-1	positive	callback_requested	2026-10-15T20:00	8 giờ tối nay	nam	du_dau	cuoi_cau		Em gọi lại cho anh lúc 8 giờ tối nay.
+b3-cb-1	positive	callback_requested	2026-10-17T09:00	thứ bảy	trung	du_dau	giua_cau		Thứ bảy em gọi lại cho cô nghe.
+b3-cb-1	positive	callback_requested	2026-10-16T10:00	mai 10h	nam	viet_tat	giua_cau		mai 10h e goi lai a nha
+b3-cb-2	positive	callback_requested	2026-10-19T09:30	9 rưỡi sáng thứ hai	bac	du_dau	giua_cau		Em gọi chị 9 rưỡi sáng thứ hai tuần sau nhé.
+b3-cb-2	positive	callback_requested	2026-10-17T16:00	mốt 4 giờ chiều	nam	du_dau	tu_sua		Mai… à không, mốt 4 giờ chiều em gọi lại nha.
+b3-cb-n	hard_negative	callback_requested			bac	du_dau	giua_cau		Hôm trước em hứa gọi lại mà chẳng thấy đâu.
+b3-cb-n	hard_negative	callback_requested			nam	du_dau	trong_cau_hoi		Bao giờ bên em gọi xác nhận đơn vậy?
+b3-cb-n	hard_negative	callback_requested			trung	du_dau	giua_cau		Khi nào rảnh cô gọi lại sau.
+b3-name-1	positive	self_name	Hạnh	Hạnh	bac	du_dau	dau_cau		Hạnh đây em, chị gọi hôm trước về máy lọc nước.
+b3-name-1	positive	self_name	Phát	Phát	nam	du_dau	giua_cau		Anh tên Phát, em ghi lại giúp anh.
+b3-name-1	positive	self_name	Thu	thu	trung	teencode	giua_cau		minh la thu, hom qua nhan fanpage do
+b3-name-n	hard_negative	self_name			nam	du_dau	giua_cau		Con gái chị tên Vy, nó dùng cái này.
+b3-name-n	hard_negative	self_name			bac	du_dau	giua_cau		Anh là khách quen bên em mà.
+b3-name-n	hard_negative	self_name			trung	du_dau	giua_cau		Cô là chủ tiệm tạp hóa đầu ngõ đó em.

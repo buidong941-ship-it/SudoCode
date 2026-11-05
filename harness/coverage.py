@@ -66,11 +66,14 @@ def content(text, goals, facts):
     return out
 
 
+NO_QUESTION = "lượt này không được đặt câu hỏi nào"
+
+
 def questions(text, question_slot, known):
     qs = extractor.agent_questions(text, known)
     out = []
     if question_slot is None and any(q["type"] == "open" for q in qs):
-        out.append("lượt này không được đặt câu hỏi nào")
+        out.append(NO_QUESTION)
     elif len(qs) > 1:
         out.append("chỉ được hỏi đúng 1 câu")
     for q in qs:

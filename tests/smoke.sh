@@ -51,6 +51,8 @@ python tests/template_review_check.py
 python tests/planner_llm_check.py
 python tests/lexicon_check.py
 python tests/lexicon_include_check.py
+python tests/latency_minus_jev_check.py
+python tests/ablation_flags_check.py
 python tests/hr_by_sku_check.py
 # khung cơ chế cải tiến (improve/, tách khỏi core)
 python tests/improve_check.py

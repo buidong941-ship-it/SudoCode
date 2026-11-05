@@ -133,12 +133,17 @@ class Memory:
     def current_facts(self, customer_id, today=None, include_expired=False):
         if not self.read_enabled:
             return {}
+        ablate = settings.mem_ablate
+        # ablation "supersede": đọc như thể khách đổi ý KHÔNG vô hiệu fact cũ → giá trị ghi sớm nhất thắng
+        statuses = ("current", "superseded") if "supersede" in ablate else ("current",)
         with self.e.connect() as c:
             rows = c.execute(select(facts).where(and_(facts.c.ns == self.ns, facts.c.customer_id == customer_id,
-                                                      facts.c.status == "current"))).mappings().all()
+                                                      facts.c.status.in_(statuses))).order_by(facts.c.fact_id)).mappings().all()
         out = {}
         for r in rows:
-            expired = bool(today and r["expires_on"] and r["expires_on"] < today)
+            if "supersede" in ablate and r["slot"] in out:
+                continue
+            expired = bool(today and r["expires_on"] and r["expires_on"] < today and "ttl" not in ablate)
             if expired and not include_expired:
                 continue
             out[r["slot"]] = {"value": json.loads(r["value_json"]), "source": r["source"], "fact_id": r["fact_id"],

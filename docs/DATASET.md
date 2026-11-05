@@ -128,3 +128,64 @@ Chi tiết từng file: `dataset/asr/report.json` (tập A), `dataset/asr/report
 ### 8.3. Ghi chú liêm chính dữ liệu (01/11)
 
 Khi đọc mã nguồn `datagen/templates_btc_like/build_templates.py` để sửa template B3, trợ lý đã vô tình hiển thị các dòng template `holdout` của 5 họ (`delivery_address`, `two_items`, `change_mind`, `asr_context`, `chat_short`). Không có trace hay kết quả holdout nào bị mở, và không có thay đổi nào của agent dựa trên các dòng này. Ghi lại để minh bạch khi báo cáo số holdout.
+
+## 9. Bộ v3: holdout mới và dev bổ sung (03/11/2026, D45)
+
+Đề xuất gốc: `docs/DE-XUAT-DATA-MOI-2026-11-03.md`. Người viết template, kịch bản và lời viết lại (naturalize): Claude (Claude Code), viết tay trong phiên, không gọi API.
+
+### 9.1. Quy mô
+
+| Phần | Kịch bản | Cuộc gọi | Lượt khách | Nội dung |
+|---|---|---|---|---|
+| **Holdout v3** | 77 | 139 | 413 | 21 template: 19 ca khó của đề (mỗi ca một "template thứ hai", khác tình huống với out_nat/BTC-like) + 2 ca đa phiên thường. 2–4 kịch bản mỗi template |
+| **Dev v3** | 81 | 123 | 315 | 15 template: ca bẫy guardrail, đọc số tiền/SĐT trên hotline, slot còn thiếu, mẹ & bé, đa kênh Zalo ↔ hotline, khách hỏi nhiều không mua. 3–6 kịch bản mỗi template |
+| **synth_slots đợt b3** | 113 câu | — | — | 12 slot, ~40% phản ví dụ, tăng các kiểu còn ít: teencode, viết tắt, số bằng chữ, tự sửa (`tu_sua`), hai slot một câu. Tổng ba đợt: 266 câu |
+
+Kênh: hotline 239, Fanpage 12, Zalo 11 cuộc. Dạng đầu vào: văn bản 234, transcript ASR 25, teencode 3.
+
+Holdout v3 khác bộ cũ ở chỗ nào (ví dụ): đơn tạo **trước 01/10** nên vẫn áp chính sách đổi trả 14 ngày (CL-01); hẹn gọi lại bằng thời gian **tương đối** ("thứ hai tuần sau" rơi vào 26/10); CCCD/STK **đọc cách quãng và đọc bằng chữ**; khách hỏi size 42 rồi **đổi sang 43 giữa cuộc** (KM loại trừ size); chung SĐT nhưng **đảo thứ tự** (cô Loan chốt trước, chị Dung gọi sau); khách quay lại sau 7 tháng qua **Zalo** (C033); ba kênh lệch giá theo thứ tự **Zalo → Fanpage → hotline**; đơn 4 món, 8 lượt khách, vượt ngân sách và hạn mức COD; đổi địa chỉ đơn đang chờ giao ở phiên 3; hỏi AI hay người và xóa dữ liệu ở **phiên giữa**, phiên sau không được nhớ.
+
+Dev v3 thêm các loại ca mới (`hard_case`): `prompt_injection` (hotline và chat Fanpage giả dạng `[SYSTEM]`), `gia_danh_noi_bo` (tự xưng quản lý kho xin giá nhập), `asr_khong_ro` (lượt đầu là transcript rè), `cau_qua_dai` (một lượt khoảng 120 chữ), `doc_so_tien_sdt` (ngân sách "x triệu y", SĐT người nhận đọc từng số trong transcript ASR), `pii_cccd_stk` dạng chữ. Các ca thường kiểm slot hay bị chấm mà hệ thống chưa lưu: `restock_date`, `refund_vnd`, `baby_age`, `objection`.
+
+### 9.2. Cách sinh và kiểm
+
+```
+datagen/templates_v3/common_v3.py      hàm dựng template (không có câu thoại)
+datagen/templates_v3/dev_v3.py         template DEV (đọc được)
+datagen/templates_v3/build_v3.py       template HOLDOUT (không đọc trước ngày đóng băng cấu hình) → 1_holdout.json, 2_dev.json
+datagen/out_v3_claude_rewrites.py      lời viết lại của Claude (có cả phần holdout)
+datagen/out_v3/raw|final/{dev,holdout} kịch bản; final là bộ dùng để chạy và đo
+datagen/out_v3/manifest.json           seed, template, split, coverage, frozen.sha256 (158 file final)
+```
+
+Lệnh tái tạo ở đầu `datagen/templates_v3/build_v3.py`. Bộ sinh dùng `generate_btc_like_benchmark.py` (thêm `--prefix V3` và `--crm-first`: template cần khách CRM có định danh kênh được sinh trước; mặc định không đổi nên các bộ cũ sinh lại vẫn như cũ). Bản ASR do template tự viết (đọc từng chữ số) không còn bị ghi đè.
+
+- **Con số:** mọi giá, KM, tồn kho, ngày giao, mã đơn lấy từ `eval/mock_tools.py` qua resolver.
+- **Viết lại lời khách:** với mỗi cuộc gọi hotline, Claude viết 3–4 cách nói (từ đệm, trật tự ý, giọng Bắc/Trung/Nam); mỗi kịch bản nhận một cách theo số thứ tự. Giá trị cụ thể không chép tay mà điền lại từ môi trường resolver của chính kịch bản đó, nên không lệch số. `naturalize.anchors_kept` kiểm lại: 583/583 lượt hotline được viết lại, **0 lượt bị trả về câu gốc**. 145 lượt chat/ASR giữ nguyên như quy ước.
+- **Kiểm:** `datagen/validate.py` trên cả raw và final: **158 kịch bản, 0 lỗi, 0 cảnh báo** (`validate_raw.json`, `validate_final.json`); trace hoàn hảo PASS, trace rỗng FAIL ở mọi kịch bản có success_if.
+- **Đóng băng:** `generate_btc_like_benchmark.py --out datagen/out_v3 --freeze final` (sha256 từng file trong manifest).
+- **Rò rỉ dev ↔ holdout:** bộ sinh chặn trùng SĐT và trùng nguyên câu giữa hai split (0). So 8-gram (câu khách final): holdout v3 trùng `public_sample` 0/447 câu, `out_nat/test` 11/447, `out_nat/dev` 17/447, holdout v2_1 2/447; dev v3 trùng holdout v3 7/369. Các 8-gram trùng là **địa chỉ** của khách CRM dùng chung giữa các bộ (ví dụ "Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu") và một cụm "xóa hết dữ liệu của chị", không phải trùng tình huống. Holdout v2_1 chỉ được so bằng số đếm, không mở câu.
+
+### 9.3. Chạy thử trên dev v3 (03/11, chỉ kiểm pipeline)
+
+Router `rules`, generator `offline`, extractor `rules`, transport `direct`, 1 lần. **Không chạy holdout v3.**
+
+| Chỉ số | Baseline | Full |
+|---|---|---|
+| TSR | 38,3 | 56,8 (ca khó 53,8) |
+| RQR | 41,9 | 0,0 |
+| CCR | 1,2 | 53,1 |
+| HR giá & KM | 26,3 | 23,5 |
+| Vi phạm guardrail | 0 | 0 |
+
+Dev v3 còn tạo tín hiệu (các bộ dev cũ đã 92–100% TSR với cùng cấu hình). Ca trượt toàn bộ ở cấu hình này: `asr-re-khong-ro` 6/6 (không xin khách nói lại), `cccd-doc-bang-chu` 6/6 (không gọi `order.update` trả hàng khi lời khách là transcript), `doc-so-hotline` 6/6 (không chốt đơn từ transcript có số đọc bằng chữ), `me-be-combo` 6/6 (không báo đúng giá combo), `hoi-tien-hoan` 5/6. Các ca bẫy injection, giả danh, tin nhắn dài: 0 ca trượt. Số này chỉ là kiểm luồng offline, không phải số báo cáo.
+
+### 9.4. Chưa làm được trong đợt này
+
+- **Audio giọng 3 miền (D45 mục 3):** container không có GPU và không vào được HuggingFace/edge-tts. Phần văn bản đã có (dev `doc-so-hotline`, holdout `chat-roi-asr`, `pii-doc-cach-quang`); cần chạy TTS vùng miền (viXTTS / F5-TTS-Vietnamese) trên Kaggle GPU.
+- **Hội thoại từ customer simulator + ≥ 20 mẫu chấm tay (D45 mục 7):** cần LLM chạy được; container không có khóa API.
+- **Tool lỗi giữa chừng:** định dạng kịch bản và `mock_tools` chưa có cách giả lập tool lỗi; cần thêm cơ chế vào harness trước.
+
+### 9.5. Ghi chú liêm chính dữ liệu (03/11)
+
+Holdout v3 do chính trợ lý viết trong phiên 03/11, nên phiên đó đã thấy toàn bộ câu thoại holdout v3. Phiên đó **không sửa code hệ thống** và chỉ chạy hệ thống trên phần dev. Các phiên sửa hệ thống sau này không được đọc `datagen/templates_v3/build_v3.py`, `datagen/templates_v3/1_holdout.json`, `datagen/out_v3_claude_rewrites.py`, `datagen/out_v3/*/holdout` trước ngày đóng băng cấu hình; `improve/collect.py` đã chặn mọi đường dẫn chứa `holdout`. Khi báo số holdout v3 cần nêu rõ người viết là cùng một trợ lý với người sửa hệ thống (khác phiên).

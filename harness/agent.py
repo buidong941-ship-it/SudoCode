@@ -16,7 +16,7 @@ from core.config import settings
 from core.llm.generator import Generator, question_slot
 from core.llm.router import Router
 from harness import extractor, guardrails, improve_hook, knowledge
-from harness.coverage import coverage
+from harness.coverage import NO_QUESTION, coverage
 from harness.textnorm import find_money, fold, perceive
 from harness.tools import (ToolBox, find_by_model_token, find_products, find_variant, mt, product_name, public_view)
 
@@ -59,6 +59,32 @@ OTHER_PII_RX = re.compile(r"\b(so|sdt|so dien thoai|dia chi|thong tin|zalo|don h
 
 def _ddmm(d):
     return f"{int(d[8:10])}/{int(d[5:7])}"
+
+
+def _strip_open_questions(text, known):
+    """D39(a): bỏ các câu hỏi mở khỏi bản nháp; trả None nếu không còn gì đáng gửi."""
+    out = text
+    for q in extractor.agent_questions(text, known):
+        if q["type"] == "open":
+            out = out.replace(q["text"], "", 1)
+    out = re.sub(r"\s{2,}", " ", out).strip()
+    return out if len(out) >= 8 else None
+
+
+# Slot do agent tự ghi về những gì đã tư vấn/báo giá/đặt đơn ở phiên trước (tầng episodic); còn lại là profile của khách
+EPISODIC_SLOTS = frozenset({"product_advised", "price_quoted_vnd", "promo_code", "promo_expiry", "product_chosen",
+                            "order_id", "variant_sku", "estimated_delivery"})
+
+
+def _mem_layers(facts):
+    """Ablation MEM_ABLATE (mặc định rỗng → trả nguyên): profile = bỏ fact về khách; episodic = bỏ fact về phiên trước.
+    ttl / supersede xử lý trong Memory.current_facts."""
+    ablate = settings.mem_ablate
+    if "profile" in ablate:
+        facts = {k: v for k, v in facts.items() if k in EPISODIC_SLOTS}
+    if "episodic" in ablate:
+        facts = {k: v for k, v in facts.items() if k not in EPISODIC_SLOTS}
+    return facts
 
 
 MAX_CUSTOMER_CHARS = 600
@@ -184,9 +210,9 @@ class CallSession:
         for s in (crm or {}).get("sessions", []) or []:
             self.import_old_session(s, cid)
         if self.mem.read_enabled and self.mem.status(cid) != "deletion_requested":
-            self.carried = {k: v["value"] for k, v in self.mem.current_facts(cid, self.today).items()}
+            self.carried = {k: v["value"] for k, v in _mem_layers(self.mem.current_facts(cid, self.today)).items()}
             self.known = dict(self.carried)
-            self.prev_quotes = self.mem.past_quotes(cid)
+            self.prev_quotes = [] if "episodic" in settings.mem_ablate else self.mem.past_quotes(cid)
             self.focus = self.known.get("product_chosen") or self.known.get("product_advised")
             self.focus_by = "memory" if self.focus else None
 
@@ -209,8 +235,8 @@ class CallSession:
     def _build_brief(self):
         c = self.customer or {}
         cid = c.get("customer_id")
-        past = self.mem.past_sessions(cid, self.session_id) if cid else []
-        facts = self.mem.current_facts(cid, self.today, include_expired=True) if cid else {}
+        past = self.mem.past_sessions(cid, self.session_id) if cid and "episodic" not in settings.mem_ablate else []
+        facts = _mem_layers(self.mem.current_facts(cid, self.today, include_expired=True)) if cid else {}
         stale, advised = [], []
         for slot, fct in facts.items():
             if fct["expired"]:
@@ -401,7 +427,15 @@ class CallSession:
             cov = coverage(text_out, plan)
         t_guard = time.perf_counter()
         guard["problems"], guard["coverage"] = problems, cov
-        if problems or cov:
+        if settings.strip_questions and not problems and cov and set(cov) == {NO_QUESTION}:
+            stripped = _strip_open_questions(text_out, plan["KNOWN"])
+            if stripped and not guardrails.check(stripped, allowed, internal, forbidden, stale, goals, cust_money, promos) \
+                    and not coverage(stripped, plan):
+                guard["rejected"] = [text_out[:400]]
+                text_out, guard["action"], problems, cov = stripped, "stripped_question", [], []
+        if (problems or cov) and settings.guard_mode == "log":
+            guard["action"] = "logged_only"          # ablation: ghi lỗi, giữ nguyên câu, không sinh lại
+        elif problems or cov:
             guard["rejected"] = [text_out[:400]]
             bad = sorted({v for _, _, v in find_money(text_out)} - (allowed - forbidden))
             note = "; ".join(problems + cov) + ("" if not bad else ". Viết lại và KHÔNG được có các số: "

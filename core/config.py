@@ -41,11 +41,26 @@ def _json_env(name, default):
         return default
 
 
+def _check_choice(name, default, allowed):
+    v = (_env(name, default) or default).lower()
+    if v not in allowed:
+        raise ValueError(f"{name}={v!r} không hợp lệ; chọn một trong {sorted(allowed)}")
+    return v
+
+
+def _check_set(name, allowed):
+    items = frozenset(x.strip().lower() for x in (_env(name, "") or "").split(",") if x.strip())
+    bad = items - allowed
+    if bad:
+        raise ValueError(f"{name} có giá trị lạ {sorted(bad)}; chỉ nhận {sorted(allowed)}")
+    return items
+
+
 @dataclass
 class Settings:
     router_backend: str = field(default_factory=lambda: _env("ROUTER_BACKEND", "jev"))
     typesafe_api_key: str = field(default_factory=lambda: _env("TYPESAFE_API_KEY"))
-    jev_model: str = field(default_factory=lambda: _env("JEV_MODEL", "jev-latest"))
+    jev_model: str = field(default_factory=lambda: _env("JEV_MODEL", "jev-1.14.0"))
     jev_base_url: str = field(default_factory=lambda: _env("TYPESAFE_BASE_URL"))
     jev_timeout_s: float = field(default_factory=lambda: float(_env("JEV_TIMEOUT_S", "8")))
     router_min_confidence: float = field(default_factory=lambda: float(_env("ROUTER_MIN_CONFIDENCE", "0.45")))
@@ -102,6 +117,13 @@ class Settings:
     summary_backend: str = field(default_factory=lambda: _env("SUMMARY_BACKEND", "auto"))
     handoff_summary: str = field(default_factory=lambda: _env("HANDOFF_SUMMARY", "auto"))
     llm_cache_path: str = field(default_factory=lambda: _env("LLM_CACHE", os.path.join(ROOT, "data", "llm_cache.sqlite")))
+    # Cờ ablation 04/11 (CHỈ DÙNG KHI ĐO; mặc định = hành vi cũ):
+    # D39(a) STRIP_QUESTIONS=1: lỗi duy nhất là "không được đặt câu hỏi" → cắt câu hỏi bằng code, không sinh lại
+    strip_questions: bool = field(default_factory=lambda: _env("STRIP_QUESTIONS", "0") not in ("0", "off", "false"))
+    # GUARD_MODE=log: guardrail + coverage chỉ ghi lỗi vào trace, không sinh lại / không thay câu mẫu
+    guard_mode: str = field(default_factory=lambda: _check_choice("GUARD_MODE", "enforce", {"enforce", "log"}))
+    # MEM_ABLATE=profile,episodic,ttl,supersede: tắt từng tầng bộ nhớ khi ĐỌC (chỉ ảnh hưởng config full)
+    mem_ablate: frozenset = field(default_factory=lambda: _check_set("MEM_ABLATE", {"profile", "episodic", "ttl", "supersede"}))
 
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", "sqlite:///" + os.path.join(ROOT, "data", "memory.db")))
 
@@ -112,6 +134,7 @@ class Settings:
 
     def describe(self):
         return {"run_profile": os.environ.get("RUN_PROFILE"), "router_backend": self.router_backend, "jev_model": self.jev_model,
+                "jev_base_url": self.jev_base_url or None,     # ghi lại để biết lần chạy gọi Jev qua proxy nào
                 "router_min_confidence": self.router_min_confidence,
                 "laya": {"model": self.laya_model, "subfolder": self.laya_subfolder, "device": self.laya_device, "lang": self.laya_lang},
                 "generator_backend": self.generator_backend, "deepseek_model": self.deepseek_model,
@@ -130,6 +153,8 @@ class Settings:
                 "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
                 "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
                 "improve_dir": self.improve_dir,
+                "strip_questions": self.strip_questions, "guard_mode": self.guard_mode,
+                "mem_ablate": sorted(self.mem_ablate),
                 "question_clf": self.question_clf,
                 "question_clf_backend": self.question_classifier_backend,
                 "question_clf_tau": self.question_clf_tau,

@@ -70,6 +70,8 @@ def generate(args):
     if previous.is_file() and json.loads(previous.read_text(encoding="utf-8")).get("frozen"):
         raise SystemExit("Benchmark is frozen; use a new --out directory for a new version")
     templates = load_templates(str(args.templates))
+    if args.crm_first:   # v3: template cần khách CRM có định danh kênh chạy trước (thứ tự ổn định), kẻo khách CRM bị template khác lấy hết
+        templates.sort(key=lambda t: 0 if "kind='crm'" in str(t.get("choose", {}).get("cust", "")) else 1)
     if not templates:
         raise SystemExit("No benchmark templates found")
     resolver = Resolver(str(ROOT), seed=args.seed)
@@ -86,7 +88,7 @@ def generate(args):
         if template.get("scenario", {}).get("persona") not in resolver.personas:
             raise SystemExit(f"{template['template_id']}: unknown persona")
         for instance in range(template.get("instances", 1)):
-            scenario_id = f"BTCL-{len(scenarios) + len(failures) + 1:03d}"
+            scenario_id = f"{args.prefix}-{len(scenarios) + len(failures) + 1:03d}"
             scenario, stats = resolver.build(template, instance, split, scenario_id=scenario_id)
             if scenario is None:
                 failures.append({"template_id": template["template_id"], "instance": instance,
@@ -97,7 +99,7 @@ def generate(args):
             seen_ids.add(scenario_id)
             for call in scenario["calls"].values():
                 mode = call.get("input_mode")
-                if mode in ("asr_transcript", "chat_teencode"):
+                if mode in ("asr_transcript", "chat_teencode") and not call.get("customer_turns_asr"):  # giữ bản ASR template tự viết (v3)
                     transform = spoken if mode == "asr_transcript" else teen
                     call["customer_turns_asr"] = [transform(s) for s in call["customer_turns"]]
             phone = scenario["customer_phone"]
@@ -147,6 +149,8 @@ def main():
     parser.add_argument("--out", type=Path, required=True,
                         help="New output directory; a frozen benchmark cannot be overwritten")
     parser.add_argument("--freeze", choices=("raw", "final"))
+    parser.add_argument("--crm-first", action="store_true", help="sinh template cần khách CRM trước (bộ v3)")
+    parser.add_argument("--prefix", default="BTCL", help="tiền tố scenario_id (bộ v3 dùng V3)")
     args = parser.parse_args()
     args.out = args.out.resolve()
     if args.freeze:
