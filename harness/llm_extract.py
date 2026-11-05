@@ -93,7 +93,7 @@ def _defs(d):
 def _call(prompt, schema, texts, meta):
     from core.llm.deepseek import LLM
     from core.pii import Redactor
-    llm = LLM(settings.extractor_llm)
+    llm = LLM(settings.extractor_llm, role="extract")          # L3: endpoint riêng nếu có QWEN_EXTRACT_BASE_URL
     red = Redactor() if llm.external else None
     if red:
         safe = red.redact(texts)

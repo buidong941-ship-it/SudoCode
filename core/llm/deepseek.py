@@ -22,7 +22,8 @@ class LLM:
     _clients = {}
     _rr = None
 
-    def __init__(self, provider="deepseek"):
+    def __init__(self, provider="deepseek", role=None):
+        """role="extract": extractor / summarizer — dùng QWEN_EXTRACT_BASE_URL nếu có (L3), để không tranh GPU với generator."""
         self.provider = provider
         if provider == "deepseek":
             key, base, self.model = settings.deepseek_api_key, settings.deepseek_base_url, settings.deepseek_model
@@ -31,6 +32,8 @@ class LLM:
             self.extra = {"thinking": {"type": settings.deepseek_thinking}} if settings.deepseek_thinking in ("disabled", "enabled") else None
         elif provider == "qwen":
             key, base, self.model = settings.qwen_api_key, settings.qwen_base_url, settings.qwen_model
+            if role == "extract" and settings.qwen_extract_base_url:
+                base = settings.qwen_extract_base_url
             urls = [u.strip() for u in base.split(",") if u.strip()]
             if len(urls) > 1:
                 import os

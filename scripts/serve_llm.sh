@@ -16,7 +16,8 @@ QWEN_BASE_URL="${QWEN_BASE_URL:-http://127.0.0.1:8000/v1}"
 VLLM_VENV="${VLLM_VENV:-.vllm-venv}"; VLLM_LOG="${VLLM_LOG:-${RUN_OUT:-runs/suite}/vllm.log}"
 PIDF="${VLLM_PIDFILE:-/tmp/sudocode-vllm.pid}"
 PORTS=()
-IFS=',' read -r -a URLS <<< "$QWEN_BASE_URL"
+# L3: QWEN_EXTRACT_BASE_URL (endpoint riêng cho extractor / summarizer) → bật thêm server ở cổng đó, trên GPU kế tiếp của VLLM_GPUS
+IFS=',' read -r -a URLS <<< "$QWEN_BASE_URL${QWEN_EXTRACT_BASE_URL:+,$QWEN_EXTRACT_BASE_URL}"
 for u in "${URLS[@]}"; do p="$(echo "$u" | sed -E 's#.*:([0-9]+).*#\1#')"; [[ "$p" =~ ^[0-9]+$ ]] || p=8000; PORTS+=("$p"); done
 IFS=',' read -r -a GPU_LIST <<< "${VLLM_GPUS:-0}"
 N=${#PORTS[@]}

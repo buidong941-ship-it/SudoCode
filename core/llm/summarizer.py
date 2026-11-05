@@ -38,7 +38,7 @@ def summarize(kind, facts, history, allowed_money, generator_backend, max_chars)
     from core.pii import Redactor
     from harness.textnorm import find_money
     try:
-        llm = LLM(b)
+        llm = LLM(b, role="extract")                      # L3: tóm tắt chạy ở endpoint của extractor nếu có
         convo = [f"{'Khách' if h['role'] == 'customer' else 'Nhân viên'}: {h['text']}" for h in history[-12:]]
         data = {"FACTS": facts, "HỘI_THOẠI": convo}
         red = Redactor() if llm.external else None
