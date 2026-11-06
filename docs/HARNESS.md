@@ -57,6 +57,19 @@ grep -n "WARNING\|ERROR" runs/dbg/full.log          # router fallback, guardrail
 grep -n "SAMPLE-03 call_2 t2" runs/dbg/full.log       # toàn bộ một lượt
 ```
 
+## Trường latency thêm trong trace (ngoài schema BTC)
+
+`schemas/trace_log.schema.json` giữ nguyên bản BTC (trả về ngày 06/11; schema không cấm trường thừa nên trace vẫn hợp lệ). Ngoài `ttft_ms`, `total_ms`, `ttfa_ms` của BTC, harness ghi thêm trong `latency`:
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `total_ms` | int | (trường BTC) từ đầu lượt đến khi câu trả lời qua guardrail (response-ready, chưa gồm xử lý hậu kỳ) |
+| `end_to_end_ms` | int | từ đầu lượt đến khi trích xuất hậu kỳ và ghi bộ nhớ/trace xong; luôn ≥ `total_ms` |
+| `post_ms` | int | từ lúc câu trả lời qua guardrail đến khi hoàn tất lượt; ≥ 0 |
+| `post_parts_ms` | object | thời gian từng phần xử lý hậu kỳ của harness |
+
+`scripts/validate_trace_latency.py` kiểm trace theo schema BTC và tự kiểm `end_to_end_ms ≥ total_ms`, `post_ms ≥ 0`.
+
 ## Kiểm thử không cần mạng
 
 ```bash
