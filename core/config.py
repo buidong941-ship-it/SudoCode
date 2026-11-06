@@ -123,8 +123,8 @@ class Settings:
     # D51: tầng tra sản phẩm mở rộng (harness/lexicon/products.json + dạng ASR của mã model + ưu tiên SKU combo). D58: mặc định BẬT; =0 = tra SP như cũ
     product_lexicon: bool = field(default_factory=lambda: _env("PRODUCT_LEXICON", "1") not in ("0", "off", "false"))
     # E04 (05/11): số lượng mua (slot qty, luật) → order.create qty, tổng tiền / hạn mức COD và KM theo số lượng (min_qty).
-    # Mặc định tắt cho tới khi A/B offline xong (tests/order_qty_ab.py)
-    order_qty: bool = field(default_factory=lambda: _env("ORDER_QTY", "0") not in ("0", "off", "false"))
+    # Mặc định BẬT (05/11): A/B offline 6 bộ dev 0 lượt khác trace, chỉ số giữ nguyên (tests/order_qty_ab.py)
+    order_qty: bool = field(default_factory=lambda: _env("ORDER_QTY", "1") not in ("0", "off", "false"))
     planner_rules_path: str = field(default_factory=lambda: _env("PLANNER_RULES", os.path.join(ROOT, "harness", "planner_rules.json")))
     question_clf: bool = field(default_factory=lambda: _env("QUESTION_CLF", "0") not in ("0", "off", "false"))
     question_classifier_backend: str = field(default_factory=lambda: _env("QUESTION_CLF_BACKEND", "jev").lower())

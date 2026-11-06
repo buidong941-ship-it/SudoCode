@@ -26,6 +26,7 @@ CATEGORY_WORDS = [("may loc khong khi", "gia-dung/may-loc-khong-khi"), ("may loc
                   ("may ham sua", "me-be"), ("ghe o to", "me-be")]
 log = cclog.get("agent")
 _POST_EXTRACTOR_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="agent-extract")
+_ROUTER_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="agent-router")      # L1: PARALLEL_ROUTER=1
 STACKABLE_SKIP = {"COD-0", "NAM-SHIP0"}
 FILTER_OF = {"SKU-AP-X": "SKU-AP-FLT-X", "SKU-AP-Y": "SKU-AP-FLT-X", "SKU-AP-PRO": "SKU-AP-FLT-P",
              "SKU-XM-4L": "SKU-XM-FLT", "SKU-XM-4P": "SKU-XM-FLT"}
@@ -109,6 +110,42 @@ def _money_in_strings(obj):
     return out
 
 
+# Ý trả hàng trong lúc xử lý đơn đã có. V3-140 (05/11): thêm "cho cô trả nhé" / "muốn trả" — "trả" đứng một mình sau
+# cho/muốn/xin/để/được, trừ khi là trả góp / trả trước / trả tiền / trả khi nhận / trả bằng… / trả lời / trả giá (thanh toán, không phải trả hàng).
+_NOT_RETURN = r"(?!\s+(gop|truoc|tien|khi|sau|bang|qua|loi|gia|cho|luon tien|online|ck|chuyen khoan))"
+RETURN_RX = re.compile(r"tra hang|hoan tien|khong dung nua|tra lai"
+                       rf"|\bcho (\w+ )?tra\b{_NOT_RETURN}|\b(muon|xin|de|duoc) tra\b{_NOT_RETURN}")
+
+_QTY_WORD = {"hai": 2, "ba": 3, "bon": 4, "nam": 5, "sau": 6, "bay": 7, "tam": 8, "chin": 9, "muoi": 10}
+# E04: số + đơn vị đếm sản phẩm ("lấy 2 cái", "hai đôi", "3 máy"). Không bắt số người / tháng / m² / size / tiền vì đơn vị khác.
+QTY_RX = re.compile(r"\b(\d{1,2}|hai|ba|bon|nam|sau|bay|tam|chin|muoi)\s+(cai|chiec|may|doi|bo|hop|thung|cuon|goi|bich|chai|tui|cap|san pham)\b")
+
+
+def order_qty(texts):
+    """Số lượng khách muốn mua, đọc từ câu khách mới nhất trở về trước (texts: mới nhất trước). None = không nói."""
+    for t in texts:
+        f = fold(t or "")
+        if re.search(r"\bthem\b", f):          # "lấy thêm 1 cái nữa" = thêm vào giỏ, không phải số lượng của SKU đang chốt
+            continue
+        m = QTY_RX.search(f)
+        if m:
+            n = int(m.group(1)) if m.group(1).isdigit() else _QTY_WORD[m.group(1)]
+            return n if 1 <= n <= 20 else None
+    return None
+
+
+def _promo_safe_plan(plan, problems):
+    """D33 (05/11): khi sinh lại vẫn nói KM đã hết hạn như còn hiệu lực / giá cũ như giá hiện tại, câu mẫu an toàn báo rõ KM đã hết
+    và giá hiện tại (lấy từ tool trong lượt), thay vì chỉ "Dạ em cảm ơn" (BTCL-051/052 call_2 lượt 2)."""
+    if not any("đã hết hạn như còn hiệu lực" in p or p.startswith("nói giá cũ") for p in problems):
+        return plan
+    goals = [g for g in plan.get("goals", []) if g != "stale_promo"]
+    goals.insert(0, "stale_promo")
+    if (plan.get("facts") or {}).get("quote") and "quote" not in goals and "recommend" not in goals:
+        goals.insert(1, "quote")
+    return {**plan, "goals": goals}
+
+
 def _next_action(last, blockers, open_q, orders, advised, stale):
     if open_q:
         return "trả lời câu khách hỏi lần trước chưa có câu trả lời: " + "; ".join(open_q[:2])
@@ -133,6 +170,8 @@ class CallSession:
         self.tools = ToolBox(today)
         self.customer = None
         self.candidates = []
+        self.table_rows = []                # D50: các dòng bảng planner đã khớp ở lượt gần nhất (PLANNER_TABLE=1)
+        self.table_prev_goals = []          # D51: goal của lượt trước (dòng N03, E12 cần biết lượt trước đã từ chối / xin xác nhận)
         self.carried = {}
         self.known = {}
         self.focus = None
@@ -293,6 +332,13 @@ class CallSession:
         p = perceive(raw, self.today)
         text = p["text"]
         t_perceive = time.perf_counter()
+        # L1: router chỉ cần lời khách + lịch sử + tóm tắt phiên trước, không cần slot → gọi song song với bước trích slot.
+        # Lượt có SĐT hoặc đang hỏi danh tính thì vẫn nối tiếp: định danh có thể đổi brief (tóm tắt) mà router dùng.
+        early_route = None
+        if settings.parallel_router and not p["phone"] and not self.candidates:
+            ctx_early = {"recent": self.history[-4:],
+                         "summary": (self.brief or {}).get("last_session") and self.brief["last_session"]["summary"] or ""}
+            early_route = _ROUTER_POOL.submit(self.router.route, text[:MAX_CUSTOMER_CHARS], ctx_early)
         ext_meta = {}
         recent_context = "\n".join(f"{h['role']}: {h['text']}" for h in self.history[-8:])
         session_summary = ((self.brief or {}).get("last_session") or {}).get("summary", "")
@@ -344,12 +390,16 @@ class CallSession:
         text = text[:MAX_CUSTOMER_CHARS]
         ctx = {"recent": self.history[-4:], "summary": (self.brief or {}).get("last_session") and self.brief["last_session"]["summary"] or ""}
         t_identity = time.perf_counter()
-        route = self.router.route(text, ctx)
+        route = early_route.result() if early_route is not None else self.router.route(text, ctx)
         t_route = time.perf_counter()
         knowledge.spent_ms = 0.0
         if pending is not None and extractor.customer_slots_finish(pending, slots, 0) is not None:
             pending = None
-        goals, facts = self._plan(text, slots, route)
+        if settings.planner_table:          # D50: bảng quyết định (harness/planner_rules.json); tắt = _plan cũ
+            from harness import planner_table
+            goals, facts = planner_table.plan(self, text, slots, route)
+        else:
+            goals, facts = self._plan(text, slots, route)
         t_plan = time.perf_counter()
         rag_ms = knowledge.spent_ms
         tools_ms = sum(tc.get("ms", 0) for tc in self.tools.log)
@@ -452,7 +502,7 @@ class CallSession:
                 text_out, guard["action"] = text2, "regenerated"
             else:
                 guard["rejected"].append(text2[:400])
-                text_out, guard["action"] = render_offline(plan), "safe_template" if p2 else "coverage_template"
+                text_out, guard["action"] = render_offline(_promo_safe_plan(plan, p2)), "safe_template" if p2 else "coverage_template"
             total_gen += tot2
         t_ready = time.perf_counter()
         post_parts = {}
@@ -512,9 +562,11 @@ class CallSession:
                            "ttfa_ms": None, "post_ms": post_ms, "parts": parts, "post_parts_ms": post_parts},
                "memory_writes": mem_writes,
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
-               "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")},
+               "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")
+                          + (("improve",) if route.get("improve") else ())},
                "goals": goals, "planner": {"backend": settings.planner_backend, "branches": list(self.plan_why),
-                                                    **({"llm": self.llm_plan} if self.llm_plan else {})},
+                                                    **({"llm": self.llm_plan} if self.llm_plan else {}),
+                                                    **({"table": list(self.table_rows)} if settings.planner_table else {})},
                "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", settings.extractor_backend), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
@@ -1064,7 +1116,14 @@ class CallSession:
                 return ["confirm_old_address"]
         payment = self.known.get("payment", "COD")
         quotes = [self._quote(s, "chosen", basket=[x for x in new if x != s]) for s in new]
-        total = sum(q["final_price_vnd"] or 0 for q in quotes)
+        # E04 (ORDER_QTY): chỉ áp số lượng khi chốt đúng 1 SKU; nhiều SKU thì mỗi SKU 1 cái như cũ
+        qty = 1
+        if settings.order_qty and len(new) == 1:
+            said = [text] + [h["text"] for h in reversed(self.history[-8:]) if h.get("role") == "customer"]
+            qty = order_qty(said) or 1
+            if qty > 1:
+                self.known["qty"] = qty
+        total = sum(q["final_price_vnd"] or 0 for q in quotes) * qty
         if any(q.get("in_stock") is False for q in quotes):
             bad = next(q for q in quotes if q.get("in_stock") is False)
             facts["quote"], facts["restock_expected"] = bad, bad.get("restock_expected")
@@ -1079,7 +1138,7 @@ class CallSession:
         # và mock báo tool_exception. Vẫn lên đơn (khách đã chốt) với SĐT rỗng, rồi xin SĐT ngay để shipper liên hệ.
         phone = c.get("phone") or self.phone or ""
         for q in quotes:
-            args = dict(customer_phone=phone, sku=q["sku"], qty=1, price_vnd=q["final_price_vnd"],
+            args = dict(customer_phone=phone, sku=q["sku"], qty=qty, price_vnd=q["final_price_vnd"],
                         promo_code=(q["promo_codes"] or [None])[0], payment=payment, address=self.known.get("address"),
                         basket_skus=[x for x in new if x != q["sku"]] or None)
             r = self.tools.call("order.create", **args)
@@ -1129,12 +1188,12 @@ class CallSession:
             if not self.window_told:
                 self.focus, self.focus_by = o["sku"], "memory"
             return ["WINDOW_PASSED"]
-        if re.search(r"\bdia chi\b", f) and not re.search(r"tra hang|hoan tien|tra lai|\b(size|co|mau)\b", f) and not find_products(text):
+        if re.search(r"\bdia chi\b", f) and not RETURN_RX.search(f) and not re.search(r"\b(size|co|mau)\b", f) and not find_products(text):
             eta = self.known.get("estimated_delivery") if o["order_id"] == self.known.get("order_id") else None
             facts["order"] = {"order_id": o["order_id"], "product": product_name(o["sku"]), "address": self.known.get("address") or o.get("address"),
                               "estimated_delivery_ddmm": _ddmm(eta) if eta else None}
             return ["confirm_delivery_address"]
-        if re.search(r"tra hang|hoan tien|khong dung nua|tra lai", f):
+        if RETURN_RX.search(f):
             key = (o["order_id"], "return", None)
             if key in self.updates_done:
                 facts["update"] = self.updates_done[key]
@@ -1256,6 +1315,14 @@ class CallSession:
                 if v is not None:
                     w = self.mem.write_fact(cid, k, v, src, self.session_id, self.today)
                     if w: writes.append(w); self.known[k] = v
+            # D54 (05/11): khách đã chọn đúng một biến thể (size/màu) và đã được báo giá biến thể đó nhưng CHƯA lên đơn
+            # (vd "để chị nhắn Zalo chốt sau", E15) → vẫn nhớ variant_sku, để lần sau chốt đúng biến thể mà không hỏi lại.
+            # focus thường là SKU cha (SKU-JK-WND), còn báo giá là SKU biến thể (SKU-JK-WND-S-NAVY).
+            qs = (self.quote or {}).get("sku")
+            qp = mt._parent(qs)[0] if qs else None
+            fp = mt._parent(self.focus)[0]
+            if qs and qp and qs != qp["sku"] and fp and qp["sku"] in (self.focus, fp["sku"]) and not self.orders_created:
+                self.known["variant_sku"] = qs
         for k in ("product_chosen", "order_id", "variant_sku", "estimated_delivery"):
             if self.known.get(k):
                 w = self.mem.write_fact(cid, k, self.known[k], src, self.session_id, self.today)

@@ -67,7 +67,9 @@ def main():
 
     from core.config import Settings
     s = Settings()
-    for k in ("planner_table", "product_lexicon", "parallel_router"):
+    if "tuổi của bé" not in FLAGS["medical_question"][1]:
+        bad.append("V3-141: mô tả medical_question chưa phải bản moi")
+    for k in ("planner_table", "product_lexicon", "parallel_router", "order_qty"):
         if os.environ.get(k.upper()) is None and not getattr(s, k):
             bad.append(f"D58: {k} phải mặc định bật")
     if os.environ.get("JEV_MODEL") is None and s.jev_model != "jev-latest":

@@ -103,3 +103,5 @@ Kết quả C5 (02/11, trung bình 3 lần, Baseline → Full): TSR 50 → 100; 
   - Duyệt và đã làm: cách sửa V3-011 (guardrail %) và V3-140 (`RETURN_RX`). V3-141 mới làm bước probe `medical_question`, đang chờ kết quả.
   - Slot `qty` (E04, `ORDER_QTY`) đang A/B offline. Người dùng đồng ý: nếu không ảnh hưởng chỉ số thì bật mặc định.
   - **Mới, chờ duyệt:** trả `schemas/trace_log.schema.json` về bản BTC (commit `3ef8225` đã sửa file này ngày 28/10).
+
+**Kế hoạch tiếp theo:** `docs/PLAN-2026-11-06-CHOT-VA-HOLDOUT.md` (kiểm tra v3 dev → trả schema → đóng băng → holdout → vòng cải tiến → báo cáo).

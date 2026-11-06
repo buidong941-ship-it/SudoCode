@@ -102,6 +102,7 @@ def build_cases(trace_v3, trace_t13, n_neg_v3):
 MED_OLD = ("Câu hỏi liên quan sức khỏe, thuốc, bệnh, an toàn y tế.", "Không liên quan y tế.")
 MED_VARIANTS = {
     "cu": MED_OLD,
+    "hien_tai": FLAGS["medical_question"],
     "moi": ("Người gọi hỏi về bệnh, triệu chứng, thuốc, cách điều trị, hoặc sản phẩm ảnh hưởng thế nào tới sức khỏe "
             "— câu cần ý kiến chuyên môn y tế.",
             "Không hỏi điều đó: chỉ nêu tuổi của bé, nhu cầu mua đồ cho mẹ và bé, diện tích phòng, giá hay thông số sản phẩm."),

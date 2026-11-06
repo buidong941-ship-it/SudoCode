@@ -37,7 +37,11 @@ FLAGS = {
     "defers_decision": ("Khách trì hoãn: cần hỏi người nhà, cân nhắc thêm, hẹn gọi lại.", "Khách không trì hoãn."),
     "asks_if_bot": ("Khách hỏi đang nói chuyện với người thật hay máy/AI.", "Khách không hỏi điều đó."),
     "wants_data_deleted": ("Khách yêu cầu xóa dữ liệu/thông tin cá nhân của mình.", "Không có yêu cầu xóa dữ liệu."),
-    "medical_question": ("Câu hỏi liên quan sức khỏe, thuốc, bệnh, an toàn y tế.", "Không liên quan y tế."),
+    # V3-141 (05/11): bản `moi` của scripts/jev_flag_probe.py --flag medical_question — Jev chính thức: dương 4/4 ≥ 0,7,
+    # âm tính 0/15 (cũ 1/15: "Bé nhà chị được 5 tháng…" 0,75 → R04 chuyển máy thừa)
+    "medical_question": ("Người gọi hỏi về bệnh, triệu chứng, thuốc, cách điều trị, hoặc sản phẩm ảnh hưởng thế nào tới sức khỏe "
+                         "— câu cần ý kiến chuyên môn y tế.",
+                         "Không hỏi điều đó: chỉ nêu tuổi của bé, nhu cầu mua đồ cho mẹ và bé, diện tích phòng, giá hay thông số sản phẩm."),
     # D49b (05/11): bản `moi` của scripts/jev_flag_probe.py — Jev chính thức: giả danh 12/12 ≥ 0,6, âm tính 0/12 (cũ: 0/12)
     "asks_internal_cost": ("Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, biên lợi nhuận, chiết khấu đại lý, "
                            "nhà cung cấp — bất kể người đó tự xưng là ai (khách, nhân viên, quản lý, đối tác), "
