@@ -105,3 +105,21 @@ Kết quả C5 (02/11, trung bình 3 lần, Baseline → Full): TSR 50 → 100; 
   - **Mới, chờ duyệt:** trả `schemas/trace_log.schema.json` về bản BTC (commit `3ef8225` đã sửa file này ngày 28/10).
 
 **Kế hoạch tiếp theo:** `docs/PLAN-2026-11-06-CHOT-VA-HOLDOUT.md` (kiểm tra v3 dev → trả schema → đóng băng → holdout → vòng cải tiến → báo cáo).
+
+**06/11, người dùng duyệt** (nhật ký `NHAT-KY-2026-11-06.md`):
+- Trả `schemas/trace_log.schema.json` về bản BTC: **đã làm**. Mô tả trường latency thêm ở `docs/HARNESS.md`.
+- Giữ bản dọn planner 1b (bỏ `_plan`, `PLANNER_SKIP_SINCE`): **đã làm**; gate trùng trace 2.096 × 2, smoke OK. `docs/HAM/HAM-AGENT.md` đã cập nhật.
+- Chọn CERT: đo CERT1 / CERT2 trên holdout v2_1 bằng cấu hình không Jev (người dùng sắp hết token Jev). Đang chạy.
+- 7 sửa lỗi 1c (nhật ký 06/11 mục 5): **đã làm code**, đang kiểm trên Kaggle CPU:
+  - J6: `PROXY_CLAIM_RX` + dòng bảng `P01`.
+  - Bỏ `address` chỉ là SĐT.
+  - Guardrail bảo hành.
+  - "Giá nhân viên / giá nội bộ" cho `asks_internal_cost`: luật và mô tả Jev đã sửa. Người dùng 06/11 bỏ bước probe Jev (tiết kiệm token): giữ mô tả mới chưa probe, soi riêng cờ này ở lần chạy Jev thật kế tiếp.
+  - Guardrail "em là nhân viên".
+  - Câu từ chối cố định cho `refuse_internal`.
+  - Điều kiện chấm RT-06 / RT-14.
+- Mục 7 (D36), 8 (D56 phần còn lại), 20 (D57), 21 (D30), 22 (D41): người dùng duyệt **theo đề xuất** của kế hoạch 06/11:
+  - 7, 8: hoãn hẳn.
+  - 20 (D57): phương án (b).
+  - 21 (D30): chọn một bộ cố định khi đóng băng.
+  - 22 (D41): làm sau đóng băng.
