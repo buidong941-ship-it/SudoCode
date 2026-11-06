@@ -125,6 +125,9 @@ def push_dataset(k, msg, extra=None):
         k.run("datasets", "version", "-p", ddir, "-m", msg)
     else:
         k.run("datasets", "create", "-p", ddir)
+    # 06/11: hỏi status ngay sau `datasets version` thì Kaggle còn trả "ready" của version CŨ → kernel đẩy liền sau
+    # gắn dataset cũ (5 lần chạy hỏng ngày 06/11). Chờ version mới được ghi nhận rồi mới hỏi.
+    time.sleep(90)
     for _ in range(60):
         _, out = k.run("datasets", "status", ds, check=False, quiet=True)
         if "ready" in out.lower():
