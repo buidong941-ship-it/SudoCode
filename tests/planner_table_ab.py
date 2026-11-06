@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D51: so A/B offline — planner cũ (PLANNER_TABLE=0) với bảng đầy đủ D51 + tầng tra SP (PLANNER_TABLE=1, PRODUCT_LEXICON=1).
+"""D51: so A/B offline — planner như trước D51 (PLANNER_SKIP_SINCE=D51; trước 06/11 là PLANNER_TABLE=0 = _plan cũ, trace trùng) với bảng đầy đủ D51 + tầng tra SP (PRODUCT_LEXICON=1).
 
     python tests/planner_table_ab.py --out-dir /tmp/ab
 
@@ -22,7 +22,7 @@ import reference_eval as RE  # noqa: E402
 SETS = [("sample", "test_set/public_sample"), ("nat_dev", "datagen/out_nat/dev"),
         ("v1_1_dev", "datagen/out_btc_like_final_v1_1/final/dev"), ("v2_1_dev", "datagen/out_btc_like_final_v2_1/final/dev"),
         ("d7_dev", "datagen/out_btc_like_d7/final/dev"), ("v3_dev(nguồn case)", "datagen/out_v3/final/dev")]
-VARIANTS = {"old": {"PLANNER_TABLE": "0", "PRODUCT_LEXICON": "0"}, "table51": {"PLANNER_TABLE": "1", "PRODUCT_LEXICON": "1"}}
+VARIANTS = {"old": {"PLANNER_SKIP_SINCE": "D51", "PRODUCT_LEXICON": "0"}, "table51": {"PLANNER_SKIP_SINCE": "", "PRODUCT_LEXICON": "1"}}
 
 
 def run(out_dir, tag, scen, var, config, workers):

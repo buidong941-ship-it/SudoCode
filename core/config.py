@@ -111,9 +111,11 @@ class Settings:
     # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
     planner_backend: str = field(default_factory=lambda: _env("PLANNER_BACKEND", "rules").lower())
     planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
-    # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json thay cho _plan bằng code.
-    # D58 (duyệt 05/11): mặc định BẬT. PLANNER_TABLE=0 = _plan cũ; bảng chỉ có nhánh cũ phải cho trace trùng 100 % (tests/planner_table_parity.py)
-    planner_table: bool = field(default_factory=lambda: _env("PLANNER_TABLE", "1") not in ("0", "off", "false"))
+    # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json.
+    # 1b (06/11): _plan if-else cũ đã bỏ, bảng là đường duy nhất; PLANNER_TABLE=0 không còn nghĩa → báo lỗi (xem _check_removed).
+    # PLANNER_SKIP_SINCE: bỏ các dòng bảng có "since" thuộc danh sách (vd "D51" = planner như trước D51, dùng cho vòng 0 của mục 20b).
+    # Rỗng = dùng mọi dòng (mặc định). Bảng bỏ D51 cho trace trùng bảng chỉ có nhánh cũ (tests/planner_table_parity.py).
+    planner_skip_since: tuple = field(default_factory=lambda: tuple(x.strip() for x in _env("PLANNER_SKIP_SINCE", "").split(",") if x.strip()))
     # L1 (05/11): gọi router song song với bước trích slot (router không cần slot). D58: mặc định BẬT; =0 = nối tiếp như cũ (trace trùng, tests/latency_parallel_check.py).
     # Chỉ song song ở lượt không đọc SĐT và không đang hỏi danh tính (định danh có thể đổi tóm tắt phiên trước).
     parallel_router: bool = field(default_factory=lambda: _env("PARALLEL_ROUTER", "1") not in ("0", "off", "false"))
@@ -167,7 +169,7 @@ class Settings:
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
                 "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
                 "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
-                "planner_table": self.planner_table, "product_lexicon": self.product_lexicon,
+                "planner_skip_since": list(self.planner_skip_since), "product_lexicon": self.product_lexicon,
                 "parallel_router": self.parallel_router, "order_qty": self.order_qty, "qwen_extract_base_url": self.qwen_extract_base_url or None,
                 "improve_dir": self.improve_dir,
                 "strip_questions": self.strip_questions, "guard_mode": self.guard_mode,
@@ -180,4 +182,12 @@ class Settings:
                 "rag": {k.lower(): _env(k) for k in ("RAG_MODE", "EMBED_MODEL", "RERANK_MODEL", "RAG_STORE")}}
 
 
+def _check_removed():
+    """1b (06/11): PLANNER_TABLE=0 từng chọn _plan cũ; đường đó đã bỏ. Báo lỗi thay vì lặng lẽ chạy bảng."""
+    if _env("PLANNER_TABLE", "1").lower() in ("0", "off", "false"):
+        raise ValueError("PLANNER_TABLE=0 không còn được hỗ trợ (_plan cũ đã bỏ 06/11). "
+                         "Muốn planner như trước D51: PLANNER_SKIP_SINCE=D51")
+
+
+_check_removed()
 settings = Settings()

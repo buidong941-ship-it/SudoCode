@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""D50: bảng quyết định (PLANNER_TABLE=1) phải cho CÙNG trace với _plan cũ (PLANNER_TABLE=0) khi bảng chỉ có nhánh cũ.
+"""Bảng quyết định planner: kiểm schema, độ phủ dòng, và (khi có --ref-root) trùng trace với một bản code tham chiếu.
 
-    python tests/planner_table_parity.py                          # các bộ dev mặc định, full + baseline, offline
-    python tests/planner_table_parity.py --sets test_set/public_sample --workers 4
+Lịch sử: D50 so bảng (PLANNER_TABLE=1, chỉ nhánh cũ) với _plan if-else cũ (PLANNER_TABLE=0) — trùng 100 %.
+Bước 1b (06/11) bỏ _plan cũ, nên giờ phép so là: code HIỆN TẠI với code tham chiếu (bản trước khi dọn, --ref-root).
 
-Chạy offline (router rules, generator offline, extractor rules, transport direct): không cần khóa, không cần GPU.
-Không dùng holdout. Ngoài so trace còn kiểm schema bảng và luật an toàn của dòng approved.
-In số lượt so sánh, số lượt lệch (kèm trường lệch đầu tiên). Exit 1 nếu có lệch hoặc bảng sai.
+    python tests/planner_table_parity.py --sets test_set/public_sample                 # schema + độ phủ, không so
+    python tests/planner_table_parity.py --ref-root /tmp/ref --out-dir /tmp/tp         # so trace với bản tham chiếu
+
+Hai biến thể so (offline: router rules, generator offline, extractor rules, transport direct; không khóa, không GPU):
+  full — bảng đầy đủ (cả dòng D51) + PRODUCT_LEXICON=1 (cấu hình chốt).
+  core — bảng như trước D51. Bản mới dùng PLANNER_SKIP_SINCE=D51; bản tham chiếu dùng file bảng đã lọc dòng "since"
+         → đồng thời chứng minh PLANNER_SKIP_SINCE tương đương cách cũ (cho vòng 0 của mục 20b).
+Không dùng holdout. In số lượt so, số lượt lệch (kèm trường lệch đầu tiên). Exit 1 nếu có lệch hoặc bảng sai.
 """
 import argparse
 import json
@@ -24,15 +29,8 @@ DEFAULT_SETS = ["test_set/public_sample", "datagen/out_nat/dev", "datagen/out_bt
                 "datagen/out_btc_like_final_v2_1/final/dev", "datagen/out_btc_like_d7/final/dev", "datagen/out_v3/final/dev"]
 
 
-def strip_table(row):
-    r = strip(row)
-    if isinstance(r.get("planner"), dict):
-        r["planner"] = {k: v for k, v in r["planner"].items() if k != "table"}
-    return r
-
-
 def core_rules(out_dir):
-    """Bản bảng CHỈ có nhánh cũ (bỏ dòng "since": "D51"…) — điều kiện của phép so trùng trace."""
+    """Bảng CHỈ có nhánh cũ (bỏ mọi dòng có "since") — cách tắt D51 của bản tham chiếu."""
     doc = json.load(open(os.path.join(ROOT, "harness", "planner_rules.json"), encoding="utf-8"))
     doc["rows"] = [r for r in doc["rows"] if not r.get("since")]
     path = os.path.join(out_dir, "planner_rules_core.json")
@@ -40,15 +38,25 @@ def core_rules(out_dir):
     return path
 
 
-def run(out_dir, tag, scen, config, table, a):
-    out = os.path.join(out_dir, f"{tag}-{config}-t{table}.jsonl")
-    env = {**os.environ, "DATABASE_URL": f"sqlite:///{out_dir}/{tag}-t{table}.db", "PLANNER_TABLE": str(table),
-           "LLM_CACHE": "off", "IMPROVE_DIR": "", "PLANNER_BACKEND": "rules", "PRODUCT_LEXICON": "0",
-           "PLANNER_RULES": core_rules(out_dir)}
-    cmd = [sys.executable, os.path.join(ROOT, "run_eval.py"), "--scenarios", os.path.join(ROOT, scen), "--config", config,
+def variant_env(variant, side, out_dir):
+    env = {"LLM_CACHE": "off", "IMPROVE_DIR": "", "PLANNER_BACKEND": "rules", "PLANNER_TABLE": "1"}
+    if variant == "full":
+        env.update(PRODUCT_LEXICON="1", PLANNER_SKIP_SINCE="")
+    elif side == "ref":
+        env.update(PRODUCT_LEXICON="0", PLANNER_RULES=core_rules(out_dir))
+    else:
+        env.update(PRODUCT_LEXICON="0", PLANNER_SKIP_SINCE="D51")
+    return env
+
+
+def run(root, out_dir, tag, scen, config, variant, side, a):
+    out = os.path.join(out_dir, f"{tag}-{config}-{variant}-{side}.jsonl")
+    env = {k: v for k, v in os.environ.items() if k != "PLANNER_RULES"}
+    env.update(variant_env(variant, side, out_dir), DATABASE_URL=f"sqlite:///{out_dir}/{tag}-{config}-{variant}-{side}.db")
+    cmd = [sys.executable, os.path.join(root, "run_eval.py"), "--scenarios", os.path.join(ROOT, scen), "--config", config,
            "--out", out, "--router", "rules", "--generator", "offline", "--extractor", "rules", "--transport", "direct",
            "--run-id", "table-parity", "--workers", str(a.workers)]
-    subprocess.run(cmd, check=True, env=env, cwd=ROOT, stderr=subprocess.DEVNULL)
+    subprocess.run(cmd, check=True, env=env, cwd=root, stderr=subprocess.DEVNULL)
     return [json.loads(l) for l in open(out, encoding="utf-8")]
 
 
@@ -76,6 +84,11 @@ def check_schema():
     need = {f"R{i:02d}" for i in range(37)} - {"R24"} | {"R24a", "R24b"}
     if need - ids:
         errs.append("thiếu dòng: " + ", ".join(sorted(need - ids)))
+    # PLANNER_TABLE=0 phải bị từ chối (đường _plan cũ đã bỏ)
+    r = subprocess.run([sys.executable, "-c", "import core.config"], cwd=ROOT, capture_output=True, text=True,
+                       env={**os.environ, "PLANNER_TABLE": "0"})
+    if r.returncode == 0:
+        errs.append("PLANNER_TABLE=0 không bị báo lỗi")
     return errs
 
 
@@ -84,6 +97,8 @@ def main():
     ap.add_argument("--sets", nargs="*", default=DEFAULT_SETS)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--ref-root", help="thư mục repo tham chiếu (bản trước khi dọn); bỏ trống = chỉ kiểm schema + độ phủ")
+    ap.add_argument("--variants", nargs="*", default=["full", "core"])
     a = ap.parse_args()
     out_dir = a.out_dir or tempfile.mkdtemp(prefix="table_parity_")
     os.makedirs(out_dir, exist_ok=True)
@@ -91,34 +106,47 @@ def main():
     for e in errs:
         print("SCHEMA:", e)
     bad = n = 0
-    used = {}
+    used = {}                                  # dòng → số lượt khớp (biến thể full, bản hiện tại)
+    by_set = {}
     for scen in a.sets:
         if not os.path.isdir(os.path.join(ROOT, scen)):
             print(f"[bỏ qua] không có bộ {scen}"); continue
         tag = scen.replace("/", "_")
         for config in ("full", "baseline_no_memory"):
-            old, new = run(out_dir, tag, scen, config, 0, a), run(out_dir, tag, scen, config, 1, a)
-            if len(old) != len(new):
-                print(f"[{scen} {config}] số lượt khác: cũ {len(old)} ≠ bảng {len(new)}"); bad += 1; continue
-            k = 0
-            for x, y in zip(old, new):
-                n += 1
-                for rid in (y.get("planner") or {}).get("table", []):
-                    used[rid] = used.get(rid, 0) + 1
-                d = first_diff(strip_table(x), strip_table(y))
-                if d:
-                    bad += 1; k += 1
-                    if k <= 3:
-                        print(f"  LỆCH {scen} {config} {x.get('scenario_id')} {x.get('call')} t{x.get('turn')}: {d[:300]}")
-            print(f"[{scen} {config}] {len(old)} lượt, lệch {k}")
-    rows = [r for r in json.load(open(os.path.join(ROOT, "harness", "planner_rules.json"), encoding="utf-8"))["rows"]
-            if not r.get("since")]
+            for variant in a.variants:
+                new = run(ROOT, out_dir, tag, scen, config, variant, "new", a)
+                if variant == "full":
+                    for y in new:
+                        for rid in (y.get("planner") or {}).get("table", []):
+                            used[rid] = used.get(rid, 0) + 1
+                            by_set.setdefault(rid, {}).setdefault(tag, 0)
+                            by_set[rid][tag] += 1
+                if not a.ref_root:
+                    print(f"[{scen} {config} {variant}] {len(new)} lượt (không so)")
+                    continue
+                old = run(a.ref_root, out_dir, tag, scen, config, variant, "ref", a)
+                if len(old) != len(new):
+                    print(f"[{scen} {config} {variant}] số lượt khác: tham chiếu {len(old)} ≠ mới {len(new)}"); bad += 1; continue
+                k = 0
+                for x, y in zip(old, new):
+                    n += 1
+                    d = first_diff(strip(x), strip(y))
+                    if d:
+                        bad += 1; k += 1
+                        if k <= 3:
+                            print(f"  LỆCH {scen} {config} {variant} {x.get('scenario_id')} {x.get('call')} t{x.get('turn')}: {d[:300]}")
+                print(f"[{scen} {config} {variant}] {len(old)} lượt, lệch {k}")
+    rows = json.load(open(os.path.join(ROOT, "harness", "planner_rules.json"), encoding="utf-8"))["rows"]
     never = [r["id"] for r in rows if r["id"] not in used]
-    print(f"Dòng bảng đã khớp ít nhất 1 lần: {len(rows) - len(never)}/{len(rows)}; chưa khớp: {', '.join(never) or '—'}")
-    print(f"TỔNG: {n} lượt, lệch {bad}, lỗi schema {len(errs)}")
-    json.dump({"turns": n, "diffs": bad, "schema_errors": errs, "row_hits": used, "never_hit": never},
+    print(f"Dòng bảng đã khớp ít nhất 1 lần (full): {len(rows) - len(never)}/{len(rows)}; chưa khớp: {', '.join(never) or '—'}")
+    if a.ref_root:
+        print(f"TỔNG: {n} lượt so, lệch {bad}, lỗi schema {len(errs)}")
+    else:
+        print(f"TỔNG: lỗi schema {len(errs)} (không so trace: thiếu --ref-root)")
+    json.dump({"turns": n, "diffs": bad, "schema_errors": errs, "row_hits": used, "row_hits_by_set": by_set,
+               "never_hit": never, "ref_root": a.ref_root},
               open(os.path.join(out_dir, "planner_table_parity.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    sys.exit(1 if bad or errs or n == 0 else 0)
+    sys.exit(1 if bad or errs or (a.ref_root and n == 0) else 0)
 
 
 if __name__ == "__main__":

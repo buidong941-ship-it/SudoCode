@@ -15,7 +15,7 @@ from core import log as cclog
 from core.config import settings
 from core.llm.generator import Generator, question_slot
 from core.llm.router import Router
-from harness import extractor, guardrails, improve_hook, knowledge
+from harness import extractor, guardrails, improve_hook, knowledge, planner_table
 from harness.coverage import NO_QUESTION, coverage
 from harness.textnorm import find_money, fold, perceive
 from harness.tools import (ToolBox, find_by_model_token, find_products, find_variant, mt, product_name, public_view)
@@ -395,11 +395,9 @@ class CallSession:
         knowledge.spent_ms = 0.0
         if pending is not None and extractor.customer_slots_finish(pending, slots, 0) is not None:
             pending = None
-        if settings.planner_table:          # D50: bảng quyết định (harness/planner_rules.json); tắt = _plan cũ
-            from harness import planner_table
-            goals, facts = planner_table.plan(self, text, slots, route)
-        else:
-            goals, facts = self._plan(text, slots, route)
+        # 1b (06/11): planner chỉ còn bảng quyết định (harness/planner_rules.json). _plan if-else cũ đã bỏ
+        # (bản cuối ở commit ce171ac); bảng chỉ có nhánh cũ từng trùng trace 100 % với nó (D50).
+        goals, facts = planner_table.plan(self, text, slots, route)
         t_plan = time.perf_counter()
         rag_ms = knowledge.spent_ms
         tools_ms = sum(tc.get("ms", 0) for tc in self.tools.log)
@@ -566,7 +564,7 @@ class CallSession:
                           + (("improve",) if route.get("improve") else ())},
                "goals": goals, "planner": {"backend": settings.planner_backend, "branches": list(self.plan_why),
                                                     **({"llm": self.llm_plan} if self.llm_plan else {}),
-                                                    **({"table": list(self.table_rows)} if settings.planner_table else {})},
+                                                    "table": list(self.table_rows)},
                "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
                "extractor": {"backend": ext_meta.get("backend", settings.extractor_backend), "ms": ext_meta.get("ms", 0),
                              "fallback": ext_meta.get("fallback"), "dropped_spans": ext_meta.get("dropped_spans", 0)}}
@@ -765,284 +763,6 @@ class CallSession:
             return None
         return {"topic": f"cam kết hoàn tiền / trả hàng sau {num_txt} {_UNIT[unit][1]}",
                 "policy": [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits[:2]]}
-
-    def _plan(self, text, slots, route):
-        it, fl = route["intent"], route.get("flags", {})
-        goals, facts = [], {}
-        self.plan_why, self.llm_plan = [], None
-        c = self.customer or {}
-        y = lambda k, th=0.6: fl.get(k, 0) >= th
-        for k, v in slots.items():
-            if k not in ("self_name", "claimed_prices"):
-                self.known[k] = v
-        if self.candidates:
-            return ["ask_identity"], facts
-        f = fold(text)
-        mentioned = find_products(text)
-        # B4 (BTCL-051/052): "mua AirPure Y có tặng màng lọc không?" hỏi QUÀ của sản phẩm chính, không phải giá phụ kiện
-        gift_q = bool(GIFT_Q_RX.search(f))
-        if gift_q:
-            mentioned = [x for x in mentioned if x not in GIFT_SKUS]   # còn rỗng → dùng self.focus (sản phẩm đang tư vấn)
-        elif re.search(r"\bmang loc\b", f):
-            base = mentioned or ([self.focus] if self.focus else [])
-            mentioned = [FILTER_OF.get(mt._parent(x)[0]["sku"], x) for x in base]
-        alt = None if mentioned else (find_by_model_token(text, self.focus) if self.focus else None)
-        sents = [x for x in re.split(r"(?<=[.!?])\s+", text.strip()) if x]
-        last = fold(sents[-1]) if sents else f
-        asking = sents[-1].rstrip().endswith("?") if sents else False
-        asking = asking or (bool(re.search(r"\b(bao nhieu|duoc khong|the nao)\b", last))
-                            and not re.search(r"\b(len don|chot|dat hang)\b", last))
-        takes = bool(re.search(r"\b(lay|them|chot|mua (luon|them|ca|cho|nhe|nha))\b", f))
-        compare = bool(alt) or bool(mentioned and self.focus and mt._parent(mentioned[-1])[0]["sku"] != mt._parent(self.focus)[0]["sku"]
-                                    and re.search(r"\bcon\b", f) and not takes)
-        prev_focus = self.focus
-        new_focus = None
-        if mentioned and not compare:
-            new_focus = mentioned[-1]
-            self.focus, self.focus_by = new_focus, "customer"
-        if takes and mentioned and not compare:
-            for m_ in mentioned:
-                self._cart_add(m_)
-        if re.search(r"lay (du|ca|het|tat ca)|ca hai|ca 2|lay du", f):
-            for d in self.discussed:
-                self._cart_add(d)
-        if self.turn_no == 1:
-            if self.brief and self.brief["is_returning"] and prev_focus:
-                last = self.brief["last_session"]
-                need = {k: self.carried[k] for k in ("room_area_m2", "baby_age", "household_size") if self.carried.get(k)}
-                facts["brief"] = {"product_name": product_name(prev_focus), "price_quoted_vnd": self.known.get("price_quoted_vnd"),
-                                  "last_date_ddmm": _ddmm(last["date"]) if last else None, "blocker": self.known.get("blocker"),
-                                  "need": dict(list(need.items())[:1]), "objection": self.carried.get("objection"),
-                                  "stale_warnings": self.brief["stale_warnings"]}
-                goals.append("opening_returning")
-                if any("KM" in w for w in self.brief["stale_warnings"]):
-                    goals.append("stale_promo")
-        if y("asks_if_bot") or (it == "meta" and not y("wants_data_deleted")):
-            goals.append("is_bot")
-        if y("wants_data_deleted"):
-            if c.get("customer_id"):
-                self.mem.forget_customer(c["customer_id"])
-            self.known, self.carried, self.deleted, self._deleted_turn = {}, {}, True, self.turn_no
-            facts["deleted"] = True; goals.append("data_deleted")
-            return goals, facts
-        if it == "out_of_scope" or y("medical_question", 0.7):
-            self.open_questions.append(text[:200])
-            brief = self._handoff_brief(text, "cau_hoi_y_te" if y("medical_question", 0.5) else "khach_yeu_cau_gap_nguoi")
-            facts["handoff"] = self.tools.call("handoff.transfer", brief=brief)
-            goals.append("handoff"); self.outcome = "chuyen_may"
-            return goals, facts
-        if y("asks_internal_cost"):
-            goals.append("refuse_internal")
-        if OTHER_PII_RX.search(f) or (self.privacy_refused and re.search(r"\bchia se\b", f)):
-            self._why("privacy_refuse", "khách xin thông tin của khách khác")
-            self.privacy_refused = True
-            goals.append("refuse_other_customer")
-            return goals, facts
-        gap = self._policy_gap(text, f, asking)
-        if gap:
-            self._why("policy_gap", gap["topic"])
-            self.policy_gap = gap
-            facts["unknown_topic"], facts["policy"] = gap["topic"], gap["policy"]
-            goals.append("no_info")
-            self.open_questions.append(text[:200])
-            return goals, facts
-        if it == "order_change" and HYPO_RX.search(f) and asking and REFUND_RX.search(f):
-            self._why("hypothetical_return", "hỏi giả định về trả hàng, không tạo yêu cầu trả")
-            it = "policy_question"
-        if it == "order_change" and self.buy_intent and not self.orders_created and slots.get("address"):
-            it = "place_order"
-        if it == "order_change" and self.orders_created and slots.get("address"):
-            return goals + self._update_address(slots["address"], facts), facts
-        if it == "order_change":
-            self._why("order_change")
-            g = self._plan_order_change(text, facts)
-            if g != ["WINDOW_PASSED"]:
-                return goals + g, facts
-            if not self.window_told:
-                self.window_told = True; goals.append("exchange_window_passed")
-            it = "product_inquiry"
-        if it == "order_status":
-            self._why("order_status")
-            goals += self._order_status(facts)
-            return goals, facts
-        if self.updates_done and re.search(r"\b(hoan|chenh|bu them)\b", f):
-            facts["update"] = list(self.updates_done.values())[-1]; goals.append("order_updated")
-        if it == "policy_question" or (it == "greeting_or_other" and "?" in text and not self.focus):
-            order_date = None
-            if re.search(r"\b(don (hang|cu|truoc)|da mua|mua (hom|tu|thang|tuan|dot))\b", f):
-                past = self._customer_orders()
-                order_date = (past[-1].get("created_on") or past[-1].get("date")) if past else None
-            hits = knowledge.search(text, k=2, order_date=order_date)
-            facts["policy"] = [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits]
-            goals.append("policy_answer" if hits else "no_info")
-            self._why("policy", "có tài liệu" if hits else "không có tài liệu")
-        terms = [m.group(0) for m in ATTR_ASK_RX.finditer(f)]
-        if asking and terms and "no_info" not in goals and "policy_answer" not in goals:
-            specific = [t for t in terms if t in ("fda", "iso", "ce", "rohs") or t.startswith("tieu chuan")] or terms
-            par = mt._parent((mentioned or [self.focus])[-1])[0] if (mentioned or self.focus) else None
-            known_txt = fold(str((par or {}).get("attributes", {}))) + " " + " ".join(
-                fold(h["text"]) for h in knowledge.search(text, k=3))
-            missing = [t for t in specific if not re.search(rf"\b{re.escape(t)}\b", known_txt)]
-            if missing:
-                goals.append("no_info"); facts["unknown_topic"] = missing[0]
-                self._why("attr_unknown", missing[0])
-        if re.search(r"\bbao hanh\b", f) and (mentioned or self.focus):
-            par = mt._parent((mentioned or [self.focus])[-1])[0]
-            if par and par["attributes"].get("warranty_months"):
-                facts["product_warranty"] = {"product": par["name"], "warranty_months": par["attributes"]["warranty_months"]}
-        sales_turn = it not in ("order_change", "order_status", "meta", "out_of_scope")
-        profile_news = any(k in slots for k in ("room_area_m2", "has_children", "budget_vnd"))
-        if sales_turn and not mentioned and not alt and (self.focus is None or (self.focus_by == "recommend" and profile_news)):
-            rec = self._recommend(text)
-            if rec == "ASK_NEED":
-                goals.append("ask_need"); facts["need_slots_missing"] = [k for k in ("has_children", "budget_vnd", "room_area_m2") if k not in self.known]
-                rec = None
-            elif rec and rec != self.focus:
-                old = self.focus
-                self.focus, self.focus_by = rec, "recommend"
-                facts["quote"] = self._quote(self._resolve_variant(rec, text), "advised"); goals.append("recommend")
-                if old:
-                    facts["alternative"] = self._quote(old, "alternative")
-            if not rec and self.focus is None and "ask_need" not in goals and it in ("product_inquiry", "price_promo"):
-                goals += self._ask_prior_contact(f) or ["ask_product"]
-        asks_price = it in ("price_promo", "negotiate", "product_inquiry") or (new_focus and new_focus != prev_focus) or bool(alt) or compare \
-            or ((gift_q or bool(PROMO_END_RX.search(f))) and bool(self.focus)) \
-            or (it == "place_order" and asking) or "exchange_window_passed" in goals
-        ask_size_after = False
-        if sales_turn and "recommend" not in goals and asks_price:
-            target = (alt or mentioned[-1]) if compare else self.focus
-            if target and not compare and self._price_depends_on_size(target, text):
-                if not self.size_asked:
-                    self.size_asked = True
-                    if self._promo_depends_on_size(target):
-                        goals.append("ask_size_for_price"); target = None
-                    else:
-                        facts["size_note"] = "giá này cho size thường; size lớn có phụ thu"
-                        ask_size_after = True
-                else:
-                    facts["size_note"] = "giá này cho size thường; size lớn có phụ thu và không áp một số khuyến mãi"
-            if target:
-                q = self._quote(self._resolve_variant(target, text), "alternative" if compare else "advised")
-                if q.get("discontinued") and q.get("successor_sku"):
-                    facts["discontinued_name"], facts["successor_name"] = q["name"], product_name(q["successor_sku"])
-                    goals.append("discontinued")
-                    if not compare:
-                        self.focus = q["successor_sku"]
-                    q = self._quote(self._resolve_variant(q["successor_sku"], text), "advised")
-                if compare:
-                    facts["alternative"] = q; goals.append("alternative_quote")
-                else:
-                    facts["quote"] = q
-                    if q.get("in_stock") is False:
-                        goals.append("out_of_stock"); facts["restock_expected"] = q.get("restock_expected")
-                    else:
-                        goals.append("quote")
-                    if ask_size_after:
-                        goals.append("ask_size_for_price")
-                    claimed = [v for v in slots.get("claimed_prices", []) if v != q.get("final_price_vnd")]
-                    if claimed and q.get("expired_promos"):
-                        facts["claimed_price_vnd"] = claimed[0]; goals.append("explain_price_change")
-        # B5 (BTCL-031): "tầm 5 triệu rưỡi có vừa không?" → so ngân sách với giá tool, thay vì rơi xuống closing để LLM tự nói
-        if sales_turn and slots.get("budget_vnd") and self.focus and not self.cart and "recommend" not in goals \
-                and "ask_size_for_price" not in goals:
-            q = facts.get("quote") or self._quote(self._resolve_variant(self.focus, text), "advised")
-            if q.get("final_price_vnd"):
-                facts["quote"], b = q, slots["budget_vnd"]
-                facts["budget_fit"] = {"budget_vnd": b, "final_price_vnd": q["final_price_vnd"],
-                                       "within_budget": q["final_price_vnd"] <= b}
-                if "quote" not in goals and "out_of_stock" not in goals:
-                    goals.append("quote")
-                goals.append("budget_fit")
-                self._why("budget_fit", f"ngân sách {b} so với giá {q['final_price_vnd']}")
-        if gift_q and sales_turn and facts.get("quote"):
-            q = facts["quote"]
-            par = mt._parent(q["sku"])[0]
-            psku = par["sku"] if par else q["sku"]
-            gifts = [x for x in mt.PROMOS if x.get("type") == "gift" and psku in (x.get("applies_to") or [])]
-            if gifts:
-                active = [x for x in gifts if x["promo_code"] in (q.get("promo_codes") or [])]
-                g0 = active[0] if active else max(gifts, key=lambda x: x["end"])
-            if gifts and active and "quote" in goals and q.get("promo_names"):
-                gifts = []   # câu báo giá đã nói quà đang tặng → không nói lặp lần hai
-            if gifts:
-                facts["gift"] = {"product": q["name"], "gift_name": product_name(g0["gift_sku"]), "promo_name": g0["name"],
-                                 "active": bool(active), "end_ddmm": _ddmm(g0["end"])}
-                goals.append("gift_status")
-                self._why("gift_status", f"{g0['promo_code']} {'còn' if active else 'hết'} hiệu lực")
-        if self.cart and asking and re.search(r"\b(tong|het bao nhieu|tat ca|ca hai|giam gi|duoc giam)\b", f):
-            facts["cart"] = self._cart_quote(text); goals.append("cart_total")
-        if asking and re.search(r"\b(cod|thanh toan khi nhan)\b", f):
-            tot = (facts.get("cart") or self._cart_quote(text) if self.cart else {}).get("total_vnd") if self.cart else (facts.get("quote") or {}).get("final_price_vnd")
-            facts["cod_total_vnd"] = tot
-            goals.append("cod_limit" if tot and tot > 10_000_000 else "cod_ok")
-        if "?" in text and sales_turn and it != "place_order":
-            hits = knowledge.search(text, k=2)
-            if hits:
-                facts.setdefault("policy", [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits])
-        if it == "negotiate":
-            goals.append("no_competitor_comment" if y("mentions_competitor", 0.5) else "refuse_discount")
-        elif (y("mentions_competitor", 0.5) or re.search(r"\b(ben (do|kia|khac)|san thuong mai|shopee|lazada)\b", f)) and \
-                re.search(r"\b(hang gia|hang nhai|kem chat luong|uy tin|chinh hang|duoc gi hon|khac gi|hon gi)\b", f):
-            goals.append("no_competitor_comment")
-        adding = bool(re.search(r"\b(lay them|them (cho|mot|1|cai)|mua them)\b", f)) and not CLOSE_ORDER_RX.search(f)
-        wants = it == "place_order" and (y("agrees_to_buy", 0.5) or self.router.backend == "rules") and not adding
-        if adding and self.cart and "cart_total" not in goals:
-            facts["cart"] = self._cart_quote(text); goals.append("cart_total")
-        if self.cart and "budget_vnd" in slots and "cart_total" not in goals:
-            facts["cart"] = self._cart_quote(text); goals.append("cart_total")
-        if wants:
-            self.buy_intent = True
-            if not self.cart and self.focus:
-                self._cart_add(self.focus)
-        pending = self.buy_intent and not asking and it not in ("callback", "negotiate", "order_change", "order_status") \
-            and any(k in slots for k in ("address", "payment", "size", "color"))
-        if self.orders_created and slots.get("address"):
-            goals += self._update_address(slots["address"], facts)
-        elif (wants and not asking) or pending:
-            stale = [w for w in (self.brief or {}).get("stale_warnings", []) if self.focus and mt._parent(self.focus)[0]
-                     and mt._parent(self.focus)[0]["sku"] in w and ("KM" in w or "giá" in w)]
-            if stale and not self.price_change_told:
-                self.price_change_told = True
-                facts["quote"] = facts.get("quote") or self._quote(self._resolve_variant(self.focus, text), "advised")
-                goals += ["stale_promo", "quote", "confirm_new_price"]
-            else:
-                self._why("order_create", "đồng ý mua" if wants else "bổ sung thông tin đơn")
-                goals += self._plan_order(text, facts)
-        elif wants and asking and "quote" in goals:
-            goals.append("confirm_order")
-        if "stale_promo" in goals and not self.price_change_told:
-            self.price_change_told = True
-            if self.focus and "quote" not in facts:
-                facts["quote"] = self._quote(self._resolve_variant(self.focus, text), "advised")
-            goals.append("quote")
-        if slots.get("callback_requested"):
-            goals += self._plan_callback(slots["callback_requested"], facts)
-        elif (it == "callback" and y("defers_decision", 0.5)) or y("defers_decision", 0.8):
-            goals.append("defer_ack"); self.outcome = self.outcome or "hen_goi_lai"
-        if not goals:
-            garbled = self.input_mode == "asr_transcript" and route.get("confidence", 1) < 0.6
-            prior = self._ask_prior_contact(f) if self.turn_no == 1 else []
-            # B-H: không nhánh code nào khớp → hỏi planner LLM (PLANNER_BACKEND, mặc định rules = không gọi)
-            llm = [] if prior or settings.planner_backend == "rules" or (self.turn_no == 1 and not asking) \
-                else self._llm_fallback(text, facts)
-            if prior or llm:
-                goals += prior or llm
-            elif self.turn_no == 1:
-                goals.append("greet")
-            elif not slots and not mentioned and not CLOSING_RX.search(f) and (asking or garbled) and self.repeat_asked < 2:
-                self.repeat_asked += 1
-                goals.append("ask_repeat")
-            else:
-                goals.append("closing")
-            if not llm:
-                self._why("fallback", goals[-1])
-        if "no_info" in goals or "handoff" in goals:
-            self.open_questions.append(text[:200])
-        self.fail_streak = self.fail_streak + 1 if "order_failed" in goals else 0
-        if self.fail_streak >= 2 and "handoff" not in goals:
-            facts["handoff"] = self.tools.call("handoff.transfer", brief=self._handoff_brief(text, "loi_he_thong"))
-            goals = [g for g in goals if g != "order_failed"] + ["handoff"]; self.outcome = "chuyen_may"
-        return list(dict.fromkeys(goals)), facts
 
     def _cart_add(self, sku):
         if sku and sku not in self.cart and mt._parent(sku)[0]:

@@ -1,6 +1,6 @@
 """B-H (PLAN-2026-11-01): planner hybrid CÓ GIỚI HẠN — LLM chỉ đề xuất goal khi planner bằng code bế tắc.
 
-Đường chính vẫn là `CallSession._plan()`. Module này chỉ được gọi ở nhánh fallback (không nhánh code nào khớp lời khách),
+Đường chính là bảng quyết định `harness/planner_table.py` (từ 06/11 `CallSession._plan()` cũ đã bỏ). Module này chỉ được gọi ở nhánh fallback (không nhánh code nào khớp lời khách),
 khi `PLANNER_BACKEND` khác `rules` (mặc định `rules` → không gọi gì, trace y hệt trước).
 
 LLM được làm gì: chọn MỘT goal trong danh sách đóng các goal hợp lệ ở trạng thái hiện tại (`allowed_goals`), hoặc `none`.

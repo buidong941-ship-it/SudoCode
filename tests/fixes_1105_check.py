@@ -4,7 +4,7 @@
 1. D49b: mô tả cờ `asks_internal_cost` của router Jev là bản `moi` (người gọi bất kể tự xưng là ai, giá sàn, giục đọc tiếp).
 2. D33: câu mẫu an toàn khi sinh lại vẫn nói KM hết hạn như còn hiệu lực → báo KM đã hết + giá hiện tại, không chỉ "cảm ơn".
 3. D54: khách hẹn chốt sau (E15, không lên đơn) → call_1 vẫn ghi `variant_sku` đã báo giá vào bộ nhớ (V3-016, offline).
-4. D58: PLANNER_TABLE / PRODUCT_LEXICON / PARALLEL_ROUTER mặc định bật; JEV_MODEL mặc định jev-latest.
+4. D58: bảng planner đủ dòng D51 (PLANNER_SKIP_SINCE rỗng; PLANNER_TABLE bỏ 06/11) / PRODUCT_LEXICON / PARALLEL_ROUTER mặc định bật; JEV_MODEL mặc định jev-latest.
 
     python tests/fixes_1105_check.py [--out-dir DIR]
 """
@@ -69,9 +69,12 @@ def main():
     s = Settings()
     if "tuổi của bé" not in FLAGS["medical_question"][1]:
         bad.append("V3-141: mô tả medical_question chưa phải bản moi")
-    for k in ("planner_table", "product_lexicon", "parallel_router", "order_qty"):
+    for k in ("product_lexicon", "parallel_router", "order_qty"):
         if os.environ.get(k.upper()) is None and not getattr(s, k):
             bad.append(f"D58: {k} phải mặc định bật")
+    # 1b (06/11): PLANNER_TABLE đã bỏ (bảng là đường duy nhất); mặc định phải chạy đủ dòng D51 (không bỏ dòng nào)
+    if os.environ.get("PLANNER_SKIP_SINCE") is None and s.planner_skip_since:
+        bad.append(f"D58: PLANNER_SKIP_SINCE mặc định phải rỗng, đang {s.planner_skip_since}")
     if os.environ.get("JEV_MODEL") is None and s.jev_model != "jev-latest":
         bad.append(f"JEV_MODEL mặc định phải là jev-latest, đang {s.jev_model}")
 

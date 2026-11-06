@@ -1,13 +1,13 @@
 """D50 (docs/PLAN-2026-11-05-PLANNER-TABLE.md): planner chạy theo BẢNG QUYẾT ĐỊNH thay cho chuỗi if-else trong _plan.
 
-Bật bằng PLANNER_TABLE=1 (mặc định tắt → CallSession._plan cũ). Ba phần:
+Đường planner DUY NHẤT từ 06/11 (bước 1b: bỏ CallSession._plan cũ; PLANNER_SKIP_SINCE=D51 = bảng như trước D51). Ba phần:
   1. Bước chuẩn bị: giữ nguyên code của _plan (sản phẩm được nhắc, focus, giỏ, asking/takes/compare…).
   2. Bộ máy bảng: duyệt dòng trong harness/planner_rules.json theo priority; dòng khớp `when` → gọi HANDLER (code).
      Predicate (điều kiện có tên) tính LƯỜI tại đúng vị trí dòng, nên đọc trạng thái y như code cũ ở cùng thời điểm.
   3. Hậu xử lý: giữ nguyên (open_questions, order_failed liên tiếp → handoff, khử trùng goal).
 
 Bảng chỉ chứa tên handler / predicate; tham số tool, giá, số tiền vẫn do code lấy từ kết quả tool (bất biến của dự án).
-Khi bảng chỉ có nhánh cũ, trace phải trùng 100 % với _plan (tests/planner_table_parity.py).
+Bảng chỉ có nhánh cũ từng trùng trace 100 % với _plan (D50); sau khi bỏ _plan, tests/planner_table_parity.py so với bản tham chiếu --ref-root.
 
 Dòng origin=approved (do người duyệt qua improve/, giai đoạn 3) chỉ được dùng handler trong SAFE_HANDLERS.
 """
@@ -101,7 +101,8 @@ def load_rows(path=None, extra=None):
         if errs:
             raise ValueError("planner_rules.json không hợp lệ: " + "; ".join(errs[:5]))
         _cache.update(path=path, mtime=mtime, rows=[r for r in doc["rows"] if r.get("origin", "core") in ("core", "approved")])
-    rows = list(_cache["rows"])
+    skip = set(settings.planner_skip_since)      # 1b: PLANNER_SKIP_SINCE=D51 → bỏ dòng "since": "D51"
+    rows = [r for r in _cache["rows"] if r.get("since") not in skip]
     if extra:
         errs = validate({"rows": extra})
         if errs:

@@ -26,7 +26,7 @@ DEFAULT_SETS = ["test_set/public_sample", "datagen/out_v3/final/dev", "datagen/o
 def run(out_dir, tag, scen, config, par, table):
     out = os.path.join(out_dir, f"{tag}-{config}-p{par}.jsonl")
     env = {**os.environ, "DATABASE_URL": f"sqlite:///{out_dir}/{tag}-{config}-p{par}.db", "PARALLEL_ROUTER": str(par),
-           "LLM_CACHE": "off", "IMPROVE_DIR": "", "PLANNER_TABLE": table, "PRODUCT_LEXICON": table}
+           "LLM_CACHE": "off", "IMPROVE_DIR": "", "PLANNER_SKIP_SINCE": "" if table == "1" else "D51", "PRODUCT_LEXICON": table}
     subprocess.run([sys.executable, os.path.join(ROOT, "run_eval.py"), "--scenarios", os.path.join(ROOT, scen), "--config", config,
                     "--out", out, "--router", "rules", "--generator", "offline", "--extractor", "rules", "--transport", "direct",
                     "--run-id", "par-parity", "--workers", "2"], check=True, env=env, cwd=ROOT, stderr=subprocess.DEVNULL)

@@ -66,7 +66,7 @@ python tests/ui_check.py
 # MCP: 2 server đúng giao thức + trace qua MCP == gọi trực tiếp
 python tests/mcp_check.py | tail -1
 python tests/mcp_parity.py --out-dir "$OUT/parity" | tail -1
-# D50: bảng quyết định planner (PLANNER_TABLE=1) cho cùng trace với _plan cũ (bộ mẫu; bộ dev đầy đủ chạy riêng trên Kaggle)
+# D50 + 1b (06/11): bảng quyết định planner — schema, độ phủ, PLANNER_TABLE=0 bị từ chối (so trace với bản tham chiếu: --ref-root, chạy riêng trên Kaggle)
 python tests/planner_table_parity.py --sets test_set/public_sample --out-dir "$OUT/table_parity" | tail -1
 # D51: điều kiện các dòng bảng mới + tầng tra sản phẩm (PRODUCT_LEXICON)
 python tests/planner_table_d51_check.py
