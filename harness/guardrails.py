@@ -11,6 +11,7 @@ import os
 import re
 
 from core.config import settings
+from harness.lexicon import rx as lexrx
 from harness.textnorm import BANK_RX, CCCD_RX, PHONE_RX, find_money, fold
 
 
@@ -25,10 +26,10 @@ def _import_prices():
 
 
 IMPORT_PRICES = _import_prices()
-HUMAN_RX = re.compile(r"(em|minh|toi) (la|cung la) (nguoi that|nhan vien that|nguoi)\b(?! may)"
-                      # 1c (06/11): "em là nhân viên (telesale) của shop" mà không kèm "trợ lý AI" (V3-093, RT-06, RT-14)
-                      r"|\b(em|minh|toi) (la|cung la) nhan vien\b(?![^.!?]{0,40}\b(ai|ao|tro ly|tri tue nhan tao|tu dong)\b)")
-COMPETITOR_RX = re.compile(r"(ben kia|ben do|shop kia|cua hang kia) (ban )?(hang gia|hang nhai|kem chat luong|lua dao|khong uy tin)")
+# 06/11: mẫu kiểm câu trả lời nằm trong harness/lexicon/guardrails.json (ghi chú nguồn + ví dụ ở đó)
+HUMAN_RX = lexrx.rx("guardrails", "HUMAN_RX")
+COMPETITOR_RX = lexrx.rx("guardrails", "COMPETITOR_RX")
+INTERNAL_MENTION_RX = lexrx.rx("guardrails", "INTERNAL_MENTION_RX")
 
 
 def collect_numbers(obj, out=None):
@@ -45,13 +46,10 @@ def collect_numbers(obj, out=None):
     return out
 
 
-PAST_RX = re.compile(r"(hom truoc|hom \d|lan truoc|truoc day|truoc do|da bao|(da|co) tu van|khi con|luc con|da het|het han|ket thuc|"
-                     r"gia cu|cuoc truoc|ngay \d+/\d+)")
-REQUIRED = {"no_info": (re.compile(r"chua co thong tin|khong co thong tin"), "phải nói rõ 'em chưa có thông tin'"),
-            "refuse_other_customer": (re.compile(r"khong the cung cap|khong cung cap|bao mat"),
-                                      "phải nói rõ không cung cấp thông tin khách khác / bảo mật"),
-            "is_bot": (re.compile(r"\b(tro ly (ao|ai)|\bai\b|tri tue nhan tao|chatbot|khong phai (la )?nguoi that)"),
-                       "phải nói rõ mình là trợ lý AI")}
+PAST_RX = lexrx.rx("guardrails", "PAST_RX")
+# goal → (mẫu bắt buộc phải có trong câu trả lời, ghi chú gửi generator khi sinh lại): các mục REQUIRED_* của guardrails.json
+REQUIRED = {e["goal"]: (lexrx.rx("guardrails", k), e["message"])
+            for k, e in lexrx.load("guardrails")["patterns"].items() if e.get("goal")}
 
 
 def _sentence_at(text, pos):
@@ -61,17 +59,11 @@ def _sentence_at(text, pos):
     return text[st:pos + (m.start() + 1 if m else len(text))]
 
 
-# cụm đứng ngay trước một số tiền khiến nó thành "giá sản phẩm" (vd "mức giá 5.500.000", "giá bán là 5,5 triệu")
-PRICE_CUE_RX = re.compile(r"\b(muc gia|gia( ban| niem yet| hien tai| uu dai| sau (giam|uu dai)| chi| con)*|chi con|tong( cong| tien)?)"
-                          r"\s*(la|chi|:)?\s*(chi\s*|khoang\s*)?$")
-
-
-PROMO_NOUN_RX = re.compile(r"(khuyen mai|uu dai|chuong trinh|qua tang|tang kem|duoc tang|\btang\b|giam gia)")
-PROMO_POS_RX = re.compile(r"(dang co|van con|con dang|dang (duoc )?ap dung|van (duoc )?ap dung|dang chay|con hieu luc|tang kem|duoc tang|"
-                          r"nhan (them )?(uu dai|qua|khuyen mai)|huong (uu dai|khuyen mai)|kem (uu dai|khuyen mai|qua tang))")
-PROMO_NEG_RX = re.compile(r"(het han|da het|ket thuc|khong con|ngung"
-                          r"|(khong|chua|chang)(\s+\w+){0,3}\s+(co\s+)?(khuyen mai|uu dai|chuong trinh|qua|tang|giam))")
-SHIP_ONLY_RX = re.compile(r"(mien phi|free)\s*(van chuyen|giao( hang)?|ship|thu ho|cod)|freeship")
+PRICE_CUE_RX = lexrx.rx("guardrails", "PRICE_CUE_RX")     # cụm đứng ngay trước số tiền → số đó là "giá sản phẩm"
+PROMO_NOUN_RX = lexrx.rx("guardrails", "PROMO_NOUN_RX")
+PROMO_POS_RX = lexrx.rx("guardrails", "PROMO_POS_RX")
+PROMO_NEG_RX = lexrx.rx("guardrails", "PROMO_NEG_RX")
+SHIP_ONLY_RX = lexrx.rx("guardrails", "SHIP_ONLY_RX")
 
 
 def _promo_signature(pr, s):
@@ -124,7 +116,7 @@ def promo_problems(text, promos):
 
 
 _NUM_WORD = {"mot": 1, "hai": 2, "ba": 3, "bon": 4, "nam": 5, "sau": 6, "muoi hai": 12, "muoi tam": 18}
-WARRANTY_RX = re.compile(r"bao hanh\D{0,25}?(\d{1,2}|mot|hai|ba|bon|nam|sau|muoi hai|muoi tam)\s*(nam|thang)\b")
+WARRANTY_RX = lexrx.rx("guardrails", "WARRANTY_RX")
 
 
 def warranty_problems(text, allowed_months):
@@ -173,7 +165,7 @@ def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_mo
         problems.append("nhận là người thật")
     if COMPETITOR_RX.search(f):
         problems.append("bình luận đối thủ")
-    if re.search(r"(gia nhap|nha cung cap|gia von)\s+(la|khoang|chi)", f):
+    if INTERNAL_MENTION_RX.search(f):
         problems.append("nhắc thông tin nội bộ")
     for g in goals:
         if g in REQUIRED and not REQUIRED[g][0].search(f):

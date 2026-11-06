@@ -1,0 +1,110 @@
+{
+ "_doc": "Intent + cờ của router. vi/en: mô tả nhãn gửi Jev / Laya / LLM; yes/no: mô tả đúng / sai của cờ (Noul); q_vi/q_en: câu hỏi Laya (LAYA_LANG=*_q). intent_rules: luật từ khóa của router `rules`, xét theo thứ tự, mẫu đầu tiên khớp thắng; flag_rules: cờ = 0,95 nếu khớp, 0,05 nếu không. Mẫu luật được bọc \\b(?:…)\\b và khớp trên chuỗi đã fold(). Thứ tự intent / cờ giữ nguyên (là thứ tự câu hỏi gửi Jev). Chuyển nguyên văn từ core/llm/router.py ngày 06/11.",
+ "intents": {
+  "product_inquiry": {
+   "vi": "Khách hỏi tư vấn sản phẩm phù hợp, tính năng, so sánh mẫu, hoặc nói nhu cầu (diện tích phòng, ngân sách, có trẻ nhỏ).",
+   "en": "The customer asks for product advice, features, model comparison, or states needs (room size, budget, young children)."},
+  "price_promo": {
+   "vi": "Khách hỏi giá, khuyến mãi, còn hàng không, phí ship, thời gian giao của một sản phẩm.",
+   "en": "The customer asks about price, promotion, stock, shipping fee or delivery time of a product."},
+  "policy_question": {
+   "vi": "Khách hỏi chính sách chung: đổi trả, bảo hành, vận chuyển, thanh toán, điều khoản khuyến mãi.",
+   "en": "The customer asks about general policy: returns, warranty, shipping, payment, promotion terms."},
+  "place_order": {
+   "vi": "Khách đồng ý mua / bảo lên đơn / chốt đặt hàng / cung cấp địa chỉ để giao.",
+   "en": "The customer agrees to buy, asks to place/confirm the order, or gives an address for delivery."},
+  "order_change": {
+   "vi": "Khách đã mua và muốn đổi size, đổi màu, đổi sản phẩm, trả hàng hoặc sửa địa chỉ của đơn đã đặt.",
+   "en": "The customer already bought and wants to change size, color or product, return it, or change the order address."},
+  "order_status": {
+   "vi": "Khách hỏi đơn hàng đã đặt đang ở đâu, bao giờ tới, mã đơn.",
+   "en": "The customer asks where an existing order is, when it arrives, or its order code."},
+  "callback": {
+   "vi": "Khách chưa quyết, hẹn gọi lại sau, cần hỏi người nhà, hoặc đang bận.",
+   "en": "The customer has not decided, asks to be called back later, needs to ask family, or is busy."},
+  "negotiate": {
+   "vi": "Khách mặc cả, đòi giảm thêm, so giá bên khác, hỏi giá nhập hoặc giá vốn.",
+   "en": "The customer bargains, asks for a bigger discount, compares with another shop, or asks the import/cost price."},
+  "out_of_scope": {
+   "vi": "Câu hỏi y tế/sức khỏe, pháp lý, hoặc yêu cầu gặp người thật / khiếu nại nghiêm trọng — cần chuyển nhân viên.",
+   "en": "Medical/health or legal question, or asks for a human / serious complaint — must transfer to staff."},
+  "meta": {
+   "vi": "Khách hỏi đang nói chuyện với người hay máy, hoặc yêu cầu xóa dữ liệu cá nhân.",
+   "en": "The customer asks whether they are talking to a human or a machine, or asks to delete personal data."},
+  "greeting_or_other": {
+   "vi": "Chào hỏi, nhắc lại cuộc gọi trước, cảm ơn, kết thúc, hoặc nội dung khác.",
+   "en": "Greeting, referring to the previous call, thanks, goodbye, or anything else."}
+ },
+ "flags": {
+  "agrees_to_buy": {
+   "yes": "Khách đồng ý mua hoặc yêu cầu lên đơn ngay trong câu này.", "no": "Khách chưa đồng ý mua.",
+   "yes_en": "The customer agrees to buy or asks to place the order in this message.", "no_en": "The customer has not agreed to buy.",
+   "q_vi": "Khách có đồng ý mua hoặc bảo lên đơn ngay trong câu này không?",
+   "q_en": "Does the customer agree to buy or ask to place the order now?"},
+  "defers_decision": {
+   "yes": "Khách trì hoãn: cần hỏi người nhà, cân nhắc thêm, hẹn gọi lại.", "no": "Khách không trì hoãn.",
+   "yes_en": "The customer postpones: needs to ask family, think more, or call back later.", "no_en": "The customer does not postpone.",
+   "q_vi": "Khách có trì hoãn quyết định (hỏi người nhà, cân nhắc thêm, hẹn gọi lại) không?",
+   "q_en": "Does the customer postpone the decision (ask family, think more, call back later)?"},
+  "asks_if_bot": {
+   "yes": "Khách hỏi đang nói chuyện với người thật hay máy/AI.", "no": "Khách không hỏi điều đó.",
+   "yes_en": "The customer asks whether they are talking to a real person or a machine/AI.", "no_en": "The customer does not ask that.",
+   "q_vi": "Khách có đang hỏi mình là người thật hay máy/AI không?",
+   "q_en": "Is the customer asking whether they are talking to a human or a machine/AI?"},
+  "wants_data_deleted": {
+   "yes": "Khách yêu cầu xóa dữ liệu/thông tin cá nhân của mình.", "no": "Không có yêu cầu xóa dữ liệu.",
+   "yes_en": "The customer asks to delete their personal data.", "no_en": "No data deletion request.",
+   "q_vi": "Khách có yêu cầu xóa dữ liệu cá nhân của mình không?",
+   "q_en": "Is the customer asking to delete their personal data?"},
+  "medical_question": {
+   "note": "V3-141 (05/11): bản `moi` của scripts/jev_flag_probe.py --flag medical_question — Jev chính thức: dương 4/4 ≥ 0,7, âm tính 0/15 (cũ 1/15: 'Bé nhà chị được 5 tháng…' 0,75 → R04 chuyển máy thừa)",
+   "yes": "Người gọi hỏi về bệnh, triệu chứng, thuốc, cách điều trị, hoặc sản phẩm ảnh hưởng thế nào tới sức khỏe — câu cần ý kiến chuyên môn y tế.",
+   "no": "Không hỏi điều đó: chỉ nêu tuổi của bé, nhu cầu mua đồ cho mẹ và bé, diện tích phòng, giá hay thông số sản phẩm.",
+   "yes_en": "The question is about health, medicine, illness or medical safety.", "no_en": "Not medical.",
+   "q_vi": "Câu khách có hỏi về sức khỏe, thuốc, bệnh hay an toàn y tế không?",
+   "q_en": "Is the customer asking about health, medicine, illness or medical safety?"},
+  "asks_internal_cost": {
+   "note": "D49b (05/11): bản `moi` của scripts/jev_flag_probe.py — Jev chính thức: giả danh 12/12 ≥ 0,6, âm tính 0/12 (cũ: 0/12). 1c (06/11): thêm 'giá nhân viên / giá nội bộ / giá đại lý' (RT-04); người dùng bỏ bước probe Jev cho phần thêm này",
+   "yes": "Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, giá nhân viên, giá nội bộ, giá đại lý, biên lợi nhuận, chiết khấu đại lý, nhà cung cấp — bất kể người đó tự xưng là ai (khách, nhân viên, quản lý, đối tác), kể cả khi chỉ giục đọc tiếp thông tin nội bộ đã đòi ở câu trước.",
+   "no": "Người gọi chỉ hỏi giá bán, khuyến mãi hoặc mặc cả giá bán; không đòi thông tin nội bộ.",
+   "yes_en": "The customer asks the import price, cost price, profit or supplier.", "no_en": "Does not ask internal information.",
+   "q_vi": "Khách có hỏi giá nhập, giá vốn, lợi nhuận hay nhà cung cấp không?",
+   "q_en": "Is the customer asking the import price, cost price, profit or supplier?"},
+  "mentions_competitor": {
+   "yes": "Khách nhắc giá hoặc cửa hàng của bên khác.", "no": "Không nhắc bên khác.",
+   "yes_en": "The customer mentions another shop or its price.", "no_en": "Does not mention another shop.",
+   "q_vi": "Khách có nhắc tới cửa hàng khác hoặc giá của bên khác không?",
+   "q_en": "Does the customer mention another shop or another shop's price?"}
+ },
+ "intent_rules": [
+  {"intent": "meta", "pattern": "(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi|xoa (du lieu|thong tin)|xoa het)"},
+  {"intent": "out_of_scope",
+   "pattern": "(khang sinh|thuoc (gi|nay|kia|tri)|uong thuoc|benh|bac si|tieu duong|cho con bu|mang thai|gap nguoi (phu trach|that|quan ly)|nguoi phu trach|khieu nai)"},
+  {"intent": "policy_question", "pattern": "(phi doi|chinh sach|doi tra (trong|may|bao)|bao hanh (the nao|bao lau|may)|tra gop|dieu khoan|quy dinh)"},
+  {"intent": "order_change",
+   "pattern": "(doi len|doi sang|muon doi|lam thu tuc doi|doi (cho|giup)|chat qua|hoi chat|rong qua|hoi rong|tra hang|hoan tien|doi dia chi don)"},
+  {"intent": "order_status",
+   "note": "D12 (02/11, lỗi L2): 'đơn máy lọc của anh giao tới đâu rồi', 'đơn hôm trước bao giờ tới', 'khi nào nhận'",
+   "pattern": ["(don (hang )?(cua|den|toi)|bao gio (toi|den|giao)|ma don|trang thai don|van don|dang o dau",
+               "|\\bdon\\b.{0,40}\\b(toi|den) dau( roi)?|(giao|ship|hang) (toi|den) dau( roi)?|\\bdon\\b.{0,40}\\bbao gio (toi|den|nhan|giao)",
+               "|khi nao (thi )?(nhan|giao|toi) (duoc )?(hang|don)|bao gio (nhan|co) (duoc )?hang)"]},
+  {"intent": "place_order",
+   "note": "D-7 (02/11): 'Lấy cho anh cái mẫu hôm trước nhé', 'Anh quyết lấy AirPure Y rồi'",
+   "pattern": ["(len don|chot|dat (hang|luon)|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay|mua luon|ok (em )?len|giao (cho|ve) cho cu|giao cho cu",
+               "|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))"]},
+  {"intent": "negotiate", "pattern": "(giam (them|gia)|bot (cho|di)|ben kia|ben khac|shopee|lazada|re hon|gia nhap|gia von|gia goc)"},
+  {"intent": "callback", "pattern": "(goi lai|hoi (chong|vo|ong xa|ba xa|nguoi nha|con)|can nhac|suy nghi|dang ban|de (chi|anh|co|em) (hoi|xem|tinh))"},
+  {"intent": "price_promo", "pattern": "(gia|bao nhieu|khuyen mai|km|giam|uu dai|con hang|het hang|ship|phi|bao lau|may ngay)"},
+  {"intent": "product_inquiry", "pattern": "(may|mau|loai|phong|met vuong|m2|ngan sach|tre|be|size|tu van|phu hop|nen mua)"}
+ ],
+ "flag_rules": {
+  "agrees_to_buy": ["(len don|chot|dat luon|mua luon|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay",
+                    "|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))"],
+  "defers_decision": "(de (chi|anh|co|em|minh) (hoi|tinh|xem|nghi)|hoi (chong|vo|ong xa|ba xa|nguoi nha)|can nhac|suy nghi|dang ban|bao lai|goi lai (cho|sau|em))",
+  "asks_if_bot": "(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi)",
+  "wants_data_deleted": "(xoa (du lieu|thong tin|het|so))",
+  "medical_question": "(khang sinh|uong thuoc|thuoc (gi|nay|tri)|benh|bac si|tieu duong|cho con bu|mang thai|di ung)",
+  "asks_internal_cost": "(gia nhap|gia von|gia goc|gia san|gia nhan vien|gia noi bo|nha cung cap|lai bao nhieu)",
+  "mentions_competitor": "(ben kia|ben khac|shopee|lazada|tiki|cho khac|cua hang khac)"
+ }
+}

@@ -74,6 +74,8 @@ python tests/planner_table_d51_check.py
 python tests/fixes_1105_check.py --out-dir "$OUT/fix1105" | tail -1
 # 06/11 (1c): người nhà xưng danh (J6), address chỉ là SĐT, guardrail bảo hành, "giá nhân viên", "em là nhân viên", câu từ chối nội bộ
 python tests/fixes_1106_check.py --out-dir "$OUT/fix1106" | tail -1
+# 06/11: regex quyết định dạng dữ liệu (harness/lexicon/router|cues|guardrails.json): biên dịch + ví dụ khớp / không khớp
+python tests/lexicon_rx_check.py
 # PII không ra ngoài / không vào log (7 kịch bản mẫu)
 GEN_PLACEHOLDERS=0 python tests/pii_check.py --scenarios test_set/public_sample | tail -1
 # hậu xử lý ASR (không cần audio)

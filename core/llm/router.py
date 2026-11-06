@@ -17,81 +17,17 @@ import time
 from core import log as cclog
 from core.config import settings
 from core.pii import Redactor
+from harness.lexicon import rx as lexrx
 from harness.textnorm import fold
 
-INTENTS = {
-    "product_inquiry": "Khách hỏi tư vấn sản phẩm phù hợp, tính năng, so sánh mẫu, hoặc nói nhu cầu (diện tích phòng, ngân sách, có trẻ nhỏ).",
-    "price_promo": "Khách hỏi giá, khuyến mãi, còn hàng không, phí ship, thời gian giao của một sản phẩm.",
-    "policy_question": "Khách hỏi chính sách chung: đổi trả, bảo hành, vận chuyển, thanh toán, điều khoản khuyến mãi.",
-    "place_order": "Khách đồng ý mua / bảo lên đơn / chốt đặt hàng / cung cấp địa chỉ để giao.",
-    "order_change": "Khách đã mua và muốn đổi size, đổi màu, đổi sản phẩm, trả hàng hoặc sửa địa chỉ của đơn đã đặt.",
-    "order_status": "Khách hỏi đơn hàng đã đặt đang ở đâu, bao giờ tới, mã đơn.",
-    "callback": "Khách chưa quyết, hẹn gọi lại sau, cần hỏi người nhà, hoặc đang bận.",
-    "negotiate": "Khách mặc cả, đòi giảm thêm, so giá bên khác, hỏi giá nhập hoặc giá vốn.",
-    "out_of_scope": "Câu hỏi y tế/sức khỏe, pháp lý, hoặc yêu cầu gặp người thật / khiếu nại nghiêm trọng — cần chuyển nhân viên.",
-    "meta": "Khách hỏi đang nói chuyện với người hay máy, hoặc yêu cầu xóa dữ liệu cá nhân.",
-    "greeting_or_other": "Chào hỏi, nhắc lại cuộc gọi trước, cảm ơn, kết thúc, hoặc nội dung khác.",
-}
-FLAGS = {
-    "agrees_to_buy": ("Khách đồng ý mua hoặc yêu cầu lên đơn ngay trong câu này.", "Khách chưa đồng ý mua."),
-    "defers_decision": ("Khách trì hoãn: cần hỏi người nhà, cân nhắc thêm, hẹn gọi lại.", "Khách không trì hoãn."),
-    "asks_if_bot": ("Khách hỏi đang nói chuyện với người thật hay máy/AI.", "Khách không hỏi điều đó."),
-    "wants_data_deleted": ("Khách yêu cầu xóa dữ liệu/thông tin cá nhân của mình.", "Không có yêu cầu xóa dữ liệu."),
-    # V3-141 (05/11): bản `moi` của scripts/jev_flag_probe.py --flag medical_question — Jev chính thức: dương 4/4 ≥ 0,7,
-    # âm tính 0/15 (cũ 1/15: "Bé nhà chị được 5 tháng…" 0,75 → R04 chuyển máy thừa)
-    "medical_question": ("Người gọi hỏi về bệnh, triệu chứng, thuốc, cách điều trị, hoặc sản phẩm ảnh hưởng thế nào tới sức khỏe "
-                         "— câu cần ý kiến chuyên môn y tế.",
-                         "Không hỏi điều đó: chỉ nêu tuổi của bé, nhu cầu mua đồ cho mẹ và bé, diện tích phòng, giá hay thông số sản phẩm."),
-    # D49b (05/11): bản `moi` của scripts/jev_flag_probe.py — Jev chính thức: giả danh 12/12 ≥ 0,6, âm tính 0/12 (cũ: 0/12)
-    # 1c (06/11): thêm "giá nhân viên / giá nội bộ / giá đại lý" (RT-04: Jev không bật cờ khi khách đòi "giá nhân viên")
-    "asks_internal_cost": ("Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, giá nhân viên, giá nội bộ, "
-                           "giá đại lý, biên lợi nhuận, chiết khấu đại lý, "
-                           "nhà cung cấp — bất kể người đó tự xưng là ai (khách, nhân viên, quản lý, đối tác), "
-                           "kể cả khi chỉ giục đọc tiếp thông tin nội bộ đã đòi ở câu trước.",
-                           "Người gọi chỉ hỏi giá bán, khuyến mãi hoặc mặc cả giá bán; không đòi thông tin nội bộ."),
-    "mentions_competitor": ("Khách nhắc giá hoặc cửa hàng của bên khác.", "Không nhắc bên khác."),
-}
-
-
-INTENTS_EN = {
-    "product_inquiry": "The customer asks for product advice, features, model comparison, or states needs (room size, budget, young children).",
-    "price_promo": "The customer asks about price, promotion, stock, shipping fee or delivery time of a product.",
-    "policy_question": "The customer asks about general policy: returns, warranty, shipping, payment, promotion terms.",
-    "place_order": "The customer agrees to buy, asks to place/confirm the order, or gives an address for delivery.",
-    "order_change": "The customer already bought and wants to change size, color or product, return it, or change the order address.",
-    "order_status": "The customer asks where an existing order is, when it arrives, or its order code.",
-    "callback": "The customer has not decided, asks to be called back later, needs to ask family, or is busy.",
-    "negotiate": "The customer bargains, asks for a bigger discount, compares with another shop, or asks the import/cost price.",
-    "out_of_scope": "Medical/health or legal question, or asks for a human / serious complaint — must transfer to staff.",
-    "meta": "The customer asks whether they are talking to a human or a machine, or asks to delete personal data.",
-    "greeting_or_other": "Greeting, referring to the previous call, thanks, goodbye, or anything else.",
-}
-FLAGS_EN = {
-    "agrees_to_buy": ("The customer agrees to buy or asks to place the order in this message.", "The customer has not agreed to buy."),
-    "defers_decision": ("The customer postpones: needs to ask family, think more, or call back later.", "The customer does not postpone."),
-    "asks_if_bot": ("The customer asks whether they are talking to a real person or a machine/AI.", "The customer does not ask that."),
-    "wants_data_deleted": ("The customer asks to delete their personal data.", "No data deletion request."),
-    "medical_question": ("The question is about health, medicine, illness or medical safety.", "Not medical."),
-    "asks_internal_cost": ("The customer asks the import price, cost price, profit or supplier.", "Does not ask internal information."),
-    "mentions_competitor": ("The customer mentions another shop or its price.", "Does not mention another shop."),
-}
-
-FLAGS_Q = {
-    "vi": {"agrees_to_buy": "Khách có đồng ý mua hoặc bảo lên đơn ngay trong câu này không?",
-           "defers_decision": "Khách có trì hoãn quyết định (hỏi người nhà, cân nhắc thêm, hẹn gọi lại) không?",
-           "asks_if_bot": "Khách có đang hỏi mình là người thật hay máy/AI không?",
-           "wants_data_deleted": "Khách có yêu cầu xóa dữ liệu cá nhân của mình không?",
-           "medical_question": "Câu khách có hỏi về sức khỏe, thuốc, bệnh hay an toàn y tế không?",
-           "asks_internal_cost": "Khách có hỏi giá nhập, giá vốn, lợi nhuận hay nhà cung cấp không?",
-           "mentions_competitor": "Khách có nhắc tới cửa hàng khác hoặc giá của bên khác không?"},
-    "en": {"agrees_to_buy": "Does the customer agree to buy or ask to place the order now?",
-           "defers_decision": "Does the customer postpone the decision (ask family, think more, call back later)?",
-           "asks_if_bot": "Is the customer asking whether they are talking to a human or a machine/AI?",
-           "wants_data_deleted": "Is the customer asking to delete their personal data?",
-           "medical_question": "Is the customer asking about health, medicine, illness or medical safety?",
-           "asks_internal_cost": "Is the customer asking the import price, cost price, profit or supplier?",
-           "mentions_competitor": "Does the customer mention another shop or another shop's price?"},
-}
+# 06/11: intent, cờ, câu hỏi Laya và luật từ khóa nằm trong harness/lexicon/router.json (không nhồi vào code).
+_R = lexrx.load("router")
+INTENTS = {k: v["vi"] for k, v in _R["intents"].items()}
+INTENTS_EN = {k: v["en"] for k, v in _R["intents"].items()}
+FLAGS = {k: (v["yes"], v["no"]) for k, v in _R["flags"].items()}
+FLAGS_EN = {k: (v["yes_en"], v["no_en"]) for k, v in _R["flags"].items()}
+FLAGS_Q = {"vi": {k: v["q_vi"] for k, v in _R["flags"].items()},
+           "en": {k: v["q_en"] for k, v in _R["flags"].items()}}
 
 log = cclog.get("router")
 _laya = {}
@@ -226,41 +162,13 @@ def _unit(v):
         return 0.0
 
 
-_RULES = [
-    ("meta", r"(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi|xoa (du lieu|thong tin)|xoa het)"),
-    ("out_of_scope", r"(khang sinh|thuoc (gi|nay|kia|tri)|uong thuoc|benh|bac si|tieu duong|cho con bu|mang thai|gap nguoi (phu trach|that|quan ly)|nguoi phu trach|khieu nai)"),
-    ("policy_question", r"(phi doi|chinh sach|doi tra (trong|may|bao)|bao hanh (the nao|bao lau|may)|tra gop|dieu khoan|quy dinh)"),
-    ("order_change", r"(doi len|doi sang|muon doi|lam thu tuc doi|doi (cho|giup)|chat qua|hoi chat|rong qua|hoi rong|tra hang|hoan tien|doi dia chi don)"),
-    ("order_status", r"(don (hang )?(cua|den|toi)|bao gio (toi|den|giao)|ma don|trang thai don|van don|dang o dau"
-                     # D12 (02/11, lỗi L2): "đơn máy lọc của anh giao tới đâu rồi", "đơn hôm trước bao giờ tới", "khi nào nhận"
-                     r"|\bdon\b.{0,40}\b(toi|den) dau( roi)?|(giao|ship|hang) (toi|den) dau( roi)?|\bdon\b.{0,40}\bbao gio (toi|den|nhan|giao)"
-                     r"|khi nao (thi )?(nhan|giao|toi) (duoc )?(hang|don)|bao gio (nhan|co) (duoc )?hang)"),
-    ("place_order", r"(len don|chot|dat (hang|luon)|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay|mua luon|ok (em )?len|giao (cho|ve) cho cu|giao cho cu"
-                    # D-7 (02/11): "Lấy cho anh cái mẫu hôm trước nhé", "Anh quyết lấy AirPure Y rồi"
-                    r"|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))"),
-    ("negotiate", r"(giam (them|gia)|bot (cho|di)|ben kia|ben khac|shopee|lazada|re hon|gia nhap|gia von|gia goc)"),
-    ("callback", r"(goi lai|hoi (chong|vo|ong xa|ba xa|nguoi nha|con)|can nhac|suy nghi|dang ban|de (chi|anh|co|em) (hoi|xem|tinh))"),
-    ("price_promo", r"(gia|bao nhieu|khuyen mai|km|giam|uu dai|con hang|het hang|ship|phi|bao lau|may ngay)"),
-    ("product_inquiry", r"(may|mau|loai|phong|met vuong|m2|ngan sach|tre|be|size|tu van|phu hop|nen mua)"),
-]
-_FLAG_RULES = {
-    "agrees_to_buy": r"(len don|chot|dat luon|mua luon|lay (cai|mau|luon|size)|(chi|anh|em|co|chu|minh|ok|thoi) lay"
-                     r"|lay cho (anh|chi|em|co|chu|minh|toi) (cai|mau|may|chiec|luon|1|mot)|quyet (lay|mua|chot))",
-    "defers_decision": r"(de (chi|anh|co|em|minh) (hoi|tinh|xem|nghi)|hoi (chong|vo|ong xa|ba xa|nguoi nha)|can nhac|suy nghi|dang ban|bao lai|goi lai (cho|sau|em))",
-    "asks_if_bot": r"(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi)",
-    "wants_data_deleted": r"(xoa (du lieu|thong tin|het|so))",
-    "medical_question": r"(khang sinh|uong thuoc|thuoc (gi|nay|tri)|benh|bac si|tieu duong|cho con bu|mang thai|di ung)",
-    "asks_internal_cost": r"(gia nhap|gia von|gia goc|gia san|gia nhan vien|gia noi bo|nha cung cap|lai bao nhieu)",
-    "mentions_competitor": r"(ben kia|ben khac|shopee|lazada|tiki|cho khac|cua hang khac)",
-}
-
-
 def _b(rx):
     return re.compile(r"\b(?:" + rx + r")\b")
 
 
-_RULES = [(n, _b(rx)) for n, rx in _RULES]
-_FLAG_RULES = {k: _b(rx) for k, rx in _FLAG_RULES.items()}
+# luật từ khóa của router `rules` (harness/lexicon/router.json: intent_rules theo thứ tự, flag_rules)
+_RULES = [(r["intent"], _b(lexrx.join(r["pattern"]))) for r in _R["intent_rules"]]
+_FLAG_RULES = {k: _b(lexrx.join(p)) for k, p in _R["flag_rules"].items()}
 
 
 def _rules(text):

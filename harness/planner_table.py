@@ -15,6 +15,7 @@ import json
 import re
 
 from core.config import settings
+from harness.lexicon import rx as lexrx
 
 MODES = {"add", "terminal", "rewrite_intent", "handler"}
 # handler không tạo / sửa / xóa đơn, không xóa bộ nhớ, không đặt lịch → dòng do người duyệt (origin=approved) chỉ được dùng nhóm này
@@ -191,13 +192,13 @@ def _stale_focus(c):                                                            
 
 
 # ---- D51: predicate cho case mới (chỉ dùng ở dòng có "since": "D51")
-RETURN_CUE_RX = re.compile(r"\b(tra lai|tra hang|hoan tien|hoan lai|doi tra)\b")
-PRESSURE_RX = re.compile(r"\b(doc (luon|di|giup|nhanh)|cu doc|chiu trach nhiem|lo phan trach nhiem|co gi .{0,6}chiu)\b")
-CANCEL_RX = re.compile(r"\b(huy don|huy (cai |cho |giup |luon )?(don|dat hang)|bo don|khong (lay|mua|nhan) (nua|hang nua))\b")
-LATER_CLOSE_RX = re.compile(r"\b(lat|ti|ty)( nua)?\b.{0,30}\b(nhan|chot|dat|len don|bao lai|goi lai)\b"
-                            r"|\bde (mai|sau|toi|chieu|lat)\b.{0,20}\b(chot|dat|len don)\b|\b(chot|dat|len don) (sau|lat nua)\b")
-DECLINE_RX = re.compile(r"^\s*(khong|thoi|chua)\b|\bkhong (lay|mua|can|dat)\b|\bde (chi|anh|em|minh|co|chu) (nghi|tinh|xem) (them|lai|da)\b")
-SHOP_CALLS_RX = re.compile(r"\bem (se )?goi (lai )?(cho )?(anh|chi|co|chu|minh|bac)\b|\bgoi (lai )?cho (anh|chi|co|chu|minh|bac)\b")
+# cue nằm trong harness/lexicon/cues.json (06/11)
+RETURN_CUE_RX = lexrx.rx("cues", "RETURN_CUE_RX")
+PRESSURE_RX = lexrx.rx("cues", "PRESSURE_RX")
+CANCEL_RX = lexrx.rx("cues", "CANCEL_RX")
+LATER_CLOSE_RX = lexrx.rx("cues", "LATER_CLOSE_RX")
+DECLINE_RX = lexrx.rx("cues", "DECLINE_RX")
+SHOP_CALLS_RX = lexrx.rx("cues", "SHOP_CALLS_RX")
 
 
 def _noisy_asr(c):

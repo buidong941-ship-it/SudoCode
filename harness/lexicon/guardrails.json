@@ -1,0 +1,66 @@
+{
+ "_doc": "Mẫu kiểm câu trả lời của agent (đã fold) trước khi gửi khách. Định dạng: harness/lexicon/rx.py. Chuyển nguyên văn từ harness/guardrails.py ngày 06/11 (trace phải trùng 100 %). Mẫu có `goal` là câu BẮT BUỘC phải có khi planner đặt goal đó (`message` = ghi chú gửi generator khi sinh lại).",
+ "patterns": {
+  "HUMAN_RX": {
+   "pattern": ["(em|minh|toi) (la|cung la) (nguoi that|nhan vien that|nguoi)\\b(?! may)",
+               "|\\b(em|minh|toi) (la|cung la) nhan vien\\b(?![^.!?]{0,40}\\b(ai|ao|tro ly|tri tue nhan tao|tu dong)\\b)"],
+   "note": "nhận là người thật; 1c (06/11): 'em là nhân viên (telesale) của shop' không kèm 'trợ lý AI' (V3-093, RT-06, RT-14)",
+   "examples": {"match": ["Dạ, em là nhân viên telesale của shop.", "Dạ em là nhân viên của shop ạ.", "Dạ em là người thật ạ."],
+                "no_match": ["Dạ em là nhân viên tư vấn ảo, trợ lý AI của shop ạ.", "Dạ em là trợ lý AI của shop ạ.",
+                             "Em sẽ chuyển anh sang nhân viên phụ trách ạ.", "Dạ em là người máy ạ."]}
+  },
+  "COMPETITOR_RX": {
+   "pattern": "(ben kia|ben do|shop kia|cua hang kia) (ban )?(hang gia|hang nhai|kem chat luong|lua dao|khong uy tin)",
+   "note": "bình luận / chê đối thủ"
+  },
+  "INTERNAL_MENTION_RX": {
+   "pattern": "(gia nhap|nha cung cap|gia von)\\s+(la|khoang|chi)",
+   "note": "nhắc thông tin nội bộ (giá nhập / giá vốn / nhà cung cấp kèm giá trị)",
+   "examples": {"match": ["Giá nhập là 3 triệu ạ"], "no_match": ["Dạ giá nhập, giá sàn là thông tin nội bộ ạ"]}
+  },
+  "PAST_RX": {
+   "pattern": ["(hom truoc|hom \\d|lan truoc|truoc day|truoc do|da bao|(da|co) tu van|khi con|luc con|da het|het han|ket thuc|",
+               "gia cu|cuoc truoc|ngay \\d+/\\d+)"],
+   "note": "câu nhắc giá cũ có chỉ dấu thời gian (giá cũ chỉ được nhắc kèm 'hôm trước', 'đã hết hạn'…)"
+  },
+  "PRICE_CUE_RX": {
+   "pattern": ["\\b(muc gia|gia( ban| niem yet| hien tai| uu dai| sau (giam|uu dai)| chi| con)*|chi con|tong( cong| tien)?)",
+               "\\s*(la|chi|:)?\\s*(chi\\s*|khoang\\s*)?$"],
+   "note": "cụm đứng ngay trước một số tiền khiến nó thành 'giá sản phẩm' (vd 'mức giá 5.500.000', 'giá bán là 5,5 triệu'); B5"
+  },
+  "PROMO_NOUN_RX": {
+   "pattern": "(khuyen mai|uu dai|chuong trinh|qua tang|tang kem|duoc tang|\\btang\\b|giam gia)",
+   "note": "D22: danh từ khuyến mãi"
+  },
+  "PROMO_POS_RX": {
+   "pattern": ["(dang co|van con|con dang|dang (duoc )?ap dung|van (duoc )?ap dung|dang chay|con hieu luc|tang kem|duoc tang|",
+               "nhan (them )?(uu dai|qua|khuyen mai)|huong (uu dai|khuyen mai)|kem (uu dai|khuyen mai|qua tang))"],
+   "note": "D22: khẳng định KM đang có"
+  },
+  "PROMO_NEG_RX": {
+   "pattern": ["(het han|da het|ket thuc|khong con|ngung",
+               "|(khong|chua|chang)(\\s+\\w+){0,3}\\s+(co\\s+)?(khuyen mai|uu dai|chuong trinh|qua|tang|giam))"],
+   "note": "D22: câu phủ định / KM đã hết → không coi là khẳng định đang có KM"
+  },
+  "SHIP_ONLY_RX": {
+   "pattern": "(mien phi|free)\\s*(van chuyen|giao( hang)?|ship|thu ho|cod)|freeship",
+   "note": "D22: chỉ miễn phí vận chuyển / COD-0 (không tính là KM giảm giá)"
+  },
+  "WARRANTY_RX": {
+   "pattern": "bao hanh\\D{0,25}?(\\d{1,2}|mot|hai|ba|bon|nam|sau|muoi hai|muoi tam)\\s*(nam|thang)\\b",
+   "note": "1c J1 (06/11): thời hạn bảo hành khẳng định (nhóm 1 = số, nhóm 2 = đơn vị) — phải trùng warranty_months của catalog (RT-01)"
+  },
+  "REQUIRED_no_info": {
+   "goal": "no_info", "pattern": "chua co thong tin|khong co thong tin",
+   "message": "phải nói rõ 'em chưa có thông tin'"
+  },
+  "REQUIRED_refuse_other_customer": {
+   "goal": "refuse_other_customer", "pattern": "khong the cung cap|khong cung cap|bao mat",
+   "message": "phải nói rõ không cung cấp thông tin khách khác / bảo mật"
+  },
+  "REQUIRED_is_bot": {
+   "goal": "is_bot", "pattern": "\\b(tro ly (ao|ai)|\\bai\\b|tri tue nhan tao|chatbot|khong phai (la )?nguoi that)",
+   "message": "phải nói rõ mình là trợ lý AI"
+  }
+ }
+}

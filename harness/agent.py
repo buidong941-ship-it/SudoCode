@@ -18,6 +18,7 @@ from core.llm.router import Router
 from harness import extractor, guardrails, improve_hook, knowledge, planner_table
 from harness.coverage import NO_QUESTION, coverage
 from harness.textnorm import find_money, fold, perceive
+from harness.lexicon import rx as lexrx
 from harness.tools import (ToolBox, find_by_model_token, find_products, find_variant, mt, product_name, public_view)
 
 CATEGORY_WORDS = [("may loc khong khi", "gia-dung/may-loc-khong-khi"), ("may loc nuoc", "gia-dung/may-loc-nuoc"),
@@ -31,41 +32,24 @@ STACKABLE_SKIP = {"COD-0", "NAM-SHIP0"}
 FILTER_OF = {"SKU-AP-X": "SKU-AP-FLT-X", "SKU-AP-Y": "SKU-AP-FLT-X", "SKU-AP-PRO": "SKU-AP-FLT-P",
              "SKU-XM-4L": "SKU-XM-FLT", "SKU-XM-4P": "SKU-XM-FLT"}
 
-# B1: câu hỏi hoàn/trả vượt mọi thời hạn có trong chính sách → không có thông tin (BTCL-041/042)
-# câu hỏi về quà tặng kèm (B4); "quá" fold thành "qua" nên không dùng "qua" đứng một mình
-GIFT_Q_RX = re.compile(r"\b(qua tang|co qua|qua (gi|kem|di kem)|qua [a-z ]{2,30} (con|co) tang|(duoc|con|co) tang|"
-                       r"tang (kem|them|qua|1|mot|mang|tui)|kem qua|khuyen mai kem)\b")
+# 06/11: cue trên câu khách nằm trong harness/lexicon/cues.json (ghi chú nguồn + ví dụ khớp / không khớp ở đó).
+# Regex tách giá trị (thời hạn DUR_RX, số lượng QTY_RX) vẫn ở đây, cạnh logic dùng nó.
+GIFT_Q_RX = lexrx.rx("cues", "GIFT_Q_RX")
 GIFT_SKUS = {p["gift_sku"] for p in mt.PROMOS if p.get("gift_sku")}
-# hỏi hạn của chương trình KM đang nói ("Chương trình đó hết hạn khi nào?") → đọc lại KM kèm ngày hết hạn từ tool
-PROMO_END_RX = re.compile(r"\b(chuong trinh|khuyen mai|km|uu dai|qua tang|qua)\b.*\b(het han|ket thuc|den (ngay|khi) nao|"
-                          r"bao gio het|con (han|ap dung)|toi (ngay|khi) nao|keo dai)\b")
-# khách nhắc lần trao đổi trước (B3) — khi không tìm được lịch sử thì xin thông tin để tra, không hỏi lại nhu cầu từ đầu
-PRIOR_REF_RX = re.compile(r"\b(hom truoc|lan truoc|hom no|bua truoc|bua no|hom qua|tuan truoc|goi lai ve|da (dua|noi|hoi|nhan|bao|gui)|"
-                          r"(cai|mon|mau|may) (hom|lan|bua) (truoc|no))\b")
-REFUND_RX = re.compile(r"\b(hoan (du |lai )?tien|tra lai|tra hang|doi tra|hoan tra)\b")
-HYPO_RX = re.compile(r"\b(neu|gia su|lo nhu|truong hop)\b")
-DOC_REF_RX = re.compile(r"\b(van ban|giay to|cho nao ghi|co ghi|xac nhan dieu do|dieu do)\b")
+PROMO_END_RX = lexrx.rx("cues", "PROMO_END_RX")
+PRIOR_REF_RX = lexrx.rx("cues", "PRIOR_REF_RX")
+REFUND_RX = lexrx.rx("cues", "REFUND_RX")
+HYPO_RX = lexrx.rx("cues", "HYPO_RX")
+DOC_REF_RX = lexrx.rx("cues", "DOC_REF_RX")
 DUR_RX = re.compile(r"\b(\d+|mot|hai|ba|bon|sau|bay|tam|chin|muoi|nua) (nam|thang|tuan|ngay)\b")
 _NUM_WORD = {"mot": (1, "một"), "hai": (2, "hai"), "ba": (3, "ba"), "bon": (4, "bốn"), "sau": (6, "sáu"),
              "bay": (7, "bảy"), "tam": (8, "tám"), "chin": (9, "chín"), "muoi": (10, "mười"), "nua": (0.5, "nửa")}
 _UNIT = {"nam": (365, "năm"), "thang": (30, "tháng"), "tuan": (7, "tuần"), "ngay": (1, "ngày")}
-# 1c J6 (06/11): người gọi tự xưng là người nhà của khách ("anh là chồng chị Hoa", "số của vợ anh là 09…").
-# SĐT đọc trong câu như vậy là của người khác: không gắn/gộp hồ sơ, không xóa dữ liệu, không đọc đơn / địa chỉ (RT-06, RT-14).
-_REL = r"(vo|chong|me|bo|ba me|nguoi nha|ong xa|ba xa|con gai|con trai|em gai|em trai|anh trai|chi gai)"
-PROXY_CLAIM_RX = re.compile(r"\b(la|lam) " + _REL + r" (cua )?(chi|anh|co|chu|ong|ba|em|ban|khach)\b"
-                            r"|\bso (dien thoai |dt )?(cua )?" + _REL + r"\b")
-PROXY_INFO_RX = re.compile(r"\b(dia chi|don|lich su|thong tin|du lieu|xoa|so dien thoai)\b.*\b" + _REL + r"\b"
-                           r"|\b" + _REL + r"\b.*\b(dia chi|don|lich su|thong tin|du lieu|xoa|so dien thoai)\b")
-# 1c (06/11): câu từ chối cố định khi planner có goal refuse_internal mà câu sinh ra không từ chối rõ (V3-093, V3-095)
-REFUSE_INTERNAL_OK_RX = re.compile(r"khong the cung cap|khong cung cap|thong tin noi bo")
+PROXY_CLAIM_RX = lexrx.rx("cues", "PROXY_CLAIM_RX")          # 1c J6: người gọi tự xưng người nhà của khách
+PROXY_INFO_RX = lexrx.rx("cues", "PROXY_INFO_RX")
+REFUSE_INTERNAL_OK_RX = lexrx.rx("cues", "REFUSE_INTERNAL_OK_RX")
 REFUSE_INTERNAL_SENT = "Dạ giá nhập, giá sàn và các mức giá nội bộ là thông tin nội bộ, em không thể cung cấp ạ."
-# B2: xin SĐT/địa chỉ/đơn của khách khác (BTCL-061/062)
-OTHER_PII_RX = re.compile(r"\b(so|sdt|so dien thoai|dia chi|thong tin|zalo|don hang)\b.{0,20}\b(khach|nguoi)( mua)? "
-                          r"(khac|tung mua|da mua|mua truoc|mua mau)\b"
-                          # D-7 (02/11): "địa chỉ nhà người mua gần đây", "xin số họ" (họ = người mua trước)
-                          r"|\b(so|sdt|so dien thoai|dia chi|so zalo|zalo|thong tin lien he)\b( nha| cua)?.{0,12}"
-                          r"\b(nguoi|khach)( da| tung)? mua\b"
-                          r"|\bxin (so|sdt|so dien thoai|so zalo|zalo|dia chi)( cua)? (ho|nguoi ta|nguoi do|khach do)\b")
+OTHER_PII_RX = lexrx.rx("cues", "OTHER_PII_RX")
 
 
 def _ddmm(d):
@@ -99,11 +83,9 @@ def _mem_layers(facts):
 
 
 MAX_CUSTOMER_CHARS = 600
-ATTR_ASK_RX = re.compile(r"\b(chung nhan|chung chi|kiem dinh|xuat xu|san xuat o|nhap khau tu|thanh phan|"
-                         r"tieu chuan [a-z]{2,5}|fda|iso|ce|rohs)\b")
-CLOSE_ORDER_RX = re.compile(r"\b(chot|len don|dat (hang|luon|don)|lay (du|ca|het|tat ca)|vay thoi|the thoi|giao (ve|cho|toi))\b")
-CLOSING_RX = re.compile(r"\b(cam on|tam biet|chao (em|nhe|nha)|vang|da vang|ok|oke|duoc roi|the thoi|vay nhe|nhe em|bye|hen gap|"
-                        r"khong can|thoi em|de (chi|anh) xem)\b")
+ATTR_ASK_RX = lexrx.rx("cues", "ATTR_ASK_RX")
+CLOSE_ORDER_RX = lexrx.rx("cues", "CLOSE_ORDER_RX")
+CLOSING_RX = lexrx.rx("cues", "CLOSING_RX")
 
 
 def _money_in_strings(obj):
@@ -120,11 +102,8 @@ def _money_in_strings(obj):
     return out
 
 
-# Ý trả hàng trong lúc xử lý đơn đã có. V3-140 (05/11): thêm "cho cô trả nhé" / "muốn trả" — "trả" đứng một mình sau
-# cho/muốn/xin/để/được, trừ khi là trả góp / trả trước / trả tiền / trả khi nhận / trả bằng… / trả lời / trả giá (thanh toán, không phải trả hàng).
-_NOT_RETURN = r"(?!\s+(gop|truoc|tien|khi|sau|bang|qua|loi|gia|cho|luon tien|online|ck|chuyen khoan))"
-RETURN_RX = re.compile(r"tra hang|hoan tien|khong dung nua|tra lai"
-                       rf"|\bcho (\w+ )?tra\b{_NOT_RETURN}|\b(muon|xin|de|duoc) tra\b{_NOT_RETURN}")
+# Ý trả hàng trong lúc xử lý đơn đã có (V3-140; mẫu và phản ví dụ ở harness/lexicon/cues.json)
+RETURN_RX = lexrx.rx("cues", "RETURN_RX")
 
 _QTY_WORD = {"hai": 2, "ba": 3, "bon": 4, "nam": 5, "sau": 6, "bay": 7, "tam": 8, "chin": 9, "muoi": 10}
 # E04: số + đơn vị đếm sản phẩm ("lấy 2 cái", "hai đôi", "3 máy"). Không bắt số người / tháng / m² / size / tiền vì đơn vị khác.
