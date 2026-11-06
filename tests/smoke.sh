@@ -72,6 +72,8 @@ python tests/planner_table_parity.py --sets test_set/public_sample --out-dir "$O
 python tests/planner_table_d51_check.py
 # 05/11: D49b (mô tả cờ), D33 (câu mẫu KM hết hạn), D54 (nhớ variant_sku khi hẹn chốt sau), D58 (cờ mặc định bật)
 python tests/fixes_1105_check.py --out-dir "$OUT/fix1105" | tail -1
+# 06/11 (1c): người nhà xưng danh (J6), address chỉ là SĐT, guardrail bảo hành, "giá nhân viên", "em là nhân viên", câu từ chối nội bộ
+python tests/fixes_1106_check.py --out-dir "$OUT/fix1106" | tail -1
 # PII không ra ngoài / không vào log (7 kịch bản mẫu)
 GEN_PLACEHOLDERS=0 python tests/pii_check.py --scenarios test_set/public_sample | tail -1
 # hậu xử lý ASR (không cần audio)

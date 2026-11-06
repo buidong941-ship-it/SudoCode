@@ -22,7 +22,7 @@ import time
 
 from core import log as cclog
 from core.config import settings
-from harness.textnorm import find_money, fold, parse_relative_datetime
+from harness.textnorm import PHONE_RX, find_money, fold, parse_relative_datetime
 
 log = cclog.get("extract")
 
@@ -155,7 +155,9 @@ def _customer_slot_ok(slot, value, text, context=None):
         return bool(re.search(r"\b(ngan sach|tam|khoang|toi da|duoi|du dinh|chi (tam|khoang|duoc|co)|\d+\s*cu)\b", f)
                     or (context and re.search(dict(SLOT_KW)["budget_vnd"], fold(context))))
     if slot == "address":
-        return bool(re.search(r"\d|,", str(value)))
+        # 1c (06/11): bỏ "địa chỉ" chỉ là SĐT (RT-06, RT-14: Qwen ghi "số 0984726714" vào address của khách khác)
+        rest = PHONE_RX.sub(" ", str(value))
+        return bool(re.search(r"\d|,", rest))
     if slot == "payment":
         return bool(re.search(r"\b(cod|thanh toan|tien mat|chuyen khoan|ck truoc|momo|zalopay|nhan hang (roi )?tra)\b", f))
     if slot == "blocker" and str(value).startswith("can hoi") and not RELATIVE_RX.search(f):

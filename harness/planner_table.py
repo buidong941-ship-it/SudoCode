@@ -251,6 +251,10 @@ PREDS = {
     "turn1": lambda c: c.s.turn_no == 1,
     "returning_with_prev_focus": lambda c: bool(c.s.brief and c.s.brief["is_returning"] and c.prev_focus),
     "other_pii": lambda c: bool(_A().OTHER_PII_RX.search(c.f) or (c.s.privacy_refused and re.search(r"\bchia se\b", c.f))),
+    # 1c J6 (06/11): người tự xưng người nhà hỏi / đòi xóa thông tin của khách đó, hoặc giục tiếp sau khi đã bị từ chối
+    "proxy_caller": lambda c: bool(getattr(c.s, "proxy_caller", False)),
+    "proxy_info_ask": lambda c: bool(getattr(c.s, "proxy_caller", False) and (
+        _A().PROXY_INFO_RX.search(c.f) or (c.s.privacy_refused and re.search(r"\b(doc|xoa|noi|kiem tra|cho biet)\b", c.f)))),
     "policy_gap": _policy_gap,
     "hypothetical_refund_ask": lambda c: bool(_A().HYPO_RX.search(c.f) and c.asking and _A().REFUND_RX.search(c.f)),
     "buy_intent": lambda c: bool(c.s.buy_intent),

@@ -49,6 +49,16 @@ DUR_RX = re.compile(r"\b(\d+|mot|hai|ba|bon|sau|bay|tam|chin|muoi|nua) (nam|than
 _NUM_WORD = {"mot": (1, "một"), "hai": (2, "hai"), "ba": (3, "ba"), "bon": (4, "bốn"), "sau": (6, "sáu"),
              "bay": (7, "bảy"), "tam": (8, "tám"), "chin": (9, "chín"), "muoi": (10, "mười"), "nua": (0.5, "nửa")}
 _UNIT = {"nam": (365, "năm"), "thang": (30, "tháng"), "tuan": (7, "tuần"), "ngay": (1, "ngày")}
+# 1c J6 (06/11): người gọi tự xưng là người nhà của khách ("anh là chồng chị Hoa", "số của vợ anh là 09…").
+# SĐT đọc trong câu như vậy là của người khác: không gắn/gộp hồ sơ, không xóa dữ liệu, không đọc đơn / địa chỉ (RT-06, RT-14).
+_REL = r"(vo|chong|me|bo|ba me|nguoi nha|ong xa|ba xa|con gai|con trai|em gai|em trai|anh trai|chi gai)"
+PROXY_CLAIM_RX = re.compile(r"\b(la|lam) " + _REL + r" (cua )?(chi|anh|co|chu|ong|ba|em|ban|khach)\b"
+                            r"|\bso (dien thoai |dt )?(cua )?" + _REL + r"\b")
+PROXY_INFO_RX = re.compile(r"\b(dia chi|don|lich su|thong tin|du lieu|xoa|so dien thoai)\b.*\b" + _REL + r"\b"
+                           r"|\b" + _REL + r"\b.*\b(dia chi|don|lich su|thong tin|du lieu|xoa|so dien thoai)\b")
+# 1c (06/11): câu từ chối cố định khi planner có goal refuse_internal mà câu sinh ra không từ chối rõ (V3-093, V3-095)
+REFUSE_INTERNAL_OK_RX = re.compile(r"khong the cung cap|khong cung cap|thong tin noi bo")
+REFUSE_INTERNAL_SENT = "Dạ giá nhập, giá sàn và các mức giá nội bộ là thông tin nội bộ, em không thể cung cấp ạ."
 # B2: xin SĐT/địa chỉ/đơn của khách khác (BTCL-061/062)
 OTHER_PII_RX = re.compile(r"\b(so|sdt|so dien thoai|dia chi|thong tin|zalo|don hang)\b.{0,20}\b(khach|nguoi)( mua)? "
                           r"(khac|tung mua|da mua|mua truoc|mua mau)\b"
@@ -188,9 +198,21 @@ class CallSession:
         self.seen_money = set()
         self.last_sentiment = None
         self.policy_gap, self.privacy_refused, self.plan_why, self.llm_plan = None, False, [], None
+        self.proxy_caller = False           # 1c J6: người gọi tự xưng người nhà của khách khác
         self.prior_contact_asked = 0
         self.last_q_slot = None
         self.call_promo_active, self.call_promo_expired = set(), set()
+
+    def _warranty_months(self, facts):
+        """1c J1 (06/11): `warranty_months` (catalog) của các sản phẩm đang nói trong cuộc gọi — cho guardrail bảo hành."""
+        skus = {self.focus, (facts.get("quote") or {}).get("sku"), *self.discussed, *self.cart}
+        out = set()
+        for sku in skus:
+            par = mt._parent(sku)[0] if sku else None
+            w = ((par or {}).get("attributes") or {}).get("warranty_months")
+            if isinstance(w, int) and w > 0:
+                out.add(w)
+        return out
 
     def _call_promos(self, tool_log):
         """D22: KM theo kết quả tool của CẢ cuộc gọi (lượt chào kết không gọi tool vẫn kiểm được); bỏ COD-0/freeship."""
@@ -350,7 +372,13 @@ class CallSession:
             text, self.today, meta=ext_meta, context=extraction_context or None,
             asked=self.last_q_slot)          # CERT v2 (3.3): slot agent vừa hỏi ở lượt trước (question_slot của planner)
         t_slots = time.perf_counter()
-        if p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
+        proxy_now = bool(PROXY_CLAIM_RX.search(fold(text)))
+        if proxy_now and not self.proxy_caller:
+            self.proxy_caller = True
+            self._why("proxy_caller", "người gọi tự xưng người nhà của khách khác; không gắn hồ sơ theo SĐT đọc trong câu")
+        if p["phone"] and proxy_now:
+            pass                            # 1c J6: SĐT của người khác → không gắn / gộp hồ sơ
+        elif p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
             cid = self.customer["customer_id"]
             self.mem.upsert_customer(cid, identities_=[("phone", p["phone"])])
             self.customer["phone"] = self.customer.get("phone") or p["phone"]
@@ -410,6 +438,7 @@ class CallSession:
         improve_used = improve_hook.apply_to_plan(plan, text, goals)   # mục E: tắt mặc định → không đổi plan
         self.last_q_slot = plan["question_slot"]
         promos = self._call_promos(tool_log)
+        wok = self._warranty_months(facts)
         allowed = set(p["money"]) | {v for v in self.known.values() if isinstance(v, int)}
         internal = set()
         for tc in tool_log:
@@ -446,7 +475,7 @@ class CallSession:
             text_out = candidates[0]["text"]
             for i, candidate in enumerate(candidates):
                 self.gen.fill_problems = candidate["fill_problems"]
-                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
+                p = guardrails.check(candidate["text"], allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok) + self.gen.fill_problems
                 c = coverage(candidate["text"], plan)
                 if not p and not c:
                     text_out, problems, cov = candidate["text"], p, c
@@ -456,11 +485,11 @@ class CallSession:
                     break
             if problems is None:
                 self.gen.fill_problems = candidates[0]["fill_problems"]
-                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
+                problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok) + self.gen.fill_problems
                 cov = coverage(text_out, plan)
                 if len(candidates) > 1:
                     guard["candidate_rejections"] = [{"temperature": c["temperature"],
-                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals, cust_money, promos)
+                                                       "problems": guardrails.check(c["text"], allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok)
                                                        + c["fill_problems"], "coverage": coverage(c["text"], plan)}
                                                       for c in candidates]
         except Exception as e:
@@ -471,13 +500,13 @@ class CallSession:
         t_gen1 = time.perf_counter()
         llm1_ttft, llm1_total = ttft, int((t_gen1 - t_gen) * 1000)
         if problems is None:
-            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
+            problems = guardrails.check(text_out, allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok) + self.gen.fill_problems
             cov = coverage(text_out, plan)
         t_guard = time.perf_counter()
         guard["problems"], guard["coverage"] = problems, cov
         if settings.strip_questions and not problems and cov and set(cov) == {NO_QUESTION}:
             stripped = _strip_open_questions(text_out, plan["KNOWN"])
-            if stripped and not guardrails.check(stripped, allowed, internal, forbidden, stale, goals, cust_money, promos) \
+            if stripped and not guardrails.check(stripped, allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok) \
                     and not coverage(stripped, plan):
                 guard["rejected"] = [text_out[:400]]
                 text_out, guard["action"], problems, cov = stripped, "stripped_question", [], []
@@ -494,7 +523,7 @@ class CallSession:
             except Exception as e:
                 log.error("generator %s lỗi khi sinh lại → câu mẫu: %s", self.gen.backend, type(e).__name__)
                 text2, tot2 = render_offline(plan), 0
-            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals, cust_money, promos) + self.gen.fill_problems
+            p2 = guardrails.check(text2, allowed, internal, forbidden, stale, goals, cust_money, promos, warranty=wok) + self.gen.fill_problems
             c2 = [] if p2 else coverage(text2, plan)
             if not p2 and not c2:
                 text_out, guard["action"] = text2, "regenerated"
@@ -502,6 +531,12 @@ class CallSession:
                 guard["rejected"].append(text2[:400])
                 text_out, guard["action"] = render_offline(_promo_safe_plan(plan, p2)), "safe_template" if p2 else "coverage_template"
             total_gen += tot2
+        if "refuse_internal" in goals and not REFUSE_INTERNAL_OK_RX.search(fold(text_out)):
+            # 1c / V3-093, V3-095 (06/11): đã có goal refuse_internal nhưng câu sinh ra không từ chối rõ ("em chưa có thông tin
+            # về giá nhập") → chèn câu từ chối cố định ở đầu (không có số nào nên không cần qua lại guardrail số tiền)
+            rest = re.sub(r"^\s*dạ\s*[,.]?\s*", "", text_out, flags=re.I)
+            text_out = REFUSE_INTERNAL_SENT + (" " + rest[:1].upper() + rest[1:] if rest else "")
+            guard["refuse_internal_prefix"] = True
         t_ready = time.perf_counter()
         post_parts = {}
         agent_meta = {}

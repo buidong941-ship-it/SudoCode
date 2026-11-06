@@ -13,7 +13,7 @@ import logging
 import re
 
 from core.config import settings
-from harness.textnorm import find_money, fold, parse_relative_datetime
+from harness.textnorm import PHONE_RX, find_money, fold, parse_relative_datetime
 
 log = logging.getLogger("extractor")
 
@@ -31,6 +31,12 @@ ADDRESS_RX = re.compile(r"(?:(?:giao|ship|gửi|chuyển)(?: hàng)? (?:về|t�
                         r"((?:số |ngõ |hẻm |\d)[^.!?]*?)(?=,?\s+(?:(?:nhé|nha|nhá|ạ|rồi)(?=\s*(?:[.!?,]|$))|(?:em|giúp|luôn|trong tuần|thanh toán|thì|mất|bao lâu|khi nào|được không|đúng không|không|hả|vậy)\b"
                         # D-7 (02/11): dừng trước "bên em…" và "anh trả tiền…" ("80 Ngô Quyền, Đà Nẵng, bên em có giao…")
                         r"|bên (?:em|mình|shop)\b|(?:anh|chị|cô|chú|mình|tôi|em) (?:trả|thanh toán|nhận|lấy)\b|trả tiền\b)|[.!?]|$)", re.I)
+
+
+def phone_only_address(value):
+    """1c (06/11): giá trị "địa chỉ" thực chất chỉ là SĐT ("số 0984726714", "số của vợ anh là 09…") → không phải địa chỉ (RT-06, RT-14)."""
+    v = str(value or "")
+    return bool(PHONE_RX.search(v)) and not re.search(r"\d|,", PHONE_RX.sub(" ", v))
 
 CUSTOMER_LLM_CUE_RX = re.compile(
     r"\d|m2|m²|mét vuông|diện tích|phòng|bé|em bé|trẻ nhỏ|trẻ con|con nhỏ|ngân sách|tầm|khoảng|"
@@ -254,6 +260,9 @@ def customer_slots_finish(pending, slots, wait):
     locked = (pending or {}).get("cert_locked") if isinstance(pending, dict) else None
     if locked and isinstance(slots, dict):
         slots.update(locked)                 # CERT v2 (3.5): giữ giá trị luật của slot đã chứng nhận
+    for d in (slots, out):                   # 1c (06/11): chốt cuối cho mọi nhánh (luật / Qwen / Jev): "địa chỉ" chỉ là SĐT → bỏ
+        if isinstance(d, dict) and phone_only_address(d.get("address")):
+            d.pop("address")
     return out
 
 
@@ -279,7 +288,7 @@ def customer_slots_rules(text, today, lexicon_hits=None):
     color = find_color(text, prefix="mau ")
     if color: out["color"] = color
     m = ADDRESS_RX.search(text)
-    if m and not re.search(r"địa chỉ cũ|như cũ", t):
+    if m and not re.search(r"địa chỉ cũ|như cũ", t) and not phone_only_address(m.group(1)):
         out["address"] = m.group(1).strip(" ,")
     if re.search(r"\bcod\b|thanh toan khi nhan|tien mat|nhan hang (roi )?tra", f): out["payment"] = "COD"
     elif re.search(r"chuyen khoan|ck truoc|qua ngan hang|momo|zalopay", f): out["payment"] = "bank"

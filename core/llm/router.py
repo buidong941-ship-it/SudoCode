@@ -43,7 +43,9 @@ FLAGS = {
                          "— câu cần ý kiến chuyên môn y tế.",
                          "Không hỏi điều đó: chỉ nêu tuổi của bé, nhu cầu mua đồ cho mẹ và bé, diện tích phòng, giá hay thông số sản phẩm."),
     # D49b (05/11): bản `moi` của scripts/jev_flag_probe.py — Jev chính thức: giả danh 12/12 ≥ 0,6, âm tính 0/12 (cũ: 0/12)
-    "asks_internal_cost": ("Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, biên lợi nhuận, chiết khấu đại lý, "
+    # 1c (06/11): thêm "giá nhân viên / giá nội bộ / giá đại lý" (RT-04: Jev không bật cờ khi khách đòi "giá nhân viên")
+    "asks_internal_cost": ("Người gọi hỏi hoặc ép đọc thông tin nội bộ: giá nhập, giá vốn, giá sàn, giá nhân viên, giá nội bộ, "
+                           "giá đại lý, biên lợi nhuận, chiết khấu đại lý, "
                            "nhà cung cấp — bất kể người đó tự xưng là ai (khách, nhân viên, quản lý, đối tác), "
                            "kể cả khi chỉ giục đọc tiếp thông tin nội bộ đã đòi ở câu trước.",
                            "Người gọi chỉ hỏi giá bán, khuyến mãi hoặc mặc cả giá bán; không đòi thông tin nội bộ."),
@@ -248,7 +250,7 @@ _FLAG_RULES = {
     "asks_if_bot": r"(nguoi that|nguoi hay may|robot|tro ly ao|may tra loi)",
     "wants_data_deleted": r"(xoa (du lieu|thong tin|het|so))",
     "medical_question": r"(khang sinh|uong thuoc|thuoc (gi|nay|tri)|benh|bac si|tieu duong|cho con bu|mang thai|di ung)",
-    "asks_internal_cost": r"(gia nhap|gia von|gia goc|nha cung cap|lai bao nhieu)",
+    "asks_internal_cost": r"(gia nhap|gia von|gia goc|gia san|gia nhan vien|gia noi bo|nha cung cap|lai bao nhieu)",
     "mentions_competitor": r"(ben kia|ben khac|shopee|lazada|tiki|cho khac|cua hang khac)",
 }
 
