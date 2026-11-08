@@ -1,0 +1,29 @@
+{
+  "scenario_id": "JEVNEW-004",
+  "level": "M2",
+  "persona": "khach_moi",
+  "customer_phone": "0912222004",
+  "customer_name": "Khách thử nghiệm",
+  "honorific": "chị",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "customer_goal": "new development wording",
+      "customer_turns": [
+        "Chị muốn mua nồi chiên Lock&Lock 4L, báo giá giúp chị."
+      ],
+      "facts_established": {},
+      "success_if": {
+        "tool_called": "pricing.get_quote"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "tu_van"
+    }
+  },
+  "_meta": {
+    "seed": 20261108,
+    "source": "independently authored literals; reviewed before execution",
+    "split": "dev",
+    "synthetic_customer": true
+  }
+}

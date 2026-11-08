@@ -1,0 +1,78 @@
+{
+  "job": "jev1108-s23",
+  "suite_args": [
+    "--sets",
+    "datagen/out_v3/final/dev",
+    "--configs",
+    "full",
+    "--router",
+    "jev",
+    "--generator",
+    "qwen",
+    "--extractor",
+    "hybrid",
+    "--workers",
+    "2",
+    "--tag",
+    "jev1108-s23"
+  ],
+  "needs_qwen": true,
+  "needs_secrets": [],
+  "max_seconds": 28800,
+  "env": {
+    "JEV_SIMULATED": "1",
+    "PLANNER_SELECTOR": "jev",
+    "GOAL_CONTRACT": "1",
+    "QWEN_MODEL": "Qwen/Qwen3-4B",
+    "REPLY_STYLE": "short",
+    "LLM_MAX_TOKENS": "160",
+    "LLM_TEMPERATURE": "0",
+    "STRIP_QUESTIONS": "1",
+    "GEN_PARALLEL_N": "1",
+    "GEN_PLACEHOLDERS": "0",
+    "EXTRACTOR_CONFIDENCE_GATE": "1",
+    "EXTRACTOR_CERT_VERSION": "2",
+    "EXTRACTOR_JEV_HYBRID": "1",
+    "PLANNER_BACKEND": "rules",
+    "PRODUCT_LEXICON": "1",
+    "ORDER_QTY": "1",
+    "LEXICON_INCLUDE": "approved",
+    "IMPROVE_DIR": "",
+    "MEM_ABLATE": "",
+    "LLM_CACHE": "off",
+    "QUESTION_CLF": "0",
+    "EXTRACTOR_LLM": "qwen",
+    "SETUP_LAYA": "0",
+    "EXTRACTOR_TIMEOUT_S": "180",
+    "LLM_TIMEOUT_S": "180",
+    "STEP_TIMEOUT": "18000",
+    "VLLM_MAX_MODEL_LEN": "8192"
+  },
+  "setup": true,
+  "pre": [
+    [
+      "{python}",
+      "scripts/jev1108_cpu.py",
+      "{out}/checks"
+    ],
+    [
+      "{python}",
+      "tests/jev1108_extractor_check.py"
+    ]
+  ],
+  "pre_only": false,
+  "variants": [
+    {
+      "tag": "jev1108-s23-s2",
+      "env": {
+        "EXTRACTOR_NO_JEV": "0"
+      }
+    },
+    {
+      "tag": "jev1108-s23-s3",
+      "env": {
+        "EXTRACTOR_NO_JEV": "1"
+      }
+    }
+  ]
+}

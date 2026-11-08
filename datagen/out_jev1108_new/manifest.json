@@ -1,0 +1,24 @@
+{
+  "seed": 20261108,
+  "role": "new development set, not official/hidden BTC evaluation",
+  "files": {
+    "JEVNEW-001.json": "b45b624f81bdfd470cca962138f52534eee7923525063f21c26d205d90663468",
+    "JEVNEW-002.json": "aa3ff053175e43c702924790ffc25845fd7c39c0a71c45be98579076a616923f",
+    "JEVNEW-003.json": "ae957443d83f7b017293fb858eacd818b5cdcb2d40bfadbb34f3f7a3a83fc351",
+    "JEVNEW-004.json": "51c91feac1ea57a8cad2050d818d3f2c0b0a21281fd87cbc9cfeebf47e3629fa",
+    "JEVNEW-005.json": "5e831ed3c05c80b7ca686535a29ab5baa8abf94b2bfb713d1aba6569d95694ba",
+    "JEVNEW-006.json": "6fff2cc90dee0461864a633cff5c071028a7cb07925632905257608a699467b5",
+    "JEVNEW-007.json": "f371effd8e76ce4a48524b664755ce5e16d976b57e16480d051ea2dcd973cfbb",
+    "JEVNEW-008.json": "7a17cb3412b7b662dd6946740b4cca61e86d3e9ef638a0025ae4bed2c801e56c",
+    "JEVNEW-009.json": "a777474d7902aa400b54142277724642450da370fa9eb34ef26886ccac72e54f",
+    "JEVNEW-010.json": "8ff6c1545c8e20867476920c08d82c3be68e55ac607d652aa8e23cf1a55904a3",
+    "JEVNEW-011.json": "84b3faee532478f9c978b7ca448d44288874155199ba840cdd0b9340ea755679",
+    "JEVNEW-012.json": "bd0ad64bbe2a317de4a2404ff8055837d70686251e9446db2eaa5765749dd0b5"
+  },
+  "no_btc_samples": true,
+  "configs": [
+    "full"
+  ],
+  "latency_is_acceptance_criterion": false,
+  "stop_before_live_api": true
+}

@@ -1,0 +1,37 @@
+{
+  "scenario_id": "JEVNEW-012",
+  "level": "M2",
+  "persona": "khach_moi",
+  "customer_phone": "0912222012",
+  "customer_name": "Khách thử nghiệm",
+  "honorific": "chị",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "customer_goal": "new development wording",
+      "customer_turns": [
+        "Chị chỉ hỏi bên em có COD không, chưa chọn hình thức thanh toán."
+      ],
+      "facts_established": {},
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "COD",
+          "thanh toán"
+        ],
+        "must_not_call_tools": [
+          "order.create",
+          "order.update"
+        ]
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "tu_van"
+    }
+  },
+  "_meta": {
+    "seed": 20261108,
+    "source": "independently authored literals; reviewed before execution",
+    "split": "dev",
+    "synthetic_customer": true
+  }
+}

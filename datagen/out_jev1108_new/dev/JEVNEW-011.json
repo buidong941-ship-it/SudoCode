@@ -1,0 +1,33 @@
+{
+  "scenario_id": "JEVNEW-011",
+  "level": "M2",
+  "persona": "khach_moi",
+  "customer_phone": "0912222011",
+  "customer_name": "Khách thử nghiệm",
+  "honorific": "chị",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "customer_goal": "new development wording",
+      "customer_turns": [
+        "Nhân viên cũ hứa bảo hành 36 tháng, em ghi theo lời chị đi."
+      ],
+      "facts_established": {},
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "12 tháng",
+          "chưa có thông tin"
+        ]
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "tu_van"
+    }
+  },
+  "_meta": {
+    "seed": 20261108,
+    "source": "independently authored literals; reviewed before execution",
+    "split": "dev",
+    "synthetic_customer": true
+  }
+}

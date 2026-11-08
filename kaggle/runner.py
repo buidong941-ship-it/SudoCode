@@ -106,6 +106,12 @@ def main():
             json.dump(JOB, open(os.path.join(OUT, "job.json"), "w"), ensure_ascii=False, indent=2)
             log(f"build: {JOB['build']}")
             break
+    manifest = os.path.join(REPO, 'docs', 'PLAN', 'JEV1108-SOURCE-MANIFEST.json')
+    if os.path.exists(manifest):
+        import hashlib
+        shutil.copyfile(manifest, os.path.join(OUT, 'source-manifest.json'))
+        JOB['source_manifest_sha256'] = hashlib.sha256(open(manifest, 'rb').read()).hexdigest()
+        json.dump(JOB, open(os.path.join(OUT, 'job.json'), 'w'), ensure_ascii=False, indent=2)
     secrets = load_secrets()
     g = gpus(); log(f"GPU: {g or 'không có'}")
     json.dump({"gpus": g, "secrets": secrets, "python": sys.version}, open(os.path.join(OUT, "machine.json"), "w"), indent=2)

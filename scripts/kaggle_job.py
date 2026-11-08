@@ -27,7 +27,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build", "kaggle")
-EXCLUDE_DIRS = {".git", "venv", ".venv", ".vllm-venv", "data", "runs", "dataset", "_upload", "_download", "build", "__pycache__",
+EXCLUDE_DIRS = {".git", ".claude", ".agents", ".codex", ".aws", "venv", ".venv", ".vllm-venv", "data", "runs", "dataset", "_upload", "_download", "build", "__pycache__",
                 ".pytest_cache", ".mypy_cache", ".idea", ".vscode", "asr/audio"}
 EXCLUDE_FILES = {".env", "kaggle.json", "credentials.json"}
 DATASET_SLUG = "sudocode-repo"
@@ -93,8 +93,10 @@ def pack(dst, extra=None):
         return ti
     import io
     try:
-        commit = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], text=True).strip()
-        dirty = bool(subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain"], text=True).strip())
+        commit = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], text=True,
+                                         stderr=subprocess.DEVNULL).strip()
+        dirty = bool(subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain"], text=True,
+                                             stderr=subprocess.DEVNULL).strip())
     except Exception:
         commit, dirty = None, None
     info = json.dumps({"commit": commit, "uncommitted_changes": dirty, "data_sha256": data_hash(),
@@ -156,6 +158,8 @@ def push(k, a):
         needs.append("TYPESAFE_API_KEY")
     if a.generator == "deepseek" or a.router == "llm":
         needs.append("DEEPSEEK_API_KEY")
+    if 'JEV_SIMULATED=1' in a.env:
+        needs = [name for name in needs if name != 'TYPESAFE_API_KEY']
     job = {"job": a.job, "suite_args": suite, "needs_qwen": needs_qwen, "needs_secrets": needs,
            "max_seconds": int(a.max_hours * 3600), "env": dict(x.split("=", 1) for x in a.env),
            "setup": not a.no_setup}

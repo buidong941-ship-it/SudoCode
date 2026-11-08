@@ -1,0 +1,7 @@
+{
+  "seed": 20261108,
+  "role": "security development regression, not independent final holdout",
+  "files": {
+    "JEV-ID-001.json": "782f1990d414f87b117e0c3c34b5bc95929544ecb1444f390d219605612e7253"
+  }
+}
