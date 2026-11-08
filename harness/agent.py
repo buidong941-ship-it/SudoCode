@@ -48,7 +48,7 @@ _UNIT = {"nam": (365, "năm"), "thang": (30, "tháng"), "tuan": (7, "tuần"), "
 PROXY_CLAIM_RX = lexrx.rx("cues", "PROXY_CLAIM_RX")          # 1c J6: người gọi tự xưng người nhà của khách
 PROXY_INFO_RX = lexrx.rx("cues", "PROXY_INFO_RX")
 REFUSE_INTERNAL_OK_RX = lexrx.rx("cues", "REFUSE_INTERNAL_OK_RX")
-REFUSE_INTERNAL_SENT = "Dạ giá nhập, giá sàn và các mức giá nội bộ là thông tin nội bộ, em không thể cung cấp ạ."
+REFUSE_INTERNAL_SENT = "Dạ, các mức giá nội bộ của shop được bảo mật, em không thể cung cấp ạ."
 OTHER_PII_RX = lexrx.rx("cues", "OTHER_PII_RX")
 
 
@@ -158,8 +158,10 @@ class CallSession:
         self.router, self.gen, self.config = router or Router(), generator or Generator(), config
         self.tools = ToolBox(today)
         self.customer = None
+        self.contact_phone = None  # shipping contact only, not identity verification
         self.candidates = []
         self.table_rows = []                # D50: các dòng bảng planner đã khớp ở lượt gần nhất (PLANNER_TABLE=1)
+        self.semantic_plan = None
         self.table_prev_goals = []          # D51: goal của lượt trước (dòng N03, E12 cần biết lượt trước đã từ chối / xin xác nhận)
         self.carried = {}
         self.known = {}
@@ -325,6 +327,9 @@ class CallSession:
                 "precomputed_parts": ["sessions.summary", "facts"], "ambiguous_candidates": [x["name"] for x in self.candidates]}
 
     def turn(self, raw):
+        if settings.jev_simulated:
+            from harness.jev_adapter import block_real_api
+            block_real_api()
         t_start = time.perf_counter()
         self.turn_no += 1
         if self.input_mode == "asr_transcript":
@@ -336,7 +341,7 @@ class CallSession:
         # L1: router chỉ cần lời khách + lịch sử + tóm tắt phiên trước, không cần slot → gọi song song với bước trích slot.
         # Lượt có SĐT hoặc đang hỏi danh tính thì vẫn nối tiếp: định danh có thể đổi brief (tóm tắt) mà router dùng.
         early_route = None
-        if settings.parallel_router and not p["phone"] and not self.candidates:
+        if settings.planner_selector == "rules" and settings.parallel_router and not p["phone"] and not self.candidates:
             ctx_early = {"recent": self.history[-4:],
                          "summary": (self.brief or {}).get("last_session") and self.brief["last_session"]["summary"] or ""}
             early_route = _ROUTER_POOL.submit(self.router.route, text[:MAX_CUSTOMER_CHARS], ctx_early)
@@ -355,7 +360,11 @@ class CallSession:
         if proxy_now and not self.proxy_caller:
             self.proxy_caller = True
             self._why("proxy_caller", "người gọi tự xưng người nhà của khách khác; không gắn hồ sơ theo SĐT đọc trong câu")
-        if p["phone"] and proxy_now:
+        from harness.identity_permissions import may_bind_spoken_phone
+        unverified_phone = bool(settings.planner_selector != 'rules' and p['phone'] and not may_bind_spoken_phone(self, p['phone']))
+        if unverified_phone and not proxy_now:
+            self.contact_phone = p['phone']
+        if p["phone"] and (proxy_now or unverified_phone):
             pass                            # 1c J6: SĐT của người khác → không gắn / gộp hồ sơ
         elif p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
             cid = self.customer["customer_id"]
@@ -397,10 +406,10 @@ class CallSession:
         text = text[:MAX_CUSTOMER_CHARS]
         ctx = {"recent": self.history[-4:], "summary": (self.brief or {}).get("last_session") and self.brief["last_session"]["summary"] or ""}
         t_identity = time.perf_counter()
-        route = early_route.result() if early_route is not None else self.router.route(text, ctx)
+        route = (early_route.result() if early_route is not None else self.router.route(text, ctx)) if settings.planner_selector == "rules" else {"intent": "meta", "confidence": 1.0, "flags": {}, "backend": "selector", "ms": 0, "fallback": None}
         t_route = time.perf_counter()
         knowledge.spent_ms = 0.0
-        if pending is not None and extractor.customer_slots_finish(pending, slots, 0) is not None:
+        if pending is not None and extractor.customer_slots_finish(pending, slots, settings.extractor_timeout_s if settings.planner_selector != 'rules' else 0) is not None:
             pending = None
         # 1b (06/11): planner chỉ còn bảng quyết định (harness/planner_rules.json). _plan if-else cũ đã bỏ
         # (bản cuối ở commit ce171ac); bảng chỉ có nhánh cũ từng trùng trace 100 % với nó (D50).
@@ -414,6 +423,10 @@ class CallSession:
                 "customer_said": text, "intent": route["intent"], "goals": goals, "facts": facts,
                 "KNOWN": {k: v for k, v in self.known.items() if k not in ("self_name",)},
                 "question_slot": question_slot(goals, facts)}
+        if settings.goal_contract:
+            from harness.goal_contract import enforce
+            plan = enforce(plan, tool_log)
+            goals, facts = plan["goals"], plan["facts"]
         improve_used = improve_hook.apply_to_plan(plan, text, goals)   # mục E: tắt mặc định → không đổi plan
         self.last_q_slot = plan["question_slot"]
         promos = self._call_promos(tool_log)
@@ -576,7 +589,8 @@ class CallSession:
                "customer_input_mode": {"asr_transcript": "asr_transcript", "chat_teencode": "chat_teencode"}.get(self.input_mode, "clean"),
                "router": {k: route.get(k) for k in ("intent", "confidence", "flags", "backend", "ms", "fallback")
                           + (("improve",) if route.get("improve") else ())},
-               "goals": goals, "planner": {"backend": settings.planner_backend, "branches": list(self.plan_why),
+               "goals": goals, "planner": {"backend": settings.planner_backend, "selector": settings.planner_selector, "simulated": settings.jev_simulated, "contract": plan.get("contract"), "semantic": self.semantic_plan,
+                                                    **({"semantic": self.semantic_plan} if self.semantic_plan else {}), "branches": list(self.plan_why),
                                                     **({"llm": self.llm_plan} if self.llm_plan else {}),
                                                     "table": list(self.table_rows)},
                "question_slot": plan["question_slot"], "guardrail": guard, "llm_usage": usage,
@@ -586,10 +600,14 @@ class CallSession:
             row["improve"] = improve_hook.stamp(improve_used + [h["chunk_id"][4:] for h in facts.get("policy") or []
                                                                 if str(h.get("chunk_id", "")).startswith("FAQ:")])
         if "jev_slot_requests" in agent_meta:
-            row["extractor"].update({"question_backend": "jev_slots_experimental",
+            row["extractor"].update({"question_backend": agent_meta.get("question_backend", "jev_slots_experimental"),
                                      "jev_slot_requests": agent_meta["jev_slot_requests"],
                                      "jev_slot_ms": agent_meta["jev_slot_ms"],
                                      "jev_slot_errors": agent_meta["jev_slot_errors"]})
+        if settings.jev_simulated:
+            from harness.jev_adapter import COUNTS
+            row['api_audit'] = dict(COUNTS)
+            row['extractor']['simulated'] = True
         if settings.extractor_jev_hybrid:
             row["extractor"].update({"jev_hybrid": True,
                                      "jev_label_requests": ext_meta.get("jev_label_requests", 0) + agent_meta.get("jev_label_requests", 0),
@@ -862,6 +880,11 @@ class CallSession:
             bad = next(q for q in quotes if q.get("in_stock") is False)
             facts["quote"], facts["restock_expected"] = bad, bad.get("restock_expected")
             return ["out_of_stock"]
+        if settings.planner_selector != "rules":
+            if not self.known.get("address"):
+                return ["ask_address"]
+            if not self.known.get("payment"):
+                return ["ask_payment"]
         cod_before = sum(o.get("total_vnd") or 0 for o in self.orders_created if o.get("payment") == "COD")
         if payment == "COD" and total + cod_before > 10_000_000:
             total += cod_before
@@ -870,7 +893,7 @@ class CallSession:
         made = []
         # D13 (02/11, SAMPLE-06): kênh chat/Zalo chưa có SĐT → ToolBox bỏ đối số None nên order.create thiếu customer_phone
         # và mock báo tool_exception. Vẫn lên đơn (khách đã chốt) với SĐT rỗng, rồi xin SĐT ngay để shipper liên hệ.
-        phone = c.get("phone") or self.phone or ""
+        phone = c.get("phone") or self.phone or getattr(self, "contact_phone", None) or ""
         for q in quotes:
             args = dict(customer_phone=phone, sku=q["sku"], qty=qty, price_vnd=q["final_price_vnd"],
                         promo_code=(q["promo_codes"] or [None])[0], payment=payment, address=self.known.get("address"),
@@ -879,7 +902,14 @@ class CallSession:
             if r.get("error") == "price_mismatch":
                 args["price_vnd"] = r["expected_price_vnd"]; r = self.tools.call("order.create", **args)
             if r.get("error"):
-                facts["order_error"] = r["error"]; return ["order_failed"]
+                facts["order_error"] = r["error"]
+                if made:
+                    self.orders_created += made
+                    self.known['order_id'] = made[0]['order_id']
+                    self.known['product_chosen'] = made[0]['sku']
+                    facts['partial_orders'] = [{'order_id': o['order_id'], 'total_vnd': o['total_vnd']} for o in made]
+                    return ['order_partial']
+                return ["order_failed"]
             made.append({**r, "sku": q["sku"], "price_vnd": args["price_vnd"], "payment": payment, "address": args["address"]})
         self.orders_created += made
         facts["order"] = {"order_id": ", ".join(o["order_id"] for o in made), "total_vnd": sum(o["total_vnd"] for o in made),
@@ -907,7 +937,7 @@ class CallSession:
         r = self.tools.call("order.status", customer_phone=c.get("phone") or self.phone)
         return r.get("orders", [])
 
-    def _plan_order_change(self, text, facts):
+    def _plan_order_change(self, text, facts, action_override=None):
         orders = self._customer_orders()
         if not orders:
             hits = knowledge.search(text, k=2)
@@ -917,17 +947,21 @@ class CallSession:
         o = next((x for x in reversed(orders) if want and x.get("sku") == want), orders[-1])
         f = fold(text)
         od = o.get("created_on") or o.get("date")
-        if od and (date.fromisoformat(self.today) - date.fromisoformat(od)).days > 7 + 4:
+        from harness.planner_policy import exchange_window
+        decision = exchange_window(o, self.today) if settings.planner_selector != "rules" else None
+        if decision is not None:
+            facts["exchange_policy"] = decision
+        if (decision is not None and decision["eligible"] is False) or (decision is None and od and (date.fromisoformat(self.today) - date.fromisoformat(od)).days > 7 + 4):
             facts["old_order"] = {"order_id": o["order_id"], "product": product_name(o["sku"]), "date": od}
             if not self.window_told:
                 self.focus, self.focus_by = o["sku"], "memory"
             return ["WINDOW_PASSED"]
-        if re.search(r"\bdia chi\b", f) and not RETURN_RX.search(f) and not re.search(r"\b(size|co|mau)\b", f) and not find_products(text):
+        if action_override is None and re.search(r"\bdia chi\b", f) and not RETURN_RX.search(f) and not re.search(r"\b(size|co|mau)\b", f) and not find_products(text):
             eta = self.known.get("estimated_delivery") if o["order_id"] == self.known.get("order_id") else None
             facts["order"] = {"order_id": o["order_id"], "product": product_name(o["sku"]), "address": self.known.get("address") or o.get("address"),
                               "estimated_delivery_ddmm": _ddmm(eta) if eta else None}
             return ["confirm_delivery_address"]
-        if RETURN_RX.search(f):
+        if action_override == "return" or (action_override is None and RETURN_RX.search(f)):
             key = (o["order_id"], "return", None)
             if key in self.updates_done:
                 facts["update"] = self.updates_done[key]
@@ -1038,6 +1072,8 @@ class CallSession:
         src = f"{self.call_name}#turn{self.turn_no}"
         writes = []
         for k, v in slots.items():
+            if settings.planner_selector != 'rules' and self.proxy_caller and k in ('address', 'phone', 'self_name'):
+                continue
             if k == "claimed_prices" or (k == "self_name" and not cid.startswith("N-")):
                 continue
             w = self.mem.write_fact(cid, k, v, src, self.session_id, self.today)

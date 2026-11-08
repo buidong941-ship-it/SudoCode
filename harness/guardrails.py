@@ -87,7 +87,13 @@ def promo_problems(text, promos):
     """D22: câu khẳng định đang có KM phải có căn cứ trong kết quả tool CỦA CUỘC GỌI NÀY.
     promos = {"active": [KM đang áp dụng, không tính COD-0/freeship], "expired": [KM hết hạn]} (dict theo catalog)."""
     out = []
+    from harness.assertions import asserted_text
     for s in re.split(r"(?<=[.!?])\s+", text):
+        positive = fold(asserted_text(s))
+        if re.search(r"\b(giu|ghi|them|tang)(\s+\w+){0,4}\s+qua\b", positive) and not re.search(r"\b(khong|chua|chang)\b", positive):
+            if not any(p.get('type') == 'gift' for p in promos.get('active', [])):
+                expired = any(p.get('type') == 'gift' for p in promos.get('expired', []))
+                out.append('nói chương trình quà tặng đã hết hạn như còn hiệu lực' if expired else 'hứa quà tặng nhưng tool chưa xác nhận có chương trình quà tặng')
         f = fold(s)
         if s.rstrip().endswith("?") or not PROMO_POS_RX.search(f) or not PROMO_NOUN_RX.search(f) or PROMO_NEG_RX.search(f):
             continue
@@ -147,6 +153,8 @@ def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_mo
     warranty: tập `warranty_months` (catalog) của các sản phẩm đang nói trong cuộc gọi (1c J1); rỗng / None = không kiểm."""
     problems = [] if promos is None else promo_problems(text, promos)
     problems += warranty_problems(text, warranty)
+    from harness.assertions import curative_problems
+    problems += curative_problems(text)
     for s, _, v in find_money(text):
         if v in IMPORT_PRICES or v in internal_numbers:
             problems.append(f"lộ giá nội bộ {v}")

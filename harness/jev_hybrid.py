@@ -12,6 +12,9 @@ from harness.question_classifiers.jev_slots import _client
 def labels(text, definitions, role, meta=None, context=None):
     """Return a set of present labels, or None on any invalid/failed request."""
     meta = meta if meta is not None else {}
+    if settings.jev_simulated:
+        from harness.jev_adapter import labels as simulated_labels
+        return simulated_labels(text, definitions, role, meta, context)
     try:
         from typesafe_sdk import Choice
 

@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "instruction": "Chọn tối đa ba hành động khách thực sự yêu cầu. Câu hỏi về chính sách không phải yêu cầu thực hiện đổi/trả. Cung cấp địa chỉ không tự động đồng nghĩa với đặt đơn. 'Thêm' chỉ thêm giỏ; 'chốt/lên đơn' mới đặt đơn. Lời chào không lấn át yêu cầu nghiệp vụ.",
+  "actions": {
+    "ask_price": {
+      "description": "Hỏi giá, khuyến mãi, quà hoặc tồn kho sản phẩm",
+      "handler": "quote"
+    },
+    "product_advice": {
+      "description": "Hỏi tư vấn, thông số, so sánh hoặc sản phẩm thay thế",
+      "handler": "recommend"
+    },
+    "add_to_cart": {
+      "description": "Thêm sản phẩm vào giỏ nhưng chưa chốt đơn",
+      "handler": "cart_add",
+      "requires": [
+        "product"
+      ]
+    },
+    "cart_total": {
+      "description": "Hỏi tổng tiền của nhiều món trong giỏ",
+      "handler": "cart_total",
+      "requires": [
+        "cart"
+      ]
+    },
+    "place_order": {
+      "description": "Đồng ý mua, chốt hoặc yêu cầu lên đơn mới",
+      "handler": "place_order",
+      "requires": [
+        "product"
+      ]
+    },
+    "give_delivery_info": {
+      "description": "Khách NÊU GIÁ TRỊ địa chỉ/cách thanh toán/người nhận. HỎI shop có COD hay giao hàng được không là policy_question, không phải cung cấp thông tin.",
+      "handler": "delivery_info"
+    },
+    "change_order_address": {
+      "description": "Yêu cầu đổi địa chỉ giao của đơn đã tạo",
+      "handler": "change_address",
+      "requires": [
+        "order",
+        "address"
+      ]
+    },
+    "exchange_order": {
+      "description": "Yêu cầu thực hiện đổi size, màu hoặc sản phẩm của đơn cũ",
+      "handler": "exchange",
+      "requires": [
+        "order"
+      ]
+    },
+    "return_order": {
+      "description": "Yêu cầu thực hiện trả hàng hoặc hoàn tiền của đơn cũ",
+      "handler": "return",
+      "requires": [
+        "order"
+      ]
+    },
+    "order_status": {
+      "description": "Hỏi trạng thái đơn, vận đơn hoặc tiền hoàn",
+      "handler": "order_status",
+      "requires": [
+        "order"
+      ]
+    },
+    "policy_question": {
+      "description": "Hỏi quy định, khả năng hoặc tình huống giả định: nếu mua/dùng không hợp có được đổi/trả không; hỏi COD, phí, bảo hành. Không thực hiện thay đổi đơn.",
+      "handler": "policy"
+    },
+    "schedule_callback": {
+      "description": "Yêu cầu shop gọi lại vào thời điểm cụ thể",
+      "handler": "callback"
+    },
+    "defer_decision": {
+      "description": "Chưa quyết mua, muốn suy nghĩ hoặc hỏi người nhà",
+      "handler": "defer"
+    },
+    "greeting_closing": {
+      "description": "Chỉ chào, cảm ơn hoặc kết thúc; không có yêu cầu khác",
+      "handler": "closing"
+    },
+    "unclear": {
+      "description": "Lời khách bị rè, cắt hoặc không đủ rõ để hành động",
+      "handler": "repeat"
+    },
+    "cancel_order": {
+      "description": "Yêu cầu hủy đơn đã có, không phải từ chối một màu/sản phẩm đang cân nhắc",
+      "handler": "cancel_request",
+      "requires": [
+        "order"
+      ]
+    },
+    "request_handoff": {
+      "description": "Yêu cầu gặp nhân viên, người thật, quản lý hoặc người phụ trách để xử lý tiếp",
+      "handler": "handoff_scope"
+    }
+  }
+}

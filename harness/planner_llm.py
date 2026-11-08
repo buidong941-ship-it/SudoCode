@@ -42,6 +42,9 @@ def allowed_goals(state):
 
 
 def _jev(text, recent, goals):
+    if settings.jev_simulated:
+        goal, _ = _qwen(text, recent, goals)
+        return goal, 1.0  # adapter decision; never report this as Jev probability
     from typesafe_sdk import Choice
     from harness.question_classifiers.jev_slots import _client
     state = Redactor().redact({"customer_said": text, "recent_dialogue": recent[-4:]})

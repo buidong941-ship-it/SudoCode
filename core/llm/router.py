@@ -100,6 +100,10 @@ class Router:
         return out
 
     def _jev(self, text, context):
+        if settings.jev_simulated:
+            out = self._llm(text, context, provider="qwen")
+            out["simulated"] = True
+            return out
         from typesafe_sdk import Choice, Noul, TypeSafeClient
         if self._client is None:
             if not settings.typesafe_api_key:

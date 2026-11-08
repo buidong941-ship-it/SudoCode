@@ -99,6 +99,7 @@ def _call(prompt, schema, texts, meta):
         safe = red.redact(texts)
         for a, b in zip(texts, safe):
             prompt = prompt.replace(a, b)
+        prompt = red.redact(prompt)
     t0 = time.perf_counter()
     log_meta = {}
     if meta is not None:
@@ -385,7 +386,8 @@ def _slot_topic_ok(slot, s):
 
 def _claim_ok(field, value, s, focus_sku):
     from harness.extractor import _about_focus, money_not_price
-    f = fold(s)
+    from harness.assertions import asserted_text
+    f = fold(asserted_text(s))
     if field in MONEY_FIELDS:
         hits = [st for st, _, v in find_money(s) if v == value]
         return bool(hits) and not all(money_not_price(s, st) for st in hits)
@@ -521,7 +523,8 @@ def agent(text, known_values, q_rules, c_rules, mode, meta=None, focus_sku=None)
         if i not in hint:
             dropped += 1; continue
         span = red.restore(span) if red else span
-        if field not in POLARITY_FIELDS and not _span_ok(span, s):
+        from harness.assertions import asserted_text
+        if field not in POLARITY_FIELDS and not _span_ok(span, asserted_text(s)):
             dropped += 1; continue
         v = _claim_value(field, span or s, polarity)
         if v is None or not _claim_ok(field, v, s, focus_sku):

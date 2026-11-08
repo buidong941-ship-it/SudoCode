@@ -29,6 +29,8 @@ _LOCAL = threading.local()
 
 
 def _client():
+    if settings.jev_simulated:
+        raise RuntimeError('JEV_SIMULATED blocks real TypeSafe client')
     if not settings.typesafe_api_key:
         raise RuntimeError("Thiếu TYPESAFE_API_KEY")
     if not hasattr(_LOCAL, "client"):
@@ -41,6 +43,9 @@ def _client():
 
 def classify_agent_questions(text, known_values, meta=None):
     """Classify every agent sentence; use rules for each invalid or failed result."""
+    if settings.jev_simulated:
+        from harness.jev_adapter import questions
+        return questions(text, known_values, meta)
     from typesafe_sdk import Choice
     from harness.extractor import _sentences, agent_questions
 

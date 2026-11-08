@@ -690,10 +690,10 @@ def _prepare(c):
     if mentioned and not c.compare:
         c.new_focus = mentioned[-1]
         s.focus, s.focus_by = c.new_focus, "customer"
-    if takes and mentioned and not c.compare:
+    if settings.planner_selector == "rules" and takes and mentioned and not c.compare:
         for m_ in mentioned:
             s._cart_add(m_)
-    if re.search(r"lay (du|ca|het|tat ca)|ca hai|ca 2|lay du", f):
+    if settings.planner_selector == "rules" and re.search(r"lay (du|ca|het|tat ca)|ca hai|ca 2|lay du", f):
         for d in s.discussed:
             s._cart_add(d)
 
@@ -715,8 +715,16 @@ def plan(s, text, slots, route, rows=None):
     from harness import improve_hook
     c = Ctx(s, text, slots, route)
     s.table_rows = []
+    s.semantic_plan = None
     rows = rows if rows is not None else load_rows(extra=improve_hook.planner_rows())
     _prepare_pre(c)
+    if settings.planner_selector != "rules":
+        from harness.planner_executor import run
+        _prepare(c)
+        run(c)
+        out = _finish(c)
+        s.table_prev_goals = list(out[0])
+        return out
     pre = [r for r in rows if r.get("stage") == "pre"]
     done_groups = set()
     for row in pre + [None] + [r for r in rows if r.get("stage") != "pre"]:

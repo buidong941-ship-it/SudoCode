@@ -110,6 +110,11 @@ class Settings:
     improve_dir: str = field(default_factory=lambda: _env("IMPROVE_DIR", ""))
     # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
     planner_backend: str = field(default_factory=lambda: _env("PLANNER_BACKEND", "rules").lower())
+    # Bộ chọn hành động của planner. rules giữ đường bảng hiện tại để làm đối chứng A/B.
+    jev_simulated: bool = field(default_factory=lambda: _env("JEV_SIMULATED", "0") == "1")
+    goal_contract: bool = field(default_factory=lambda: _env("GOAL_CONTRACT", "0") == "1")
+    extractor_no_jev: bool = field(default_factory=lambda: _env("EXTRACTOR_NO_JEV", "0") == "1")
+    planner_selector: str = field(default_factory=lambda: _check_choice("PLANNER_SELECTOR", "rules", {"rules", "qwen", "jev"}))
     planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
     # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json.
     # 1b (06/11): _plan if-else cũ đã bỏ, bảng là đường duy nhất; PLANNER_TABLE=0 không còn nghĩa → báo lỗi (xem _check_removed).
@@ -168,7 +173,8 @@ class Settings:
                 "extractor_async": self.extractor_async, "extractor_confidence_gate": self.extractor_confidence_gate,
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
                 "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
-                "planner_backend": self.planner_backend, "planner_jev_min_conf": self.planner_jev_min_conf,
+                "planner_backend": self.planner_backend, "planner_selector": self.planner_selector,
+                "planner_jev_min_conf": self.planner_jev_min_conf, "jev_simulated": self.jev_simulated, "goal_contract": self.goal_contract, "extractor_no_jev": self.extractor_no_jev,
                 "planner_skip_since": list(self.planner_skip_since), "product_lexicon": self.product_lexicon,
                 "parallel_router": self.parallel_router, "order_qty": self.order_qty, "qwen_extract_base_url": self.qwen_extract_base_url or None,
                 "improve_dir": self.improve_dir,

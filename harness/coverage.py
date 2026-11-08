@@ -35,10 +35,17 @@ def _has_time(text, iso):
 
 def content(text, goals, facts):
     out = []
+    from core.config import settings
+    if settings.goal_contract:
+        from harness.goal_contract import validate
+        out.extend(validate(goals, facts))
     q = facts.get("quote") or {}
     for g in goals:
         if g in ("quote", "recommend") and q.get("final_price_vnd") and not _has_money(text, q["final_price_vnd"]):
             out.append(f"thiếu giá bán {q['final_price_vnd']:,}đ".replace(",", "."))
+        elif g == 'order_partial':
+            if any(o['order_id'].lower() not in text.lower() for o in facts.get('partial_orders', [])):
+                out.append('thiếu mã đơn đã tạo thành công trong kết quả một phần')
         elif g == "order_created" and facts.get("order"):
             o = facts["order"]
             miss = [x for x in (o.get("order_id") or "").split(", ") if x and x.lower() not in text.lower()]
@@ -74,6 +81,9 @@ NO_QUESTION = "lượt này không được đặt câu hỏi nào"
 def questions(text, question_slot, known):
     qs = extractor.agent_questions(text, known)
     out = []
+    from core.config import settings
+    if settings.goal_contract and question_slot is not None and not qs:
+        out.append('cần đúng một câu hỏi về thông tin còn thiếu theo kế hoạch')
     if question_slot is None and any(q["type"] == "open" for q in qs):
         out.append(NO_QUESTION)
     elif len(qs) > 1:

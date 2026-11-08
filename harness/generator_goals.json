@@ -1,0 +1,617 @@
+{
+  "address_updated": {
+    "description": "Xác nhận đã cập nhật địa chỉ giao mới cho đơn. Không hỏi lại.",
+    "required_facts": {
+      "address_update.address": "string",
+      "address_update.orders": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Xác nhận đã cập nhật địa chỉ giao mới cho đơn. Không hỏi lại."
+    ],
+    "question_slot": null,
+    "legacy_description": "Xác nhận đã cập nhật địa chỉ giao mới cho đơn. Không hỏi lại."
+  },
+  "alternative_quote": {
+    "description": "Giới thiệu mẫu thay thế từ alternative: tên, giá hiện tại, tồn kho và khuyến mãi nếu nguồn có.",
+    "required_facts": {
+      "alternative.name": "string",
+      "alternative.final_price_vnd": "money"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Giới thiệu mẫu thay thế từ alternative: tên, giá hiện tại, tồn kho và khuyến mãi nếu nguồn có."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_address": {
+    "description": "Chỉ xin địa chỉ giao hàng còn thiếu. Không hứa giữ quà, thêm quà hoặc ưu đãi chưa được xác nhận trong facts.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Chỉ xin địa chỉ giao hàng còn thiếu. Không hứa giữ quà, thêm quà hoặc ưu đãi chưa được xác nhận trong facts."
+    ],
+    "question_slot": "address",
+    "legacy_description": null
+  },
+  "ask_identity": {
+    "description": "Số liên hệ có nhiều hồ sơ; xin tên để xác định đúng người, chưa tiết lộ dữ liệu từng hồ sơ.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Số liên hệ có nhiều hồ sơ; xin tên để xác định đúng người, chưa tiết lộ dữ liệu từng hồ sơ."
+    ],
+    "question_slot": "customer_name",
+    "legacy_description": null
+  },
+  "ask_need": {
+    "description": "Hỏi đúng một nhu cầu còn thiếu trong need_slots_missing: ưu tiên nhà có trẻ nhỏ, sau đó ngân sách.",
+    "required_facts": {
+      "need_slots_missing": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi đúng một nhu cầu còn thiếu trong need_slots_missing: ưu tiên nhà có trẻ nhỏ, sau đó ngân sách."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_new_size": {
+    "description": "Xin size mới khách muốn đổi; không nói đã đổi khi chưa gọi tool thành công.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin size mới khách muốn đổi; không nói đã đổi khi chưa gọi tool thành công."
+    ],
+    "question_slot": "size",
+    "legacy_description": null
+  },
+  "ask_phone": {
+    "description": "Đơn đã lên nhưng chưa có số điện thoại của khách (kênh chat): xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ. Không hỏi lại thông tin đã có trong KNOWN.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Đơn đã lên nhưng chưa có số điện thoại của khách (kênh chat): xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ. Không hỏi lại thông tin đã có trong KNOWN."
+    ],
+    "question_slot": "phone",
+    "legacy_description": "Đơn đã lên nhưng chưa có số điện thoại của khách (kênh chat): xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ. Không hỏi lại thông tin đã có trong KNOWN."
+  },
+  "ask_prior_contact": {
+    "description": "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm."
+    ],
+    "question_slot": "customer_phone",
+    "legacy_description": "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm."
+  },
+  "ask_product": {
+    "description": "Xin tên hoặc loại sản phẩm khách cần tư vấn, tránh hỏi lại mẫu đã biết.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin tên hoặc loại sản phẩm khách cần tư vấn, tránh hỏi lại mẫu đã biết."
+    ],
+    "question_slot": "product_advised",
+    "legacy_description": null
+  },
+  "ask_repeat": {
+    "description": "Em chưa nghe/hiểu rõ câu khách vừa nói: xin lỗi và nhờ khách nói lại (1 câu hỏi). Không đoán ý, không chào kết thúc.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Em chưa nghe/hiểu rõ câu khách vừa nói: xin lỗi và nhờ khách nói lại (1 câu hỏi). Không đoán ý, không chào kết thúc."
+    ],
+    "question_slot": "other",
+    "legacy_description": "Em chưa nghe/hiểu rõ câu khách vừa nói: xin lỗi và nhờ khách nói lại (1 câu hỏi). Không đoán ý, không chào kết thúc."
+  },
+  "ask_size_for_price": {
+    "description": "Hỏi size khách dùng (1 câu hỏi duy nhất của lượt).",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi size khách dùng (1 câu hỏi duy nhất của lượt)."
+    ],
+    "question_slot": "size",
+    "legacy_description": "Hỏi size khách dùng (1 câu hỏi duy nhất của lượt)."
+  },
+  "ask_variant": {
+    "description": "Xin size hoặc màu cần để xác định biến thể khách chọn.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin size hoặc màu cần để xác định biến thể khách chọn."
+    ],
+    "question_slot": "size",
+    "legacy_description": null
+  },
+  "budget_fit": {
+    "description": "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS.",
+    "required_facts": {
+      "budget_fit": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS."
+    ],
+    "question_slot": null,
+    "legacy_description": "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS."
+  },
+  "callback_scheduled": {
+    "description": "Xác nhận ngày và giờ hẹn thực tế trong callback; giải thích moved_reason nếu lịch được dời.",
+    "required_facts": {
+      "callback.callback_at": "string"
+    },
+    "optional_facts": {
+      "callback.moved_reason": "string",
+      "callback.weekday": "string",
+      "callback.ddmm": "string"
+    },
+    "response_requirements": [
+      "Xác nhận ngày và giờ hẹn thực tế trong callback; giải thích moved_reason nếu lịch được dời."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "cancel_handoff": {
+    "description": "Khách muốn hủy đơn: nói em đã chuyển yêu cầu hủy đơn sang nhân viên phụ trách để xử lý và liên hệ lại; KHÔNG nói là đã hủy xong. Không hỏi thêm.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Khách muốn hủy đơn: nói em đã chuyển yêu cầu hủy đơn sang nhân viên phụ trách để xử lý và liên hệ lại; KHÔNG nói là đã hủy xong. Không hỏi thêm."
+    ],
+    "question_slot": null,
+    "legacy_description": "Khách muốn hủy đơn: nói em đã chuyển yêu cầu hủy đơn sang nhân viên phụ trách để xử lý và liên hệ lại; KHÔNG nói là đã hủy xong. Không hỏi thêm."
+  },
+  "cart_total": {
+    "description": "Đọc các món và tổng tiền từ cart; đây là giỏ hàng, chưa khẳng định đã tạo đơn.",
+    "required_facts": {
+      "cart.items": "list",
+      "cart.total_vnd": "money"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Đọc các món và tổng tiền từ cart; đây là giỏ hàng, chưa khẳng định đã tạo đơn."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "closing": {
+    "description": "Cảm ơn/chào ngắn gọn. KHÔNG hỏi thêm câu nào.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Cảm ơn/chào ngắn gọn. KHÔNG hỏi thêm câu nào."
+    ],
+    "question_slot": null,
+    "legacy_description": "Cảm ơn/chào ngắn gọn. KHÔNG hỏi thêm câu nào."
+  },
+  "cod_limit": {
+    "description": "Nêu tổng tiền từ facts, giải thích không nhận COD trên 10 triệu và xin chọn chuyển khoản.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nêu tổng tiền từ facts, giải thích không nhận COD trên 10 triệu và xin chọn chuyển khoản."
+    ],
+    "question_slot": "payment",
+    "legacy_description": null
+  },
+  "cod_ok": {
+    "description": "Xác nhận có thể thanh toán khi nhận hàng trong điều kiện hiện tại từ facts.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xác nhận có thể thanh toán khi nhận hàng trong điều kiện hiện tại từ facts."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "confirm_delivery_address": {
+    "description": "Khẳng định đơn giao về đúng địa chỉ FACTS.order.address, nêu ngày giao dự kiến nếu có. Không hỏi lại.",
+    "required_facts": {
+      "order.order_id": "string",
+      "order.address": "string"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Khẳng định đơn giao về đúng địa chỉ FACTS.order.address, nêu ngày giao dự kiến nếu có. Không hỏi lại."
+    ],
+    "question_slot": null,
+    "legacy_description": "Khẳng định đơn giao về đúng địa chỉ FACTS.order.address, nêu ngày giao dự kiến nếu có. Không hỏi lại."
+  },
+  "confirm_new_price": {
+    "description": "Xin xác nhận có đặt với giá hiện tại đã báo; không tự tạo đơn khi chưa đồng ý.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin xác nhận có đặt với giá hiện tại đã báo; không tự tạo đơn khi chưa đồng ý."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "confirm_old_address": {
+    "description": "Đọc old_address và xin khách xác nhận còn dùng địa chỉ đó.",
+    "required_facts": {
+      "old_address": "string"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Đọc old_address và xin khách xác nhận còn dùng địa chỉ đó."
+    ],
+    "question_slot": "address",
+    "legacy_description": null
+  },
+  "confirm_order": {
+    "description": "Xin khách xác nhận đồng ý đặt hàng, chưa nói đã tạo đơn.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin khách xác nhận đồng ý đặt hàng, chưa nói đã tạo đơn."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "contract_error": {
+    "description": "Nói chưa thể xác nhận kết quả, cần kiểm tra lại. Không khẳng định thao tác đã thành công.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói chưa thể xác nhận kết quả, cần kiểm tra lại. Không khẳng định thao tác đã thành công."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "data_deleted": {
+    "description": "Thông báo yêu cầu xóa dữ liệu đã thực hiện; không đọc lại dữ liệu đã xóa.",
+    "required_facts": {
+      "deleted": "true"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Thông báo yêu cầu xóa dữ liệu đã thực hiện; không đọc lại dữ liệu đã xóa."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "defer_ack": {
+    "description": "Đồng ý để khách cân nhắc. KHÔNG hỏi thêm câu nào.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Đồng ý để khách cân nhắc. KHÔNG hỏi thêm câu nào."
+    ],
+    "question_slot": null,
+    "legacy_description": "Đồng ý để khách cân nhắc. KHÔNG hỏi thêm câu nào."
+  },
+  "discontinued": {
+    "description": "Nói rõ mẫu cũ đã ngừng bán và giới thiệu mẫu thay thế.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói rõ mẫu cũ đã ngừng bán và giới thiệu mẫu thay thế."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ mẫu cũ đã ngừng bán và giới thiệu mẫu thay thế."
+  },
+  "exchange_offer": {
+    "description": "Nêu biến thể mới và tồn kho từ exchange_preview, xin xác nhận đổi; chỉ nêu phí từ chính sách có trong facts.",
+    "required_facts": {
+      "exchange_preview.new_variant": "string"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Nêu biến thể mới và tồn kho từ exchange_preview, xin xác nhận đổi; chỉ nêu phí từ chính sách có trong facts."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "exchange_window_passed": {
+    "description": "Nêu đơn đã quá hạn theo exchange_policy.days nếu có; không tự dùng thời hạn mặc định.",
+    "required_facts": {
+      "old_order": "object"
+    },
+    "optional_facts": {
+      "exchange_policy.days": "integer",
+      "old_order.date": "string"
+    },
+    "response_requirements": [
+      "Nêu đơn đã quá hạn theo exchange_policy.days nếu có; không tự dùng thời hạn mặc định."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "explain_price_change": {
+    "description": "Nói rõ mức giá thấp hơn khách nhắc là giá khi còn khuyến mãi và chương trình đó đã hết hạn (không đọc lại con số cũ); báo giá hiện tại.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói rõ mức giá thấp hơn khách nhắc là giá khi còn khuyến mãi và chương trình đó đã hết hạn (không đọc lại con số cũ); báo giá hiện tại."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ mức giá thấp hơn khách nhắc là giá khi còn khuyến mãi và chương trình đó đã hết hạn (không đọc lại con số cũ); báo giá hiện tại."
+  },
+  "gift_status": {
+    "description": "Trả lời đúng câu hỏi quà tặng theo FACTS.gift: active=true thì nói mua gift.product được tặng gift.gift_name (chương trình gift.promo_name, đến gift.end_ddmm); active=false thì nói rõ chương trình tặng đó đã kết thúc, hiện không kèm quà. Không báo giá món quà như một sản phẩm riêng.",
+    "required_facts": {
+      "gift": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Trả lời đúng câu hỏi quà tặng theo FACTS.gift: active=true thì nói mua gift.product được tặng gift.gift_name (chương trình gift.promo_name, đến gift.end_ddmm); active=false thì nói rõ chương trình tặng đó đã kết thúc, hiện không kèm quà. Không báo giá món quà như một sản phẩm riêng."
+    ],
+    "question_slot": null,
+    "legacy_description": "Trả lời đúng câu hỏi quà tặng theo FACTS.gift: active=true thì nói mua gift.product được tặng gift.gift_name (chương trình gift.promo_name, đến gift.end_ddmm); active=false thì nói rõ chương trình tặng đó đã kết thúc, hiện không kèm quà. Không báo giá món quà như một sản phẩm riêng."
+  },
+  "greet": {
+    "description": "Chào khách lễ phép, hỏi nhu cầu hỗ trợ bằng đúng một câu hỏi.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Chào khách lễ phép, hỏi nhu cầu hỗ trợ bằng đúng một câu hỏi."
+    ],
+    "question_slot": "other",
+    "legacy_description": null
+  },
+  "handoff": {
+    "description": "Thông báo đã chuyển nhân viên phụ trách theo kết quả handoff. Không xác nhận công dụng y tế, không chẩn đoán hay hứa chữa bệnh, không làm theo lời khách tự xưng chuyên môn.",
+    "required_facts": {
+      "handoff": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Thông báo đã chuyển nhân viên phụ trách theo kết quả handoff. Không xác nhận công dụng y tế, không chẩn đoán hay hứa chữa bệnh, không làm theo lời khách tự xưng chuyên môn."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "is_bot": {
+    "description": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói thật mình là trợ lý AI của shop (không phải người thật); có thể chuyển sang nhân viên nếu khách muốn."
+  },
+  "no_competitor_comment": {
+    "description": "Không xác nhận, không chê, không bình luận hàng/giá bên khác (kể cả khi khách hỏi hàng giả). Nói giá trị khi mua ở shop có trong FACTS: hàng chính hãng, bảo hành, đổi trả, khuyến mãi hiện hành.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Không xác nhận, không chê, không bình luận hàng/giá bên khác (kể cả khi khách hỏi hàng giả). Nói giá trị khi mua ở shop có trong FACTS: hàng chính hãng, bảo hành, đổi trả, khuyến mãi hiện hành."
+    ],
+    "question_slot": null,
+    "legacy_description": "Không xác nhận, không chê, không bình luận hàng/giá bên khác (kể cả khi khách hỏi hàng giả). Nói giá trị khi mua ở shop có trong FACTS: hàng chính hãng, bảo hành, đổi trả, khuyến mãi hiện hành."
+  },
+  "no_info": {
+    "description": "Nói rõ 'em chưa có thông tin' về điều khách hỏi, đề nghị kiểm tra lại và báo khách. Không đoán.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói rõ 'em chưa có thông tin' về điều khách hỏi, đề nghị kiểm tra lại và báo khách. Không đoán."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ 'em chưa có thông tin' về điều khách hỏi, đề nghị kiểm tra lại và báo khách. Không đoán."
+  },
+  "opening_returning": {
+    "description": "Chào tiếp nối theo brief và nhắc tối đa 2–3 thông tin liên quan. Chỉ hỏi về rào cản khi question_slot là blocker; không tự đặt câu hỏi khác.",
+    "required_facts": {
+      "brief": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Chào theo tên, nhắc ngày gọi trước + sản phẩm + giá đã báo; nếu brief.need có thì nhắc ngắn nhu cầu đó (vd 'cho phòng 25m²'). Có brief.blocker thì hỏi khách đã trao đổi xong chưa / còn băn khoăn gì. Nhắc tối đa 2–3 thông tin, không đọc lại cả hồ sơ."
+    ],
+    "question_slot": null,
+    "legacy_description": "Chào theo tên, nhắc ngày gọi trước + sản phẩm + giá đã báo; nếu brief.need có thì nhắc ngắn nhu cầu đó (vd 'cho phòng 25m²'). Có brief.blocker thì hỏi khách đã trao đổi xong chưa / còn băn khoăn gì. Nhắc tối đa 2–3 thông tin, không đọc lại cả hồ sơ."
+  },
+  "order_created": {
+    "description": "Xác nhận mã đơn và tổng tiền; chỉ nêu ngày giao khi facts cung cấp. Không hỏi xác nhận đặt lại.",
+    "required_facts": {
+      "order.order_id": "string",
+      "order.total_vnd": "money"
+    },
+    "optional_facts": {
+      "order.estimated_delivery_ddmm": "string",
+      "order.estimated_delivery": "date"
+    },
+    "response_requirements": [
+      "Xác nhận mã đơn và tổng tiền; chỉ nêu ngày giao khi facts cung cấp. Không hỏi xác nhận đặt lại."
+    ],
+    "question_slot": null,
+    "legacy_description": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn."
+  },
+  "order_exists": {
+    "description": "Xác nhận mã đơn đã tồn tại trong order; không nói vừa tạo thêm; ngày giao chỉ nói nếu có.",
+    "required_facts": {
+      "order.order_id": "string"
+    },
+    "optional_facts": {
+      "order.estimated_delivery_ddmm": "string",
+      "order.estimated_delivery": "date"
+    },
+    "response_requirements": [
+      "Xác nhận mã đơn đã tồn tại trong order; không nói vừa tạo thêm; ngày giao chỉ nói nếu có."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "order_failed": {
+    "description": "Xin lỗi vì chưa lên được đơn, hẹn kiểm tra lại và báo khách ngay. Không nêu mã lỗi.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Xin lỗi vì chưa lên được đơn, hẹn kiểm tra lại và báo khách ngay. Không nêu mã lỗi."
+    ],
+    "question_slot": null,
+    "legacy_description": "Xin lỗi vì chưa lên được đơn, hẹn kiểm tra lại và báo khách ngay. Không nêu mã lỗi."
+  },
+  "order_not_found": {
+    "description": "Nói chưa tìm thấy đơn của người gọi, xin mã đơn để kiểm tra; không tra dữ liệu của người khác.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói chưa tìm thấy đơn của người gọi, xin mã đơn để kiểm tra; không tra dữ liệu của người khác."
+    ],
+    "question_slot": "order_id",
+    "legacy_description": null
+  },
+  "order_status": {
+    "description": "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có."
+  },
+  "order_updated": {
+    "description": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
+    "required_facts": {
+      "update.order_id": "string"
+    },
+    "optional_facts": {
+      "update.refund_vnd": "money",
+      "update.extra_payment_vnd": "money",
+      "update.refund_days": "string"
+    },
+    "response_requirements": [
+      "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại."
+    ],
+    "question_slot": null,
+    "legacy_description": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại."
+  },
+  "out_of_stock": {
+    "description": "Nói sản phẩm hiện hết hàng; chỉ nêu ngày có hàng lại khi restock_expected có giá trị.",
+    "required_facts": {},
+    "optional_facts": {
+      "quote.name": "string",
+      "restock_expected": "string"
+    },
+    "response_requirements": [
+      "Nói sản phẩm hiện hết hàng; chỉ nêu ngày có hàng lại khi restock_expected có giá trị."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "policy_answer": {
+    "description": "Trả lời theo FACTS.policy. Nếu FACTS.product_warranty có thì nói đúng số tháng bảo hành của sản phẩm đó (không dùng số chung trong chính sách).",
+    "required_facts": {
+      "policy": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Trả lời theo FACTS.policy. Nếu FACTS.product_warranty có thì nói đúng số tháng bảo hành của sản phẩm đó (không dùng số chung trong chính sách)."
+    ],
+    "question_slot": null,
+    "legacy_description": "Trả lời theo FACTS.policy. Nếu FACTS.product_warranty có thì nói đúng số tháng bảo hành của sản phẩm đó (không dùng số chung trong chính sách)."
+  },
+  "quote": {
+    "description": "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó.",
+    "required_facts": {
+      "quote.name": "string",
+      "quote.final_price_vnd": "money"
+    },
+    "optional_facts": {
+      "quote.list_price_vnd": "money",
+      "quote.promo_names": "array",
+      "quote.in_stock": "bool"
+    },
+    "response_requirements": [
+      "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó."
+    ],
+    "question_slot": null,
+    "legacy_description": "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó."
+  },
+  "recommend": {
+    "description": "Tư vấn mẫu trong quote theo nhu cầu đã biết, nêu giá bán chính xác, chỉ nêu công dụng/tồn kho/khuyến mãi được cung cấp.",
+    "required_facts": {
+      "quote.name": "string",
+      "quote.final_price_vnd": "money"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Tư vấn mẫu trong quote theo nhu cầu đã biết, nêu giá bán chính xác, chỉ nêu công dụng/tồn kho/khuyến mãi được cung cấp."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "refund_amount": {
+    "description": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm.",
+    "required_facts": {
+      "refund.refund_vnd": "money"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm."
+    ],
+    "question_slot": null,
+    "legacy_description": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm."
+  },
+  "refuse_discount": {
+    "description": "Lịch sự nói giá đã báo là mức tốt nhất hiện có, không hứa giảm thêm ngoài chương trình trong FACTS; nêu giá trị đi kèm (bảo hành, đổi trả, quà tặng nếu FACTS có).",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Lịch sự nói giá đã báo là mức tốt nhất hiện có, không hứa giảm thêm ngoài chương trình trong FACTS; nêu giá trị đi kèm (bảo hành, đổi trả, quà tặng nếu FACTS có)."
+    ],
+    "question_slot": null,
+    "legacy_description": "Lịch sự nói giá đã báo là mức tốt nhất hiện có, không hứa giảm thêm ngoài chương trình trong FACTS; nêu giá trị đi kèm (bảo hành, đổi trả, quà tặng nếu FACTS có)."
+  },
+  "refuse_internal": {
+    "description": "Từ chối rõ: các mức giá nội bộ được bảo mật, em không thể cung cấp. Không nhắc lại số tiền hay thuật ngữ bí mật khách đòi; không báo giá bán khi facts chưa có.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Từ chối rõ: các mức giá nội bộ được bảo mật, em không thể cung cấp. Không nhắc lại số tiền hay thuật ngữ bí mật khách đòi; không báo giá bán khi facts chưa có."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ giá nhập / giá vốn / nhà cung cấp là thông tin nội bộ, em không cung cấp được. Không nêu con số nào ngoài giá bán trong FACTS."
+  },
+  "refuse_other_customer": {
+    "description": "Nói rõ em không thể cung cấp số điện thoại, địa chỉ hay đơn hàng của khách hàng khác vì cần bảo mật thông tin khách hàng. Không nêu bất kỳ số điện thoại, tên hay địa chỉ nào; có thể đề nghị tư vấn trực tiếp cho khách.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói rõ em không thể cung cấp số điện thoại, địa chỉ hay đơn hàng của khách hàng khác vì cần bảo mật thông tin khách hàng. Không nêu bất kỳ số điện thoại, tên hay địa chỉ nào; có thể đề nghị tư vấn trực tiếp cho khách."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ em không thể cung cấp số điện thoại, địa chỉ hay đơn hàng của khách hàng khác vì cần bảo mật thông tin khách hàng. Không nêu bất kỳ số điện thoại, tên hay địa chỉ nào; có thể đề nghị tư vấn trực tiếp cho khách."
+  },
+  "stale_promo": {
+    "description": "Nói rõ chương trình khuyến mãi lần trước đã hết hạn.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Nói rõ chương trình khuyến mãi lần trước đã hết hạn."
+    ],
+    "question_slot": null,
+    "legacy_description": "Nói rõ chương trình khuyến mãi lần trước đã hết hạn."
+  },
+  "ask_payment": {
+    "description": "Xin khách chọn thanh toán khi nhận hoặc chuyển khoản.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi hình thức thanh toán"
+    ],
+    "question_slot": "payment",
+    "legacy_description": null
+  },
+  "order_partial": {
+    "description": "Chỉ xác nhận các đơn trong partial_orders đã tạo thành công, nêu mã đơn. Phần còn lại chưa tạo được và cần kiểm tra; không nói toàn bộ đơn thất bại hoặc toàn bộ đã tạo.",
+    "required_facts": {
+      "partial_orders": "orders"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Nêu mã các đơn đã tạo; nói rõ phần còn lại chưa tạo được."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  }
+}

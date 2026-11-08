@@ -76,7 +76,7 @@ def customer_slots(text, today, meta=None, context=None, asked=None):
                 meta["backend"] = "hybrid:certified_empty"
                 meta["customer_qwen_skipped"] = True
             return {}
-    if settings.extractor_backend == "hybrid" and settings.extractor_jev_hybrid:
+    if settings.extractor_backend == "hybrid" and settings.extractor_jev_hybrid and not settings.extractor_no_jev:
         from harness.jev_hybrid import customer as jev_customer
         jev_slots = jev_customer(text, rules, meta, context)
         if jev_slots is not None:
@@ -112,6 +112,9 @@ def analyze_agent(text, known_values, meta=None, focus_sku=None):
     c_rules = agent_claims(text, focus_sku=focus_sku)
     if settings.extractor_backend == "rules":
         return q_rules, c_rules
+    if settings.extractor_no_jev:
+        from harness.extractor_separate import analyze
+        return analyze(text, known_values, q_rules, c_rules, meta, focus_sku)
     if settings.extractor_backend == "hybrid" and (settings.extractor_confidence_gate or settings.extractor_jev_hybrid):
         return _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_sku)
     if settings.agent_claim_backend == "rules":
@@ -156,7 +159,7 @@ def _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_
     uncertain_q = [q for q in q_rules if q["text"] not in certified]
     uncertain_c = [c for c in c_rules if c["text"] not in certified]
     jev_questions = settings.extractor_jev_hybrid or settings.agent_question_backend == "jev_slots_experimental"
-    if settings.extractor_jev_hybrid and settings.agent_claim_backend == "current":
+    if settings.extractor_jev_hybrid and not settings.extractor_no_jev and settings.agent_claim_backend == "current":
         from harness.jev_hybrid import claims as jev_claims
         qwen_sentences = []
         jev_label_meta = meta if meta is not None else {}
@@ -235,7 +238,7 @@ def customer_slots_start(text, today, meta=None, context=None, asked=None):
                 meta["customer_qwen_skipped"] = True
                 meta["backend"] = "hybrid:certified_empty"
             return {}, None
-    if settings.extractor_jev_hybrid:
+    if settings.extractor_jev_hybrid and not settings.extractor_no_jev:
         from harness.jev_hybrid import customer as jev_customer
         jev_slots = jev_customer(text, rules, meta, context)
         if jev_slots is not None:
@@ -428,9 +431,13 @@ def money_not_price(s, st):
 
 def agent_claims(text, quote=None, focus_sku=None):
     claims = []
-    for s in _sentences(text):
+    from harness.assertions import asserted_text
+    for original in _sentences(text):
+        s = asserted_text(original)
         n0 = len(claims)
         _sentence_claims(s, claims, focus_sku)
+        for c in claims[n0:]:
+            c['text'] = original
         sku = claim_sku(s, focus_sku) if len(claims) > n0 else None
         for c in claims[n0:] if sku else ():
             c["sku"] = sku
