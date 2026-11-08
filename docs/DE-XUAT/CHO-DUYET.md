@@ -123,3 +123,14 @@ Kết quả C5 (02/11, trung bình 3 lần, Baseline → Full): TSR 50 → 100; 
   - 20 (D57): phương án (b).
   - 21 (D30): chọn một bộ cố định khi đóng băng.
   - 22 (D41): làm sau đóng băng.
+
+**06/11 (tối), người dùng quyết:**
+- **Chọn CERT2** (`EXTRACTOR_CONFIDENCE_GATE=1`, `EXTRACTOR_CERT_VERSION=2`) làm cấu hình chính thức, **trước khi mở holdout v3**. Căn cứ: v3 dev và holdout v2_1 ngang nhau (chênh trong nhiễu), CERT2 chứng nhận nhiều lượt hơn (ít gọi LLM hơn). Mặc định trong code vẫn là `1`, nên cấu hình nộp bài phải đặt biến này rõ ràng (hoặc đổi mặc định, chờ duyệt).
+- Còn chờ quyết trước khi đóng băng: (b) có chạy CERT1 làm dòng ablation trên holdout không; (c) có chạy lại v3 dev trên GPU với code cuối (sau 1c + regex JSON) không; (d) số holdout chính thức đo với D51 bật hay tắt.
+
+**06/11 (tối), đóng băng và chạy holdout v3 (người dùng: "chốt cấu hình cuối cùng, tạo job test cuối cùng trên holdout v3"):**
+- **Đóng băng:** code = commit `cf8d19e` (gồm 7 sửa 1c và regex → JSON); sau commit này chỉ đổi file docs. Không sửa code, dữ liệu hay cấu hình theo kết quả holdout.
+- **Cấu hình chốt:** router Jev `jev-latest` (endpoint chính thức), `PARALLEL_ROUTER=1`; generator Qwen/Qwen3-4B, `REPLY_STYLE=short`, `LLM_MAX_TOKENS=160`, `LLM_TEMPERATURE=0`, `STRIP_QUESTIONS=1`; extractor hybrid (`EXTRACTOR_LLM=qwen`, `EXTRACTOR_JEV_HYBRID=1`, `JEV_DROP_POLICY=qwen`, **`EXTRACTOR_CONFIDENCE_GATE=1`, `EXTRACTOR_CERT_VERSION=2`**), `QUESTION_CLF=0`, `LEXICON_INCLUDE=approved`; planner `rules` + `PLANNER_TABLE=1` (D51 bật), `PRODUCT_LEXICON=1`, `ORDER_QTY=1`; `IMPROVE_DIR` rỗng; RAG `auto` (bge-m3 + BM25); `LLM_CACHE=off`; `--workers 2`, T4.
+- **Các mục (b), (c), (d) ở trên:** người dùng chốt đi thẳng holdout: không chạy CERT1 làm ablation, không chạy lại v3 dev trên GPU, D51 bật. Rủi ro đã nêu: code sau 1c chưa từng chạy GPU + Jev; mô tả cờ `asks_internal_cost` mới chưa probe.
+- **Job:** `elylish11/sudocode-abl-short` (dataset-only, người dùng cập nhật Secret `TYPESAFE_API_KEY` rồi Save & Run). Bộ `datagen/out_v3/final/holdout` (77 kịch bản), `full` + `baseline_no_memory`, chạy **một lần**.
+- **Kết quả holdout v3 (xong 06/11 ~22:49, mã thoát 0; `runs/kaggle/abl-short/out/abl-short/`, bản cũ sao lưu ở `runs/kaggle/abl-short.bak-before-holdout-1106`)** — Baseline / Hệ thống: RQR 41,8 / 6,7 (giảm 84,0%); CCR 9,2 / 67,9; TSR 49,4 / 66,2 (51/77); TSR ca khó 48,6 / 64,3; HR giá & KM 7,8 / 6,1 (HR mọi claim 10,0); vi phạm guardrail 0 / 0; TTFT p50/p95 922 / 2087 ms; Total p95 5922 / 6595 ms; 413 lượt, 0 lỗi LLM, router Jev 413/413 (10 lượt độ tin thấp rơi về luật). 26 kịch bản trượt, theo nhóm 4 biến thể cùng mẫu (order.update chính sách cũ / 3 phiên, order.create hết hàng, bình luận đối thủ, >10 triệu không COD...). Theo quy tắc đóng băng: **không sửa code rồi chạy lại holdout**.
