@@ -5,7 +5,7 @@ data/
 report.json
 venv/
 .venv/
-
+build/
 # Kết quả chạy và dataset: lưu ở máy / Drive, không commit (README.md, mục "Dữ liệu ngoài repo")
 runs/
 dataset/
@@ -15,9 +15,10 @@ _download/
 asr/audio/
 asr/hypotheses*.json
 datagen/out_nat/*_report.json
+datagen/function_probe/
 # Benchmark BTC-like sinh bởi datagen/generate_btc_like_benchmark.py (raw/, final/, review, validate)
-datagen/out_btc_like*/
-
+datagen/out*/
+datagen/function_probe/scenarios/
 # Gói đẩy lên Kaggle (scripts/kaggle_job.py) và venv vLLM
 build/
 .vllm-venv/
@@ -32,3 +33,42 @@ graphify-out/
 .claude/
 templates_v3/
 out_v3/
+# Release dataset mới (13/11): template + kịch bản holdout không commit (như templates_v3/, out_v3/);
+# registry.json, suites/, README, manifest.json, registry.lock.json, index.jsonl được commit.
+datagen/datasets/releases/*/templates/*.json
+datagen/datasets/releases/*/templates/*.py
+datagen/datasets/releases/*/raw/
+datagen/datasets/releases/*/final/
+datagen/datasets/releases/*/naturalize/*.py
+
+# Local development history and working artifacts stay on disk, outside the public release.
+# These rules do not untrack files that Git already tracks.
+/workbench/
+/artifacts/
+/docs/PLAN/
+/docs/DE-XUAT/
+/docs/NHAT-KY/
+/scripts/CLAUDE_HANDOFF_UI_C5_RELEASE.md
+
+# UI / improvement runtime state; maintained source, tests and a curated final FAQ package remain trackable.
+/ui/runtime/
+/improve/runtime/
+/improve/drafts/
+/improve/feedback/
+/improve/experiments/
+/improve/log.jsonl
+/.streamlit/secrets.toml
+.env.*
+!.env.example
+!.env.*.example
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm
+
+# Downloaded weights, not model source/configuration.
+*.safetensors
+*.gguf
