@@ -31,6 +31,9 @@ for top in ("harness", "core", "eval", "mcp_servers", "improve"):
                 src = open(os.path.join(d, f), encoding="utf-8").read()
                 ok(not re.search(r"^\s*(from|import)\s+ui(\.|\s|$)", src, re.M), f"{top}/{f} import ui — core phải tách khỏi ui/")
 
+# 16/11: mặc định UI là profile B2-v51-A (cần key API). Bộ kiểm hành vi offline này giữ NGUYÊN các kiểm cũ trên pipeline cũ
+# (profile legacy_offline, đúng cấu hình mặc định trước đây). Đường B2 kiểm ở tests/ui_b2_check.py.
+os.environ.setdefault("UI_PROFILE", "legacy_offline")
 from ui import engine as E  # noqa: E402
 
 main_db = os.path.join(ROOT, "data", "memory.db")

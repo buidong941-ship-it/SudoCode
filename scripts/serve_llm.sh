@@ -22,7 +22,9 @@ for u in "${URLS[@]}"; do p="$(echo "$u" | sed -E 's#.*:([0-9]+).*#\1#')"; [[ "$
 IFS=',' read -r -a GPU_LIST <<< "${VLLM_GPUS:-0}"
 N=${#PORTS[@]}
 
-ready_one() { curl -sf -m 5 "http://127.0.0.1:$1/v1/models" 2>/dev/null | grep -q "\"$QWEN_MODEL\""; }
+# VLLM_API_KEY (tùy chọn, 16/11): khóa endpoint khi mở ra ngoài qua tunnel (kaggle/qwen_tunnel.py). Không đặt = như cũ.
+AUTH=(); [ -n "${VLLM_API_KEY:-}" ] && AUTH=(-H "Authorization: Bearer $VLLM_API_KEY")
+ready_one() { curl -sf -m 5 "${AUTH[@]}" "http://127.0.0.1:$1/v1/models" 2>/dev/null | grep -q "\"$QWEN_MODEL\""; }
 ready() { for p in "${PORTS[@]}"; do ready_one "$p" || return 1; done; }
 
 case "$CMD" in
@@ -54,6 +56,7 @@ case "$CMD" in
       GUIDED_FLAG=(--guided-decoding-backend xgrammar --guided-decoding-disable-any-whitespace)
     fi
     # speculative decoding kiểu n-gram (không cần model phụ): câu trả lời hay chép lại tên SP / giá / ngày có sẵn trong prompt
+    KEY_FLAG=(); [ -n "${VLLM_API_KEY:-}" ] && KEY_FLAG=(--api-key "$VLLM_API_KEY")
     SPEC_FLAG=()
     if [ "${VLLM_SPECULATIVE:-off}" = ngram ]; then
       SPEC_FLAG=(--speculative-config "{\"method\": \"ngram\", \"num_speculative_tokens\": ${VLLM_SPEC_TOKENS:-4}, \"prompt_lookup_max\": 4, \"prompt_lookup_min\": 2}")
@@ -67,7 +70,7 @@ case "$CMD" in
         --model "${QWEN_MODEL_PATH:-$QWEN_MODEL}" --served-model-name "$QWEN_MODEL" \
         --host 127.0.0.1 --port "${PORTS[$i]}" --dtype "${VLLM_DTYPE:-auto}" \
         --max-model-len "${VLLM_MAX_MODEL_LEN:-8192}" --gpu-memory-utilization "${VLLM_GPU_MEM:-0.88}" \
-        --tensor-parallel-size "${VLLM_TP:-1}" "${PREFIX_FLAG[@]}" "${GUIDED_FLAG[@]}" "${SPEC_FLAG[@]}" ${VLLM_EXTRA:-} \
+        --tensor-parallel-size "${VLLM_TP:-1}" "${PREFIX_FLAG[@]}" "${GUIDED_FLAG[@]}" "${SPEC_FLAG[@]}" "${KEY_FLAG[@]}" ${VLLM_EXTRA:-} \
         > "$LOG" 2>&1 &
       echo $! > "$PIDF.$i"
     done
