@@ -58,7 +58,13 @@ def freeze(out, source):
     if report.stat().st_mtime_ns < max((out / rel).stat().st_mtime_ns for rel in files):
         raise SystemExit("Validation report is older than an evaluation scenario")
     previous = manifest.get("frozen")
-    if previous and previous != {"source": source, "sha256": files}:
+    if previous and previous.get("source") == "raw" and source == "final":
+        # raw → final (sau naturalize): raw phải còn nguyên byte như lúc khóa; giữ dấu khóa raw ở frozen_raw
+        changed = [rel for rel, sha in previous["sha256"].items() if not (out / rel).is_file() or digest(out / rel) != sha]
+        if changed:
+            raise SystemExit(f"Raw scenarios changed since the raw freeze: {changed[:5]}")
+        manifest["frozen_raw"] = previous
+    elif previous and previous != {"source": source, "sha256": files}:
         raise SystemExit("Benchmark is already frozen with different bytes; create a new version")
     manifest["frozen"] = {"source": source, "sha256": files}
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -97,6 +103,10 @@ def generate(args):
             if scenario_id in seen_ids:
                 raise SystemExit(f"Duplicate scenario_id: {scenario_id}")
             seen_ids.add(scenario_id)
+            # 13/11 (release H13): họ template/nhóm/cực chỉ ghi khi template khai báo → bộ cũ sinh lại không đổi byte.
+            for key, meta_key in (("family", "template_family"), ("group", "group"), ("polarity", "polarity")):
+                if template.get(key):
+                    scenario["_meta"][meta_key] = template[key]
             for call in scenario["calls"].values():
                 mode = call.get("input_mode")
                 if mode in ("asr_transcript", "chat_teencode") and not call.get("customer_turns_asr"):  # giữ bản ASR template tự viết (v3)
@@ -118,7 +128,8 @@ def generate(args):
             scenarios.append({"scenario_id": scenario_id, "template_id": template["template_id"],
                               "template_file": template["_file"], "split": split,
                               "customer_phone": phone, "n_calls": n_calls, "n_turns": n_turns,
-                              "hard_case": scenario.get("hard_case"), "sha256_raw": digest(path)})
+                              "hard_case": scenario.get("hard_case"), "sha256_raw": digest(path),
+                              **{k: template[k] for k in ("family", "polarity") if template.get(k)}})
     overlap_phones = phones["dev"] & phones["holdout"]
     overlap_text = utterances["dev"] & utterances["holdout"]
     if overlap_phones or overlap_text:
@@ -131,7 +142,8 @@ def generate(args):
                 "provenance": "Team-created simulated BTC-like sample; not an official BTC sample or hidden test",
                 "fact_sources": ["catalog/", "policy/", "eval/mock_tools.py"],
                 "templates": [{"id": t["template_id"], "file": t["_file"], "split": t["split"],
-                               "instances": t.get("instances", 1)} for t in templates],
+                               "instances": t.get("instances", 1),
+                               **{k: t[k] for k in ("family", "group", "polarity", "diff_vs_old") if t.get(k)}} for t in templates],
                 "splits": by_split, "coverage": dict(sorted(coverage.items())),
                 "scenarios": scenarios, "failures": failures, "failed_count": len(failures)}
     args.out.mkdir(parents=True, exist_ok=True)

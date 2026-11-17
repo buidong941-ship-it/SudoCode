@@ -106,7 +106,8 @@ def entity_breakdown(gt, hyp):
         h = hyp[d["id"]].get("entities", {})
         for k, v in d.get("entities", {}).items():
             g = "money" if k in MONEY_KEYS else "phone" if k == "phone" else "other"
-            ok = str(h.get(k)) == str(v)
+            vals = v if isinstance(v, list) else [v]          # BTC 11/2026: gold là danh sách khi thực thể được nhắc nhiều lần
+            ok = any(str(h.get(k)) == str(x) for x in vals)
             acc[g][0] += ok; acc[g][1] += 1
             if not ok:
                 wrong.append(f"{d['id']}.{k}: đúng={v!r} nhận={h.get(k)!r}")
@@ -198,9 +199,12 @@ def main():
         rtf = round(tot_t / max(tot_a, 1), 2)
         print(f"  {tot_a:.0f}s audio xử lý trong {tot_t:.0f}s (RTF {rtf:.2f})")
     if a.report:
+        os.makedirs(os.path.dirname(os.path.abspath(a.report)), exist_ok=True)   # 10/11: thư mục báo cáo có thể chưa tồn tại
         json.dump({"backend": None if a.from_ground_truth else a.backend, "model": None if a.from_ground_truth else a.model,
                    "n_dialogues": r["n_dialogues"], "WER": r["WER"], "CER": r["CER"], "wer_clean": r["wer_clean"], "wer_noisy": r["wer_noisy"],
                    "entity_accuracy": r["entity_accuracy"], "n_entities": r["n_entities"],
+                   # BTC 11/2026: chấm theo lượt chỉ khi hypotheses có turns[idx] từ căn chỉnh hợp lệ — bản này chưa xuất → None
+                   "entity_accuracy_per_turn": r.get("entity_accuracy_per_turn"), "n_entities_per_turn": r.get("n_entities_per_turn"),
                    "entity_by_type": {g: {"accuracy": v, "n": n} for g, (v, n) in by.items()}, "entity_errors": wrong,
                    "rtf": rtf, "per_dialogue": r["per_dialogue"]}, open(a.report, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
