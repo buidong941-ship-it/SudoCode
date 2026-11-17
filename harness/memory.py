@@ -46,7 +46,8 @@ quotes = Table("quotes", meta,
 TTL_DAYS = {"room_area_m2": 365, "has_children": 365, "household_size": 365, "budget_vnd": 90, "size": 180, "color": 180,
             "address": 180, "payment": 180, "product_advised": 60, "price_quoted_vnd": 30, "blocker": 30,
             "competitor_price_vnd": 30, "objection": 30, "callback_requested": 14,
-            "baby_age": 60, "owned_product": 365}
+            "baby_age": 60, "owned_product": 365,
+            "unresolved_order_sku": 14}   # cụm 2: đơn chưa rõ kết quả — chặn tạo lại qua phiên, chờ nhân viên đối soát
 _engine = None
 
 

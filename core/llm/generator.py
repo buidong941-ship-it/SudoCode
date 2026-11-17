@@ -58,6 +58,7 @@ class Generator:
 
     def generate(self, plan, retry_note=None, temperature=None):
         self.fill_problems = []
+        PAYLOAD_DROPPED.clear()
         if self.backend in ("deepseek", "qwen"):
             from core.llm.deepseek import LLM
             from core.pii import TOKEN_RX, Redactor
@@ -203,10 +204,16 @@ IMPROVE_RULE = ("\n16. PLAYBOOK (nếu có) là hướng dẫn đã được ng�
                 "phẩm, số tiền, ngày hay mã đơn từ EXEMPLARS — mọi dữ kiện chỉ lấy từ FACTS.")
 
 
+PAYLOAD_DROPPED = []   # cụm 1: đường dẫn field bị allowlist bỏ ở lần dựng payload gần nhất (agent ghi vào trace)
+
+
 def payload(plan, red=None, compact=True, slots=None):
     notes = {g: GOAL_NOTES[g] for g in plan.get("goals", []) if g in GOAL_NOTES}
+    from harness.payload_policy import scrub, GENERATOR_TOP
     prompt_plan = {k: v for k, v in plan.items() if k != "contract"}
     data = json.loads(json.dumps({**prompt_plan, "GOAL_NOTES": notes}, ensure_ascii=False, default=str))
+    data, dropped = scrub(data, top=GENERATOR_TOP)     # cụm 1: allowlist field gửi cho model (field nội bộ "_*", định danh)
+    PAYLOAD_DROPPED[:] = dropped
     if slots:
         for code, s in slots.items():
             for p in s["paths"]:
@@ -244,6 +251,50 @@ def _price_phrase(q):
     return f"giá {_vnd(final)}" + (f", kèm ưu đãi {', '.join(names)}" if names else "")
 
 
+def _covered(plan):
+    """D1 (14/11, §8.11): điều mà khối KHÁC của cùng câu trả lời CHẮC CHẮN nói ra, để _promo_note không nói lại.
+    Chỉ một trường hợp: khối gift_status có mặt (đường renderer: block đã qua kiểm hợp đồng, plan["turn_kinds"]; đường
+    render_offline trực tiếp: goals của plan) với FACTS.gift.active = False → câu mẫu cố định "chương trình tặng … khi mua … đã kết
+    thúc …, hiện mẫu này không kèm quà tặng" đã nói (1) không có quà và (2) KM quà FACTS.gift.promo_name đã kết thúc.
+    stale_promo KHÔNG tính: câu của nó chung chung ("KM hôm trước đã hết hạn"), không nêu tên KM nào."""
+    kinds = plan.get("turn_kinds")
+    if kinds is None:
+        kinds = plan.get("goals") or []
+    gf = (plan.get("facts") or {}).get("gift") or {}
+    if "gift_status" in kinds and gf.get("active") is False:
+        return {"no_gift": True, "ended_promo": gf.get("promo_name")}
+    return {}
+
+
+def _promo_note(q, asked, covered=None):
+    """F1 (13/11, B2): khách hỏi KM / hạn KM mà khối giá không có KM đang áp dụng → nói rõ tình trạng có nguồn từ
+    pricing.get_quote (ineligible_promos / expired_promos), không để câu chỉ nhắc lại giá.
+    F1b (13/11): KM không áp dụng KHÔNG nêu tên / con số (RT-10: tên KM có "giảm 50%"); hỏi hạn KM mà có KM đã hết hạn
+    thì báo hết hạn trước; hỏi quà mà không có KM loại quà đang áp dụng thì nói rõ không có quà.
+    D1 (14/11): câu nào đã được khối gift_status cùng câu trả lời nói ra (covered, xem _covered) thì BỎ HẲN câu đó — không chuyển
+    sang nhánh khác của F1 (không thay bằng "chưa có chương trình khuyến mãi nào"). Không dedupe gì khác."""
+    cov = covered or {}
+    notes = []
+    if set(asked) & {"promo", "promo_end"} and not q.get("promo_names"):
+        inel = [x for x in q.get("ineligible_promos") or [] if x.get("name")]
+        exp = [x for x in q.get("expired_promo_names") or [] if x]
+        if "promo_end" in asked and exp:
+            if exp[0] != cov.get("ended_promo"):
+                notes.append(f"Chương trình {exp[0]} đã hết hạn rồi ạ.")
+        elif any(x.get("reason") == "exclude_variant_size" for x in inel):
+            notes.append("Chương trình khuyến mãi hiện có không áp dụng cho size này ạ.")
+        elif inel:
+            notes.append("Hiện mẫu này chưa đủ điều kiện áp dụng chương trình khuyến mãi nào ạ.")
+        elif exp:
+            if exp[0] != cov.get("ended_promo"):
+                notes.append(f"Chương trình {exp[0]} đã hết hạn rồi ạ.")
+        else:
+            notes.append("Hiện mẫu này chưa có chương trình khuyến mãi nào ạ.")
+    if "gift" in asked and q.get("has_gift") is False and not cov.get("no_gift"):
+        notes.append("Hiện mẫu này không có quà tặng kèm ạ.")
+    return " ".join(notes)
+
+
 def render_offline(plan):
     h = plan.get("honorific") or "anh/chị"
     F = plan.get("facts", {})
@@ -274,11 +325,19 @@ def render_offline(plan):
             out.append(f"Dạ số này bên em có nhiều hồ sơ, cho em xin tên của {h} để em hỗ trợ đúng ạ?")
         elif g in ("recommend", "quote"):
             if q:
-                s = ("Dạ em gợi ý " if g == "recommend" else "Dạ ") + f"mẫu {q['name']} {_price_phrase(q)}"
-                if q.get("in_stock") is False: s += ", hiện mẫu này đang tạm hết hàng"
-                out.append(s + " ạ.")
+                s = ("Dạ em gợi ý " if g == "recommend" else "Dạ ") + f"mẫu {q['name']} "                     + ("mua riêng " if q.get("price_context") == "standalone" else "") + _price_phrase(q)
+                asked = q.get("ask_topics") or []          # F1 (B2): chủ đề khách hỏi mà khối giá phải trả lời
+                if q.get("in_stock") is False:
+                    s += ", hiện mẫu này đang tạm hết hàng" + (f", dự kiến có hàng lại ngày {_dm(q['restock_expected'])}"
+                                                              if "stock" in asked and q.get("restock_expected") else "")
+                elif "stock" in asked and q.get("in_stock"):
+                    s += ", hiện còn hàng"
+                note = _promo_note(q, asked, _covered(plan))
+                out.append(s + " ạ." + (f" {note}" if note else ""))
         elif g == "alternative_quote" and F.get("alternative"):
-            a = F["alternative"]; out.append(f"Ngoài ra bên em có mẫu {a['name']}, {_price_phrase(a)} ạ.")
+            a = F["alternative"]
+            out.append(f"Mẫu {a['name']} nếu mua riêng {_price_phrase(a)} ạ." if a.get("price_context") == "standalone"
+                       else f"Ngoài ra bên em có mẫu {a['name']}, {_price_phrase(a)} ạ.")
         elif g == "stale_promo":
             out.append("Dạ chương trình khuyến mãi hôm trước đã hết hạn rồi ạ, em báo lại giá hiện tại cho mình.")
         elif g == "out_of_stock":
@@ -291,16 +350,26 @@ def render_offline(plan):
         elif g == "ask_variant":
             out.append(f"Dạ {h} lấy size và màu nào ạ?")
         elif g == "ask_address":
-            out.append(f"Dạ {h} cho em xin địa chỉ nhận hàng ạ?")
+            # V50: hỏi lại địa chỉ cho đúng đơn khi executor truyền đơn đích (address_change.product); còn lại giữ nguyên câu cũ
+            ac = F.get("address_change") if isinstance(F.get("address_change"), dict) else {}
+            out.append(f"Dạ {h} cho em xác nhận địa chỉ giao mới cho đơn {ac['product']} là ở đâu ạ?" if ac.get("product")
+                       else f"Dạ {h} cho em xin địa chỉ nhận hàng ạ?")
         elif g == "ask_phone":
             out.append(f"Dạ {h} cho em xin số điện thoại để shipper liên hệ khi giao hàng ạ?" if (plan.get("KNOWN") or {}).get("address")
                        else f"Dạ {h} cho em xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ giao ạ?")
+        elif g == "order_unresolved":
+            p = (F.get("unresolved_order") or {}).get("product")
+            out.append(f"Dạ hệ thống chưa phản hồi kết quả tạo đơn{' ' + p if p else ''}, em chưa xác nhận được đơn đã lên hay chưa. "
+                       f"Em không tạo thêm đơn để tránh trùng, nhân viên bên em sẽ kiểm tra và báo lại {h} ạ.")
         elif g == "order_partial":
             codes = ', '.join(o['order_id'] for o in F['partial_orders'])
             out.append(f"Dạ em đã tạo các đơn {codes}; phần còn lại chưa tạo được, em cần kiểm tra lại ạ.")
         elif g == "order_created":
             o = F["order"]; out.append(f"Dạ em đã lên đơn {o['order_id']} cho {h}, tổng {_vnd(o['total_vnd'])}"
-                                       + (f", dự kiến giao ngày {_dm(o['estimated_delivery'])}" if o.get("estimated_delivery") else "") + " ạ.")
+                                       + (f", dự kiến giao ngày {_dm(o['estimated_delivery'])}" if o.get("estimated_delivery") else "")
+                                       # C (14/11, duyệt): đọc lại ĐÚNG địa chỉ đã ghi vào đơn để khách tự sửa nếu sai (không cắt chữ)
+                                       + (f", giao về {o['address']}" if o.get("address") else "")
+                                       + (", thanh toán khi nhận hàng (COD)" if o.get("payment_default") else "") + " ạ.")
         elif g == "ask_need":
             miss = F.get("need_slots_missing") or []
             out.append(f"Dạ nhà mình có bé nhỏ không {h} ạ?" if "has_children" in miss else f"Dạ {h} dự định ngân sách khoảng bao nhiêu ạ?")
@@ -316,7 +385,9 @@ def render_offline(plan):
         elif g == "explain_price_change":
             out.append(f"Dạ mức giá {h} nhắc là giá khi còn khuyến mãi, chương trình đó nay đã hết hạn nên giá hiện tại là {_vnd(q.get('final_price_vnd'))} ạ.")
         elif g == "cart_total":
-            ct = F["cart"]; out.append("Dạ " + ", ".join(f"{i['name']} {_vnd(i['final_price_vnd'])}" for i in ct["items"]) + f", tổng {_vnd(ct['total_vnd'])} ạ.")
+            ct = F["cart"]; out.append("Dạ " + ", ".join(f"{i['name']} {_vnd(i['final_price_vnd'])}"
+                                                         + (f" (áp dụng {i['price_note']})" if i.get("price_note") else "")
+                                                         for i in ct["items"]) + f", tổng {_vnd(ct['total_vnd'])} ạ.")
         elif g == "ask_prior_contact":
             out.append(f"Dạ em chưa tìm thấy lịch sử trao đổi của {h} với số này ạ. {h.capitalize()} cho em xin số điện thoại "
                        "hoặc tên tài khoản Facebook/Zalo đã nhắn với shop để em tra lại đúng thông tin nhé?")
@@ -327,18 +398,33 @@ def render_offline(plan):
                             "hiện mẫu này không kèm quà tặng.")
         elif g == "budget_fit" and F.get("budget_fit"):
             bf = F["budget_fit"]
-            out.append(("Dạ giá " + _vnd(bf["final_price_vnd"]) if bf.get("final_price_vnd") else "Dạ mức này")
+            nm = f"mẫu {bf['product']} " if bf.get("product") else ""
+            out.append((f"Dạ {nm}giá " + _vnd(bf["final_price_vnd"]) if bf.get("final_price_vnd") else "Dạ mức này")
                        + f" {'nằm trong' if bf['within_budget'] else 'cao hơn'} ngân sách {_vnd(bf['budget_vnd'])} của {h} ạ.")
+            alt = bf.get("alternative") if isinstance(bf.get("alternative"), dict) else None      # V52: chỉ có ở adapter B2
+            if alt and alt.get("within_budget"):
+                out.append(f"Mẫu {alt['name']} giá {_vnd(alt['final_price_vnd'])}, vừa với ngân sách của {h}; "
+                           f"{h} có muốn em tư vấn thêm mẫu này không ạ?")
+            elif alt:
+                out.append(f"Mẫu gần mức này nhất bên em là {alt['name']} giá {_vnd(alt['final_price_vnd'])}, cao hơn ngân sách "
+                           f"của {h} khoảng {_vnd(alt['over_by_vnd'])} ạ.")
+            elif bf.get("no_alternative"):
+                out.append(f"Hiện bên em chưa có mẫu cùng loại còn hàng trong mức ngân sách này ạ.")
         elif g == "cod_ok":
             out.append("Dạ đơn này mình thanh toán khi nhận hàng (COD) được ạ.")
         elif g == "address_updated":
-            out.append(f"Dạ em đã cập nhật địa chỉ giao mới {F['address_update']['address']} cho đơn của {h} ạ.")
+            au = F["address_update"]
+            out.append(f"Dạ em đã cập nhật địa chỉ giao mới {au['address']} cho đơn "
+                       + (f"{', '.join(au['orders'])}" if len(au.get("orders") or []) == 1 and settings.arch == "target" else f"của {h}")
+                       + (f", dự kiến giao ngày {au['estimated_delivery_ddmm']}" if au.get("estimated_delivery_ddmm") else "") + " ạ.")
         elif g == "confirm_old_address":
             out.append(f"Dạ địa chỉ cũ bên em lưu là {F['old_address']}, {h} vẫn nhận ở đó đúng không ạ?")
         elif g == "confirm_delivery_address":
             o = F["order"]; out.append(f"Dạ đơn {o['order_id']} em giao về {o.get('address')} cho {h} ạ.")
         elif g == "confirm_order":
-            out.append(f"{h.capitalize()} xác nhận giúp em để em lên đơn luôn nhé?")
+            names = (F.get("proposal") or {}).get("names") or []
+            out.append(f"{h.capitalize()} xác nhận giúp em đặt {', '.join(names)} để em lên đơn luôn nhé?" if names
+                       else f"{h.capitalize()} xác nhận giúp em để em lên đơn luôn nhé?")
         elif g == "ask_size_for_price":
             out.append(f"Dạ giá mẫu này có thể khác nhau theo size, {h} đi size mấy để em báo đúng giá ạ?")
         elif g == "order_exists":
@@ -361,7 +447,8 @@ def render_offline(plan):
             out.append(s + " ạ.")
         elif g == "refund_amount":
             r = F["refund"]
-            out.append(f"Dạ số tiền hoàn cho đơn {r.get('order_id')} của {h} là {_vnd(r['refund_vnd'])}"
+            lead = "nếu trả hàng, số tiền hoàn dự kiến" if r.get("basis") == "order_price" else                 "số tiền chênh lệch được hoàn khi đổi hàng" if r.get("basis") == "exchange_difference" else "số tiền hoàn"
+            out.append(f"Dạ {lead} cho đơn {r.get('order_id')} của {h} là {_vnd(r['refund_vnd'])}"
                        + (f", hoàn trong {r['refund_days']}" if r.get("refund_days") else "") + " ạ.")
         elif g == "cancel_handoff":
             out.append(f"Dạ em đã chuyển yêu cầu hủy đơn của {h} sang nhân viên phụ trách để xử lý, bên em sẽ liên hệ lại {h} sớm ạ.")
@@ -391,11 +478,75 @@ def render_offline(plan):
         elif g == "no_info":
             out.append("Dạ về vấn đề này em chưa có thông tin, em ghi nhận và kiểm tra lại rồi báo mình ạ.")
         elif g == "handoff":
-            out.append(f"Dạ câu này em xin phép chuyển {h} sang chuyên viên để tư vấn chính xác, em đã gửi đầy đủ thông tin để {h} không phải nói lại ạ.")
+            ho = F.get("handoff") or {}
+            if ho.get("already_queued") and ho.get("ticket_id"):
+                # 14/11 (duyệt): ticket đã có từ lượt trước (agent._handoff không gọi lại tool) → nói đúng trạng thái: đã chuyển, đang
+                # chờ chuyên viên tiếp nhận (status queued); không nói như vừa chuyển lần nữa, không hứa đã nối máy
+                state = "đang chờ chuyên viên tiếp nhận" if ho.get("status") == "queued" else "chuyên viên sẽ liên hệ lại"
+                out.append(f"Dạ yêu cầu của {h} em đã chuyển sang chuyên viên rồi ạ, hiện {state}, {h} không cần nói lại thông tin ạ.")
+            else:
+                out.append(f"Dạ câu này em xin phép chuyển {h} sang chuyên viên để tư vấn chính xác, em đã gửi đầy đủ thông tin để {h} không phải nói lại ạ.")
         elif g == "is_bot":
             out.append("Dạ em là trợ lý AI của shop ạ, nếu cần em có thể chuyển mình sang nhân viên.")
         elif g == "data_deleted":
             out.append(f"Dạ em đã ghi nhận yêu cầu xóa dữ liệu của {h} ạ.")
         elif g == "closing":
             out.append(f"Dạ em cảm ơn {h} ạ.")
+        elif g == "condition_pending":
+            cd = F.get("condition") or {}
+            out.append(f"Dạ em ghi nhận {h} đặt" + (f" khi {cd['text']}" if cd.get("text") else " kèm điều kiện")
+                       + f", em chưa lên đơn ạ; khi {h} xác nhận thì em lên đơn ngay.")
+        elif g == "condition_unmet":
+            cd = F.get("condition") or {}
+            out.append(f"Dạ tổng hiện tại là {_vnd(cd['total_vnd'])}, cao hơn mức {_vnd(cd['max_vnd'])} {h} đặt ra nên em chưa lên đơn ạ.")
+        elif g == "ask_which_order":
+            ws = F.get("which_orders") or []
+            act = F.get("which_orders_action")              # V45: nêu đúng thao tác khách đã nói (vd "đổi địa chỉ giao")
+            out.append(f"Dạ {h} đang có các đơn " + ", ".join(f"{o.get('order_id')}" + (f" ({o['product']})" if o.get("product") else "") for o in ws)
+                       + (f", {h} muốn {act} cho đơn nào ạ?" if act else f", {h} muốn em xử lý đơn nào ạ?"))
+        elif g == "address_change_unavailable":
+            # V51: không đổi địa chỉ cho đơn này (không ghi); không hứa chuyển máy / gọi lại khi chưa có tool thành công
+            ab = F.get("address_block") if isinstance(F.get("address_block"), dict) else {}
+            nm = f"{ab.get('product')} ({ab.get('order_id')})" if ab.get("product") else f"{ab.get('order_id')}"
+            out.append(f"Dạ đơn {nm} đã được giao nên em không đổi được địa chỉ giao cho đơn này ạ." if ab.get("why") == "terminal"
+                       else f"Dạ em chưa đổi được địa chỉ giao cho đơn {nm} trong cuộc gọi này ạ.")
+        elif g == "ask_exchange_or_return":
+            out.append(f"Dạ {h} muốn đổi sang sản phẩm khác hay trả hàng để hoàn tiền ạ?")
+        elif g == "ask_which_product":
+            out.append(f"Dạ {h} muốn lấy mẫu nào ạ: " + ", ".join(F.get("which_products") or []) + "?")
+        elif g == "ask_multi_request":
+            out.append(f"Dạ {h} muốn em lên chung một đơn gồm " + " và ".join((F.get("multi_request") or {}).get("products") or [])
+                       + " đúng không ạ?")
+        elif g == "ask_additional_order":
+            ao = F.get("additional_order") or {}
+            note = f"Đơn {ao.get('order_id')} đã có {', '.join(ao['overlap'])} rồi ạ. " if ao.get("overlap") else ""
+            out.append(f"{note}{h.capitalize()} muốn đặt thêm một đơn {', '.join(ao.get('products') or [])} nữa không ạ?")
+        elif g == "ask_which_attribute":
+            aa = F.get("attribute_ask") or {}
+            opts = aa.get("options") or []
+            out.append(f"Dạ {h} muốn biết thông tin gì về mẫu {aa.get('product')} ạ"
+                       + (f", ví dụ {', '.join(opts)}" if opts else "") + "?")
+        elif g == "ask_accessory_intent":
+            aa = F.get("accessory_ask") or {}
+            out.append(f"Dạ {h} muốn thêm cả {', '.join(aa.get('products') or [])} vào giỏ luôn không ạ?")
+        elif g == "cart_item_already":
+            ca = F.get("cart_already") or {}
+            out.append(f"Dạ mẫu {', '.join(ca.get('products') or [])} đã có trong giỏ của {h} rồi ạ, giỏ hiện ghi mỗi mẫu một máy.")
+        elif g == "ask_parked_request":
+            out.append(f"Còn mẫu {', '.join((F.get('parked_request') or {}).get('products') or [])} lúc trước, {h} vẫn muốn đặt hay thôi ạ?")
+        elif g == "exchange_window_info":
+            w = F.get("exchange_window") or {}
+            s = f"Dạ đơn {w.get('order_id')}" + (f" đặt ngày {w['created_ddmm']}" if w.get("created_ddmm") else "") \
+                + f" áp dụng thời hạn đổi trả {w.get('days')} ngày kể từ ngày nhận hàng ạ."
+            if w.get("action"):
+                s += f" Hệ thống bên em chưa có ngày {h} nhận hàng nên em chưa tạo yêu cầu {w['action']} ngay được ạ."
+            out.append(s)
+        elif g == "explain_promo_expired":
+            pc = F.get("price_change") or {}
+            out.append(f"Dạ mức giá {h} nhắc là giá lúc còn chương trình {pc.get('promo_name')}"
+                       + (f", chương trình đã kết thúc ngày {pc['promo_end_ddmm']}" if pc.get("promo_end_ddmm") else ", chương trình đó nay đã hết hạn")
+                       + (f" nên giá hiện tại là {_vnd(q.get('final_price_vnd'))}" if q.get("final_price_vnd") else "") + " ạ.")
+        elif g == "price_claim_unverified":
+            out.append(f"Dạ mức giá {h} nhắc em chưa đối chiếu được với báo giá nào của bên em ạ"
+                       + (f"; giá hiện tại em vừa báo là {_vnd(q.get('final_price_vnd'))}" if q.get("final_price_vnd") else "") + ".")
     return " ".join(out) or f"Dạ vâng ạ."

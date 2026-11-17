@@ -19,7 +19,7 @@ _spec = importlib.util.spec_from_file_location("mock_tools", os.path.join(settin
 mt = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mt)
 
-DATED = {"inventory.check", "pricing.get_quote", "order.create", "order.update"}
+DATED = {"inventory.check", "pricing.get_quote", "pricing.quote_order", "order.create", "order.update"}
 
 
 class ToolBox:
@@ -190,6 +190,20 @@ def find_products(text):
         if s not in seen:
             seen.add(s); out.append(s)
     return _prefer_bundle(f, out) if settings.product_lexicon else out
+
+
+def mention_spans(text):
+    """Vị trí các lần nhắc sản phẩm trong câu (cùng chuỗi chuẩn hóa + cùng cách gán alias dài trước của find_products).
+    → (chuỗi đã chuẩn hóa, {sku: [(start, end), ...]}). Dùng để biết một lần nhắc tên máy có nằm trong cụm phụ kiện không."""
+    f = " " + _spoken_digits(fold(text)) + " "
+    spans, used = {}, []
+    index = _lexicon_index() if settings.product_lexicon else _INDEX
+    for alias, sku in index:
+        for m in re.finditer(r"(?<![a-z0-9])" + re.escape(alias) + r"(?![a-z0-9])", f):
+            if any(s <= m.start() < e for s, e in used):
+                continue
+            used.append((m.start(), m.end())); spans.setdefault(sku, []).append((m.start(), m.end()))
+    return f, spans
 
 
 def find_variant(sku, text, fallback_size=None, fallback_color=None):

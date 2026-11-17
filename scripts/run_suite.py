@@ -209,7 +209,8 @@ def main():
                        "--transport", a.transport, "--workers", str(a.workers), "--run-id", f"{tag}-{name}"]
                 if a.only:
                     cmd += ["--only", *a.only]
-                for attempt in (1, 2):
+                # SUITE_RETRY=0 (13/11): không chạy lại cả config khi có lượt lỗi LLM — lỗi API phải hiện trong số báo cáo
+                for attempt in ((1,) if os.environ.get("SUITE_RETRY", "1") == "0" else (1, 2)):
                     if uses_qwen and a.serve == "auto" and not ensure_server(log, meta):
                         rc = 1; break
                     t1 = time.time(); rc = sh(cmd, log)

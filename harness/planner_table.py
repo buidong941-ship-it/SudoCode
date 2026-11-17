@@ -34,6 +34,8 @@ class Ctx:
         self.it, self.fl = route["intent"], route.get("flags", {})
         self.goals, self.facts = [], {}
         self.memo = {}
+        # cấu hình đích: dữ liệu có kiểu từ bộ hiểu DeepSeek (asks / requests / response / refs / safety) — predicate đọc ở đây
+        self.u = route.get("understanding") if settings.arch == "target" else None
 
     def y(self, k, th=0.6):
         return self.fl.get(k, 0) >= th
@@ -134,7 +136,9 @@ def matches(c, w):
         return False
     for p in w.get("preds") or []:
         neg = p.startswith("!")
-        val = bool(PREDS[p.lstrip("!")](c))
+        name = p.lstrip("!")
+        fn = PREDS_TARGET.get(name, PREDS[name]) if c.u is not None else PREDS[name]
+        val = bool(fn(c))
         if val == neg:
             return False
     return True
@@ -205,6 +209,9 @@ def _noisy_asr(c):
     t = c.text.lower()
     return c.s.input_mode == "asr_transcript" and (t.count("…") + t.count("...") >= 2
                                                      or bool(re.search(r"(?<!\w)(rè|rẹt|tút|xè|xẹt)(?!\w)", t)))
+
+
+RETURN_LIKE_ACTIONS = ("return", "exchange_product", "exchange_size")
 
 
 def _has_return_info(c):
@@ -286,7 +293,162 @@ PREDS = {
     "stale_goal_untold": lambda c: "stale_promo" in c.goals and not c.s.price_change_told,
     "callback_slot": lambda c: bool(c.slots.get("callback_requested")),
     "no_goals": lambda c: not c.goals,
+    "address_change_request": lambda c: False,          # T01 chỉ trên cấu hình đích (R0 không đổi hành vi)
 }
+
+
+# ---- Cấu hình đích (ARCH=target, K05): predicate ĐỌC DỮ LIỆU CÓ KIỂU thay cho regex đoán ý khách.
+# Nguồn: bộ hiểu DeepSeek (asks / requests / response_to_agent / refs / safety / ambiguity), state yêu cầu (request_state)
+# và kết quả tool. Parser định dạng (catalog lookup, số / ngày, thuật ngữ thuộc tính) vẫn là code; không có cue regex hiểu ý.
+# Dòng bảng giữ nguyên; chỉ nguồn dữ liệu của predicate đổi. Bảng đối chiếu caller cũ → chủ sở hữu mới: docs/PLAN báo cáo 11/11.
+
+def _u(c):
+    return c.u or {}
+
+
+def _asks(c, *topics):
+    return bool(set(_u(c).get("asks") or []) & set(topics))
+
+
+def _req(c, kind):
+    return kind in (_u(c).get("requests") or [])
+
+
+def _wants_t(c):
+    """Khách chốt mua trong lượt này: yêu cầu place_order có căn cứ (hoặc đồng ý đề nghị đặt hàng) vừa được mở."""
+    rs = getattr(c.s, "reqs", None)
+    return bool(rs and any(e.get("event") == "opened" and e.get("kind") == "place_order" for e in rs.events))
+
+
+def _pending_t(c):
+    """Yêu cầu đặt hàng còn hiệu lực + khách NÊU / CHỌN thông tin đơn trong lượt (stance có kiểu của bộ hiểu, không theo cờ 'đang
+    hỏi' của cả câu — câu đa ý vẫn có thể vừa đọc địa chỉ vừa hỏi điều khác)."""
+    rs = getattr(c.s, "reqs", None)
+    obs = {o["slot"] for o in ((c.s.u_turn or {}).get("observations") or []) if o.get("stance") in ("chosen", "stated")}
+    return bool(rs and rs.has_active("place_order")) \
+        and c.it not in ("callback", "negotiate", "order_change", "order_status") \
+        and bool(obs & {"address", "payment", "size", "color"})
+
+
+def _asks_price_t(c):
+    s = c.s
+    return c.it in ("price_promo", "negotiate", "product_inquiry") or (c.new_focus and c.new_focus != c.prev_focus) \
+        or bool(c.alt) or c.compare or (_asks(c, "gift", "promo_end", "promo") and bool(s.focus)) \
+        or (c.it == "place_order" and c.asking) or "exchange_window_passed" in c.goals
+
+
+def _shop_calls_time_t(c):
+    if not _req(c, "callback"):
+        return False
+    w = _A().extractor.parse_relative_datetime(c.text, c.s.today)     # parser thời điểm (không đoán ý)
+    c.memo["callback_w"] = w
+    return bool(w)
+
+
+def _attr_ask_t(c):
+    if not _asks(c, "attribute"):
+        return False
+    terms = [m.group(0) for m in _A().ATTR_ASK_RX.finditer(c.f)]       # parser thuật ngữ thuộc tính để tra catalog
+    c.memo["terms"] = terms
+    return bool(terms) and "no_info" not in c.goals and "policy_answer" not in c.goals
+
+
+def _policy_gap_t(c):
+    if "gap" not in c.memo:
+        c.memo["gap"] = c.s._policy_gap(c.text, c.f, c.asking, typed=_asks(c, "return_policy", "refund_amount")) \
+            if _asks(c, "return_policy", "refund_amount") or c.s.policy_gap else None
+    return c.memo["gap"]
+
+
+def _repeat_exhausted_t(c):
+    s = c.s
+    return not c.goals and s.turn_no > 1 and not c.slots and not c.mentioned and not _u(c).get("refs", {}).get("closing") \
+        and (c.asking or _u(c).get("ambiguity") == "needs_clarification") and s.repeat_asked >= 2
+
+
+PREDS_TARGET = {
+    "noisy_asr": lambda c: c.s.input_mode == "asr_transcript" and _u(c).get("ambiguity") == "needs_clarification",
+    "refund_ask": lambda c: _asks(c, "refund_amount"),
+    "has_return_info": lambda c: any(k[1] in RETURN_LIKE_ACTIONS for k in c.s.updates_done)
+                                 or bool(_u(c).get("refs", {}).get("existing_order") and PREDS["has_any_order"](c)),
+    "pressure_words": lambda c: c.y("asks_internal_cost", 0.6),
+    "cancel_ask": lambda c: _req(c, "cancel"),
+    "later_close": lambda c: _u(c).get("response") == "defer" or c.y("defers_decision", 0.5),
+    "declines_after_confirm": lambda c: bool(set(c.s.table_prev_goals or []) & {"confirm_order", "confirm_new_price", "exchange_offer"})
+                                        and _u(c).get("response") in ("decline", "defer"),
+    "shop_calls_time": _shop_calls_time_t,
+    "repeat_exhausted": _repeat_exhausted_t,
+    "other_pii": lambda c: "asks_other_customer" in (_u(c).get("safety") or []),
+    "proxy_info_ask": lambda c: bool(getattr(c.s, "proxy_caller", False) and (
+        "asks_other_customer" in (_u(c).get("safety") or []) or c.y("wants_data_deleted", 0.6)
+        or any(_req(c, k) for k in ("order_status", "forget_me", "change_order_address", "exchange", "return", "cancel"))
+        or _asks(c, "order_status", "delivery_address"))),
+    "policy_gap": _policy_gap_t,
+    "hypothetical_refund_ask": lambda c: bool(c.asking and not _req(c, "return") and not _req(c, "exchange")),
+    "update_money_words": lambda c: bool(c.s.updates_done and _asks(c, "refund_amount")),
+    "has_qmark": lambda c: bool(c.asking),
+    "attr_ask": _attr_ask_t,
+    "warranty_ask": lambda c: bool(_asks(c, "warranty") and (c.mentioned or c.s.focus)),
+    "cart_total_ask": lambda c: bool(c.s.cart and _asks(c, "cart_total")),
+    "cod_ask": lambda c: _asks(c, "cod"),
+    "policy_peek": lambda c: bool(c.asking and _sales_turn(c) and c.it != "place_order"),
+    "competitor_words": lambda c: c.y("mentions_competitor", 0.5),
+    "quality_words": lambda c: _asks(c, "quality"),
+    "adding_cart": lambda c: bool(_req(c, "add_to_cart") and c.s.cart and "cart_total" not in c.goals),
+    "wants": _wants_t,
+    # 4.4: cờ "khách đang hỏi" của cả câu không xóa quyền của yêu cầu đặt hàng hợp lệ trong cùng câu ("chốt A; có COD không?");
+    # câu hỏi độc lập vẫn do các dòng trả lời riêng xử lý. Điều kiện ("nếu COD thì đặt") do request_state chặn.
+    "order_trigger": lambda c: bool(_wants_t(c) or _pending_t(c)),
+    "address_change_request": lambda c: bool(getattr(c.s, "reqs", None) and c.s.reqs.has_active("change_order_address")
+                                             and not getattr(c.s, "proxy_caller", False)),
+    "slot_address": lambda c: bool(c.slots.get("address")) and not getattr(c.s, "_addr_dispatched", False),
+    "buy_intent": lambda c: bool(getattr(c.s, "reqs", None) and (c.s.reqs.has_active("place_order") or c.s.reqs.done_orders_ok())),
+    "wants_asking_quoted": lambda c: bool(_wants_t(c) and c.asking and "quote" in c.goals),
+    "asks_price_turn": lambda c: bool(_sales_turn(c) and "recommend" not in c.goals and _asks_price_t(c)),
+    "gift_turn": lambda c: bool(c.gift_q and _sales_turn(c) and c.facts.get("quote")),
+}
+
+
+def target_safety(c):
+    """K04 (ARCH=target): chính sách an toàn BẰNG CODE trên tín hiệu có kiểu, chạy trước bảng. Thứ tự ưu tiên:
+    1. bảo vệ dữ liệu khách khác (kể cả người tự xưng người nhà) — trước mọi handoff, để chuyển máy không là đường vòng lộ dữ liệu;
+    2. xóa dữ liệu của chính khách — kiểm quyền danh tính (identity_permissions.may_forget), không có quyền thì từ chối;
+    3. câu y tế → chuyển chuyên viên; khách ĐÒI người thật (request handoff có căn cứ) → chuyển;
+    4. out_of_scope KHÔNG kèm tín hiệu chuyển (y tế / đòi người thật) → không chuyển máy: viết lại thành câu thường để bảng trả
+       lời (no_info / chính sách); tiêm lệnh không đổi giá hay quyền (giá vẫn lấy từ tool).
+    → "stop" nếu đã xử lý xong lượt; None để bảng chạy tiếp."""
+    s, u = c.s, _u(c)
+    safety = set(u.get("safety") or [])
+    reqs = set(u.get("requests") or [])
+    proxy = bool(getattr(s, "proxy_caller", False))
+    if "asks_other_customer" in safety or PREDS_TARGET["proxy_info_ask"](c):
+        s._why("safety_policy", "dữ liệu khách khác / người tự xưng người nhà → từ chối, không chuyển máy")
+        return h_refuse_other_customer(c, None)
+    if c.y("wants_data_deleted", 0.6) and "forget_me" not in reqs:
+        # xóa dữ liệu là thao tác GHI không đảo ngược: như mọi thao tác ghi, cần yêu cầu forget_me có căn cứ trong câu.
+        # Chỉ có cờ → không xóa (tắt cờ để dòng R03 của bảng không xóa thay), trả lời / hỏi rõ theo các dòng còn lại.
+        c.fl = {**c.fl, "wants_data_deleted": 0.0}
+        s._why("safety_policy", "cờ đòi xóa dữ liệu nhưng không có yêu cầu forget_me có căn cứ → không xóa")
+    elif "forget_me" in reqs:
+        from harness.identity_permissions import may_forget
+        if proxy or not may_forget(s):
+            s._why("safety_policy", "đòi xóa dữ liệu nhưng danh tính kênh không đủ quyền → từ chối")
+            return h_refuse_other_customer(c, None)
+        s._why("safety_policy", "xóa dữ liệu của chính khách (danh tính kênh)")
+        return h_forget_customer(c, None)
+    if c.y("medical_question", 0.5) or "medical_question" in safety:
+        c.fl = {**c.fl, "medical_question": 1.0}
+        s._why("safety_policy", "câu y tế → chuyển chuyên viên")
+        return h_handoff_scope(c, None)
+    if "handoff" in reqs:
+        s._why("safety_policy", "khách đòi gặp nhân viên (yêu cầu có căn cứ)")
+        return h_handoff_scope(c, None)
+    if c.it == "out_of_scope":
+        c.it = "greeting_or_other"
+        s._why("safety_policy", "out_of_scope không kèm yêu cầu chuyển / câu y tế → không chuyển máy")
+    if "prompt_injection" in safety:
+        s._why("safety_policy", "câu có lệnh giả hệ thống: không đổi giá / quyền; giá vẫn từ tool")
+    return None
 
 
 # ----------------------------------------------------------------------------------------------- handler
@@ -301,10 +463,29 @@ def h_opening_returning(c, row):                                                
     A, s = _A(), c.s
     last = s.brief["last_session"]
     need = {k: s.carried[k] for k in ("room_area_m2", "baby_age", "household_size") if s.carried.get(k)}
-    c.facts["brief"] = {"product_name": A.product_name(c.prev_focus), "price_quoted_vnd": s.known.get("price_quoted_vnd"),
-                        "last_date_ddmm": A._ddmm(last["date"]) if last else None, "blocker": s.known.get("blocker"),
+    blocker = s.known.get("blocker")
+    # F3 (13/11, duyệt, chỉ B2): khách quay lại mà lượt đầu đã hỏi / yêu cầu cụ thể → không thêm câu hỏi "đã trao đổi với người nhà
+    # chưa" (câu hỏi thừa, làm vượt giới hạn số câu hỏi); vẫn chào và nhắc lần tư vấn trước.
+    u = getattr(s, "u_turn", None) or {}
+    suppressed = bool(blocker) and settings.planner_variant == "b2_jev" and bool(u.get("asks") or u.get("request_items"))
+    # TA1 (14/11, duyệt: theo đối tượng, không regex): lượt đầu khách quay lại NÊU một mẫu khác mẫu đã tư vấn (parser catalog,
+    # s.turn_mentioned — cùng nguồn F2) → vẫn nhắc đúng lịch sử (ngày + mẫu đã tư vấn), bỏ giá cũ của mẫu kia và câu hỏi rào cản;
+    # mẫu đang bàn đã chuyển sang mẫu khách nêu (_prepare_target), planner_b2 đọc giá mẫu đó bằng tool (opening_focus).
+    switched = None
+    if settings.planner_variant == "b2_jev" and c.prev_focus:
+        par = lambda x: (A.mt._parent(x)[0] or {}).get("sku") or x
+        named = list(dict.fromkeys(par(x) for x in (getattr(s, "turn_mentioned", None) or []) if x))
+        # chỉ khi khách nêu ĐÚNG MỘT mẫu và mẫu đó khác mẫu đã tư vấn; nêu nhiều mẫu → không tự báo giá mẫu nào (không đoán)
+        if len(named) == 1 and par(c.prev_focus) not in named:
+            switched = named[0]
+    c.opening_switch = switched
+    c.facts["brief"] = {"product_name": A.product_name(c.prev_focus),
+                        "price_quoted_vnd": None if switched else s.known.get("price_quoted_vnd"),
+                        "last_date_ddmm": A._ddmm(last["date"]) if last else None,
+                        "blocker": None if (suppressed or switched) else blocker,
                         "need": dict(list(need.items())[:1]), "objection": s.carried.get("objection"),
-                        "stale_warnings": s.brief["stale_warnings"]}
+                        "stale_warnings": s.brief["stale_warnings"], **({"blocker_suppressed": True} if suppressed else {}),
+                        **({"focus_switched": {"from": c.prev_focus, "to": switched}} if switched else {})}
     c.goals.append("opening_returning")
     if any("KM" in w for w in s.brief["stale_warnings"]):
         c.goals.append("stale_promo")
@@ -325,9 +506,12 @@ def h_forget_customer(c, row):                                                  
 
 def h_handoff_scope(c, row):                                                            # L777–781
     s = c.s
-    s.open_questions.append(c.text[:200])
-    brief = s._handoff_brief(c.text, "cau_hoi_y_te" if c.y("medical_question", 0.5) else "khach_yeu_cau_gap_nguoi")
-    c.facts["handoff"] = s.tools.call("handoff.transfer", brief=brief)
+    if c.y("asks_internal_cost", 0.6) and "refuse_internal" not in c.goals:
+        # 10/11 (V3-093/097): R04 là terminal nên R05 (từ chối giá nội bộ) không bao giờ chạy khi router xếp out_of_scope.
+        # Chuyển máy không thay cho lời từ chối: khách đòi giá nhập/giá sàn vẫn phải nghe rõ là thông tin nội bộ.
+        c.goals.append("refuse_internal")
+    c.facts["handoff"] = s._handoff(c.text, "cau_hoi_y_te" if c.y("medical_question", 0.5) else "khach_yeu_cau_gap_nguoi")
+    s.open_questions.append(s._record_view(c.text)[:200])   # sau brief: lượt nhạy cảm đã được đánh dấu
     c.goals.append("handoff"); s.outcome = "chuyen_may"
     return "stop"
 
@@ -346,7 +530,7 @@ def h_policy_gap(c, row):                                                       
     s.policy_gap = gap
     c.facts["unknown_topic"], c.facts["policy"] = gap["topic"], gap["policy"]
     c.goals.append("no_info")
-    s.open_questions.append(c.text[:200])
+    s.open_questions.append(s._record_view(c.text)[:200])
     return "stop"
 
 
@@ -360,6 +544,19 @@ def h_rewrite_intent(c, row):                                                   
 def h_update_address_return(c, row):                                                    # L802–803
     c.goals = c.goals + c.s._update_address(c.slots["address"], c.facts)
     return "stop"
+
+
+def h_change_order_address(c, row):                                                     # T01 (đích, 11/11)
+    """Yêu cầu đổi địa chỉ đơn có căn cứ → executor riêng (mọi đơn của khách, kể cả đơn phiên trước), trước chính sách đổi/trả.
+    Không terminal: các dòng sau vẫn trả lời câu hỏi độc lập; dấu đã xử lý (s._addr_dispatched) chỉ để điều phối / trace, không
+    cấp quyền — R09/R10/R29 không chạy lại trên cùng địa chỉ, _plan_order_change_target không đi qua hạn đổi trả."""
+    s = c.s
+    g = s._plan_address_change_target(c.text, c.facts, c.slots.get("address"))
+    if g is None:
+        return None
+    c.memo["address_dispatched"] = True
+    s._why("address_change_dispatch", ",".join(g))
+    c.goals += g
 
 
 def h_order_change(c, row):                                                             # L804–811
@@ -384,10 +581,34 @@ def h_order_updated_note(c, row):                                               
     c.facts["update"] = list(c.s.updates_done.values())[-1]; c.goals.append("order_updated")
 
 
+def _resolved_order(c, orders):
+    """Đơn mà câu khách nói tới (đích): target O# của yêu cầu trong lượt, hoặc khách có ĐÚNG một đơn. Nhiều đơn mà không rõ →
+    None (không lấy đơn mới nhất)."""
+    s = c.s
+    for it in _u(c).get("request_items") or (c.s.u_turn or {}).get("request_items") or []:
+        t = s.reqs.refmap.get(it.get("target_ref")) if it.get("target_ref") else None
+        if t and t.get("type") == "order":
+            return next((o for o in orders if o.get("order_id") == t["order_id"]), None)
+    return orders[0] if len(orders) == 1 else None
+
+
 def h_policy_answer(c, row):                                                            # L819–826
     A, s = _A(), c.s
     order_date = None
-    if re.search(r"\b(don (hang|cu|truoc)|da mua|mua (hom|tu|thang|tuan|dot))\b", c.f):
+    about_order = bool(_u(c).get("refs", {}).get("existing_order")) if c.u is not None else \
+        bool(re.search(r"\b(don (hang|cu|truoc)|da mua|mua (hom|tu|thang|tuan|dot))\b", c.f))
+    if about_order and c.u is not None:
+        # 5.1: ngày tạo của ĐÚNG đơn đã resolve (không past[-1] khi có nhiều đơn) → truy hồi đúng phiên bản chính sách
+        o = _resolved_order(c, s._customer_orders())
+        order_date = (o.get("created_on") or o.get("date")) if o else None
+        if o and order_date and _asks(c, "return_policy"):
+            from harness.planner_policy import exchange_window
+            d = exchange_window(o, s.today)
+            c.facts["exchange_policy"] = d
+            c.facts["exchange_window"] = {"order_id": o["order_id"], "created_ddmm": A._ddmm(order_date), "days": d["days"],
+                                          "version": d["version"], "action": None}
+            c.goals.append("exchange_window_info")
+    elif about_order:
         past = s._customer_orders()
         order_date = (past[-1].get("created_on") or past[-1].get("date")) if past else None
     hits = A.knowledge.search(c.text, k=2, order_date=order_date)
@@ -464,9 +685,55 @@ def h_quote(c, row):                                                            
                 goals.append("quote")
             if ask_size_after:
                 goals.append("ask_size_for_price")
-            claimed = [v for v in c.slots.get("claimed_prices", []) if v != q.get("final_price_vnd")]
-            if claimed and q.get("expired_promos"):
-                facts["claimed_price_vnd"] = claimed[0]; goals.append("explain_price_change")
+            if c.u is not None:
+                _price_claim_target(c, q)
+            else:
+                claimed = [v for v in c.slots.get("claimed_prices", []) if v != q.get("final_price_vnd")]
+                if claimed and q.get("expired_promos"):
+                    facts["claimed_price_vnd"] = claimed[0]; goals.append("explain_price_change")
+
+
+def _price_claim_target(c, q):
+    """5.2 (đích): khách nhắc một mức giá khác giá hiện tại. Chỉ nói 'đó là giá khi còn KM, KM đã hết' khi có PROVENANCE: một báo
+    giá trước đó của shop (bộ nhớ báo giá các phiên + báo giá trong cuộc) cho CÙNG sản phẩm (cùng biến thể nếu cả hai là biến
+    thể), đúng mức giá khách nhắc, kèm mã KM — và tool hiện tại xác nhận chính mã đó đã hết (expired_promos). Không đủ căn cứ →
+    nêu giá hiện tại và nói chưa đối chiếu được mức giá khách nhắc (không bịa nguyên nhân). expired_promos đơn lẻ hoặc chênh giá
+    đơn lẻ không đủ."""
+    A, s, facts = _A(), c.s, c.facts
+    from harness.request_state import _parent as par, _is_variant
+    cur = q.get("final_price_vnd")
+    said = list(c.slots.get("claimed_prices") or [])
+    if isinstance(c.slots.get("competitor_price_vnd"), int):
+        said.append(c.slots["competitor_price_vnd"])        # giá khách nói "bên Zalo/FB báo" có thể là báo giá cũ của chính shop
+    said = [v for v in dict.fromkeys(said) if v and v != cur]
+    if not said:
+        return
+    history = [{"sku": x.get("sku"), "final_price_vnd": x.get("final_price_vnd"), "promo_code": x.get("promo_code"),
+                "promo_end": x.get("promo_end"), "quoted_on": x.get("quoted_on")} for x in s.prev_quotes or []]
+    for tc in getattr(s, "call_tool_log", []) or []:
+        r, a = tc.get("result") or {}, tc.get("args") or {}
+        if tc.get("name") == "pricing.get_quote" and isinstance(r, dict) and r.get("final_price_vnd") and not a.get("basket_skus"):
+            codes = [x.get("promo_code") for x in r.get("applied_promos") or [] if x.get("promo_code") not in A.STACKABLE_SKIP]
+            history.append({"sku": a.get("sku"), "final_price_vnd": r["final_price_vnd"], "promo_code": codes[0] if codes else None,
+                            "promo_end": None, "quoted_on": None})
+    expired = set(q.get("expired_promos") or [])
+    for v in said:
+        for h in history:
+            if h["final_price_vnd"] != v or not h["promo_code"] or not h["sku"] or par(h["sku"]) != par(q["sku"]):
+                continue
+            if _is_variant(h["sku"]) and _is_variant(q["sku"]) and h["sku"] != q["sku"]:
+                continue
+            if h["promo_code"] not in expired:
+                continue
+            pr = next((x for x in A.mt.PROMOS if x["promo_code"] == h["promo_code"]), {})
+            facts["price_change"] = {"promo_name": pr.get("name") or h["promo_code"], "promo_end_ddmm": A._ddmm(pr["end"]) if pr.get("end") else None,
+                                     "promo_code": h["promo_code"], "product": q.get("name")}
+            c.goals.append("explain_promo_expired")
+            s._why("price_claim", f"{v} khớp báo giá cũ {h['sku']} kèm {h['promo_code']}, tool xác nhận đã hết")
+            return
+    facts["price_claim"] = {"product": q.get("name")}
+    c.goals.append("price_claim_unverified")
+    s._why("price_claim", "giá khách nhắc không khớp báo giá cũ có KM đã hết của cùng sản phẩm → không giải thích nguyên nhân")
 
 
 def h_budget_fit(c, row):                                                               # L896–904
@@ -560,15 +827,22 @@ def h_defer_ack(c, row):                                                        
 
 def h_fallback(c, row):                                                                 # L971–986
     A, s = _A(), c.s
-    garbled = s.input_mode == "asr_transcript" and c.route.get("confidence", 1) < 0.6
-    prior = s._ask_prior_contact(c.f) if s.turn_no == 1 else []
-    llm = [] if prior or settings.planner_backend == "rules" or (s.turn_no == 1 and not c.asking) \
-        else s._llm_fallback(c.text, c.facts)
+    if c.u is not None:     # đích: câu rè / mơ hồ và câu chào kết theo bộ hiểu; không có planner LLM dự phòng
+        garbled = _u(c).get("ambiguity") == "needs_clarification"
+        closing = bool(_u(c).get("refs", {}).get("closing"))
+        prior = s._ask_prior_contact(c.f, typed=bool(_u(c).get("refs", {}).get("previous_contact"))) if s.turn_no == 1 else []
+        llm = []
+    else:
+        garbled = s.input_mode == "asr_transcript" and c.route.get("confidence", 1) < 0.6
+        closing = bool(A.CLOSING_RX.search(c.f))
+        prior = s._ask_prior_contact(c.f) if s.turn_no == 1 else []
+        llm = [] if prior or settings.planner_backend == "rules" or (s.turn_no == 1 and not c.asking) \
+            else s._llm_fallback(c.text, c.facts)
     if prior or llm:
         c.goals += prior or llm
     elif s.turn_no == 1:
         c.goals.append("greet")
-    elif not c.slots and not c.mentioned and not A.CLOSING_RX.search(c.f) and (c.asking or garbled) and s.repeat_asked < 2:
+    elif not c.slots and not c.mentioned and not closing and (c.asking or garbled) and s.repeat_asked < 2:
         s.repeat_asked += 1
         c.goals.append("ask_repeat")
     else:
@@ -590,18 +864,31 @@ def h_refund_amount(c, row):                                                    
     """Số tiền hoàn chỉ lấy từ kết quả tool: order.update(return) trong cuộc này, hoặc giá đơn trong order.status (cuộc sau).
     Không tìm được số → đi tiếp các dòng khác (không dừng)."""
     s = c.s
-    upd = [(k, v) for k, v in s.updates_done.items() if k[1] == "return" and v.get("refund_vnd")]
+    # holdout mục 1 (duyệt 12/11): kết quả ĐỔI hàng (exchange_product / exchange_size) cũng là nguồn tiền hoàn chênh lệch —
+    # trước đây chỉ đọc `return` nên hỏi tiền chênh sau khi đổi lại rơi về "giá cả đơn nếu trả hàng" (sai đối tượng).
+    acts = RETURN_LIKE_ACTIONS if c.u is not None else ("return",)     # R0 (đường cũ, đóng băng) giữ nguyên hành vi
+    upd = [(k, v) for k, v in s.updates_done.items() if k[1] in acts and (c.u is not None or v.get("refund_vnd"))]
     if upd:
         k, v = upd[-1]
-        c.facts["refund"] = {"order_id": k[0], "refund_vnd": v["refund_vnd"], "refund_days": v.get("refund_days")}
-        src = "order.update trong cuộc"
+        if k[1] != "return" and not v.get("refund_vnd") and v.get("extra_payment_vnd"):
+            c.facts["update"] = v                       # đổi sang mẫu đắt hơn: khách bù thêm, không có tiền hoàn
+            c.goals.append("order_updated")
+            s._why("refund_amount", f"đổi hàng {k[1]}: khách bù thêm, không có tiền hoàn")
+            return "stop"
+        if not v.get("refund_vnd"):
+            return None
+        c.facts["refund"] = {"order_id": k[0], "refund_vnd": v["refund_vnd"], "refund_days": v.get("refund_days"),
+                             "basis": "return_request" if k[1] == "return" else "exchange_difference"}
+        src = f"order.update({k[1]}) trong cuộc"
     else:
         orders = s._customer_orders()
         o = next((x for x in reversed(orders) if x.get("order_id") == s.known.get("order_id")), orders[-1] if orders else None)
         amount = o and (o.get("price_vnd") or o.get("total_vnd"))
         if not amount:
             return None
-        c.facts["refund"] = {"order_id": o["order_id"], "refund_vnd": amount, "product": _A().product_name(o["sku"]) if o.get("sku") else None}
+        # G1: chưa có yêu cầu trả trong cuộc → đây chỉ là số tiền dự kiến (giá đơn), không phải khoản đã/sẽ hoàn đã tiếp nhận
+        c.facts["refund"] = {"order_id": o["order_id"], "refund_vnd": amount, "basis": "order_price",
+                             "product": _A().product_name(o["sku"]) if o.get("sku") else None}
         src = "order.status (giá đơn đã trả lại)"
     c.goals.append("refund_amount")
     s._why("refund_amount", src)
@@ -610,8 +897,8 @@ def h_refund_amount(c, row):                                                    
 
 def h_cancel_request(c, row):                                                           # E03 — mock không có action hủy
     s = c.s
-    s.open_questions.append(c.text[:200])
-    c.facts["handoff"] = s.tools.call("handoff.transfer", brief=s._handoff_brief(c.text, "khac"))
+    s.open_questions.append(s._record_view(c.text)[:200])
+    c.facts["handoff"] = s._handoff(c.text, "khac")
     c.goals.append("cancel_handoff"); s.outcome = "chuyen_may"
     s._why("cancel_request", "không có thao tác hủy đơn, chuyển nhân viên")
     return "stop"
@@ -631,8 +918,8 @@ def h_callback_from_text(c, row):                                               
 
 def h_handoff_reason(c, row):                                                           # E07
     s, reason = c.s, (row["do"].get("args") or {}).get("reason", "khac")
-    s.open_questions.append(c.text[:200])
-    c.facts["handoff"] = s.tools.call("handoff.transfer", brief=s._handoff_brief(c.text, reason))
+    c.facts["handoff"] = s._handoff(c.text, reason)
+    s.open_questions.append(s._record_view(c.text)[:200])
     c.goals.append("handoff"); s.outcome = "chuyen_may"
     s._why("handoff_reason", reason)
     return "stop"
@@ -649,6 +936,7 @@ HANDLERS = {
     "quote": h_quote, "budget_fit": h_budget_fit, "gift_status": h_gift_status, "cart_total": h_cart_total,
     "cod_check": h_cod_check, "policy_peek": h_policy_peek, "mark_buy_intent": h_mark_buy_intent,
     "update_address": h_update_address, "stale_quote": h_stale_quote, "place_order": h_place_order,
+    "change_order_address": h_change_order_address,
     "stale_requote": h_stale_requote, "callback": h_callback, "defer_ack": h_defer_ack, "fallback": h_fallback,
 }
 
@@ -662,12 +950,16 @@ def _prepare_pre(c):
     for k, v in c.slots.items():
         if k not in ("self_name", "claimed_prices"):
             s.known[k] = v
+            if hasattr(s, "known_src"):
+                s.known_src[k] = f"customer:t{s.turn_no}"      # nguồn giá trị: khách nói ở lượt này (5.4 / 9.2)
 
 
 def _prepare(c):
     """Giai đoạn 2 (L728–756): sản phẩm được nhắc, focus, giỏ, asking/takes/compare."""
     A, s, text = _A(), c.s, c.text
     c.f = f = A.fold(text)
+    if c.u is not None:
+        return _prepare_target(c)
     mentioned = A.find_products(text)
     c.gift_q = bool(A.GIFT_Q_RX.search(f))
     if c.gift_q:
@@ -683,6 +975,10 @@ def _prepare(c):
     c.asking = asking or (bool(re.search(r"\b(bao nhieu|duoc khong|the nao)\b", last))
                           and not re.search(r"\b(len don|chot|dat hang)\b", last))
     c.takes = takes = bool(re.search(r"\b(lay|them|chot|mua (luon|them|ca|cho|nhe|nha))\b", f))
+    u = c.route.get("understanding")
+    if u is not None:      # kiến trúc đích (11/11): "khách đang hỏi" / "khách lấy hàng" do bộ hiểu thống nhất quyết, không theo regex
+        c.asking = bool(u.get("asks_question"))
+        c.takes = takes = "place_order" in (u.get("requests") or [])
     c.compare = bool(c.alt) or bool(mentioned and s.focus and A.mt._parent(mentioned[-1])[0]["sku"] != A.mt._parent(s.focus)[0]["sku"]
                                     and re.search(r"\bcon\b", f) and not takes)
     c.prev_focus = s.focus
@@ -698,26 +994,134 @@ def _prepare(c):
             s._cart_add(d)
 
 
+def _prepare_target(c):
+    """Bước chuẩn bị trên cấu hình đích: sản phẩm được nhắc (parser catalog), focus, giỏ, asking / takes / compare / quà / lấy cả
+    — đọc từ bộ hiểu có kiểu, không từ regex đoán ý. Nhắc một mẫu khác chỉ đổi mẫu ĐANG BÀN (focus); giỏ / lựa chọn chỉ đổi khi
+    khách có yêu cầu đặt / thêm có căn cứ."""
+    A, s, text, f, u = _A(), c.s, c.text, c.f, c.u
+    asks = set(u.get("asks") or [])
+    reqs = set(u.get("requests") or [])
+    mentioned = A.find_products(text)                                   # parser catalog (tên / mã mẫu)
+    c.gift_q = "gift" in asks
+    if c.gift_q:
+        mentioned = [x for x in mentioned if x not in A.GIFT_SKUS]
+    else:
+        # 13/11 (duyệt): chuẩn hóa mã phụ kiện bằng CÙNG hàm đã dựng ứng viên cho DeepSeek (agent.normalize_accessories):
+        # "màng lọc … <máy>" là phụ kiện của máy đó, không phải máy; "màng lọc" không gắn tên máy → của máy duy nhất / mẫu đang bàn
+        mentioned, c.accessory_norm = A.normalize_accessories(text, mentioned, s.focus)
+    c.mentioned = mentioned
+    c.alt = None if mentioned else (A.find_by_model_token(text, s.focus) if s.focus else None)
+    c.asking = bool(u.get("asks_question"))
+    c.takes = takes = bool(reqs & {"place_order", "add_to_cart"})
+    c.compare = bool(c.alt) or bool(mentioned and s.focus and A.mt._parent(mentioned[-1])[0]["sku"] != A.mt._parent(s.focus)[0]["sku"]
+                                    and "compare" in asks and not takes)
+    c.prev_focus = s.focus
+    c.new_focus = None
+    # 13/11 (B2 S4): ghi lại giỏ trước bước chuẩn bị + SKU được yêu cầu thêm — chỉ là thuộc tính quan sát cho planner B2 (giỏ vẫn
+    # chỉ đổi ở đây, một chủ); không đổi hành vi B1 / B3.
+    c.cart_before, c.cart_touched = list(s.cart), []
+
+    def add(sku):
+        c.cart_touched.append(sku)
+        s._cart_add(sku)
+    if mentioned and not c.compare:
+        c.new_focus = mentioned[-1]
+        s.focus, s.focus_by = c.new_focus, "customer"
+    # 13/11 (duyệt): MỘT nơi cập nhật giỏ, MỘT nguồn đối tượng cho mỗi lượt (trước đây nhánh "sản phẩm được nhắc" và nhánh
+    # "ref của bộ hiểu" cùng thêm vào giỏ → cộng dồn lựa chọn mâu thuẫn, vd màng lọc + cả máy). Phụ kiện không được thêm chỉ vì
+    # được nhắc tên: thiếu căn cứ trong câu yêu cầu thì hỏi rõ (goal ask_accessory_intent), không thêm.
+    c.cart_source, c.cart_unclear = None, []
+    if takes:
+        picks, c.cart_source, c.cart_unclear = _cart_picks(c, mentioned)
+        for sku in picks:
+            add(sku)
+        if c.cart_unclear:
+            c.facts["accessory_ask"] = {"products": [A.product_name(x) for x in c.cart_unclear]}
+            if "ask_accessory_intent" not in c.goals:
+                c.goals.append("ask_accessory_intent")
+
+
+def _cart_picks(c, mentioned):
+    """Đối tượng thêm vào giỏ của lượt từ ĐÚNG MỘT nguồn (thứ tự ưu tiên):
+      1. ref của bộ hiểu: "ALL" → các mẫu đã bàn; "CART" → không thêm (yêu cầu nhắm giỏ hiện có); P# → sản phẩm của ref
+         (ứng viên đã chuẩn hóa phụ kiện, nên P# của "màng lọc … AirPure Y" là màng lọc);
+      2. không có ref → sản phẩm parser thấy trong câu (đã chuẩn hóa phụ kiện), khi không phải câu so sánh.
+    Phụ kiện (danh mục phụ kiện) chỉ được thêm khi có căn cứ: bộ hiểu nhắm đúng ref của nó, hoặc câu yêu cầu (evidence) nói
+    "màng lọc" / tên phụ kiện, hoặc là sản phẩm duy nhất của lượt khi không có câu yêu cầu. Nhắc phụ kiện trong câu yêu cầu mà
+    nguồn đã chọn không gồm nó → hỏi rõ. → (picks, nguồn, phụ kiện cần hỏi)."""
+    A, s, u = _A(), c.s, c.u
+    targets = list(u.get("targets") or [])
+    items = [it for it in ((getattr(s, "u_turn", None) or {}).get("request_items") or []) if it.get("kind") in ("add_to_cart", "place_order")]
+    ev = " ".join(A.fold(it.get("evidence") or "") for it in items).strip() if items else A.fold(c.text)   # không có bộ hiểu → cả câu
+    if settings.planner_variant == "b2_jev" and (getattr(getattr(s, "reqs", None), "order_gate", None) or {}).get("why") == "target_ambiguous":
+        # V42 (15/11): câu đặt không nêu món, còn nhiều đối tượng hợp lý → không thêm món theo ref model đoán vào giỏ (hỏi rõ trước)
+        return [], "target_ambiguous", []
+    if "ALL" in targets:
+        if settings.planner_variant == "b2_jev":
+            # C1 (15/11, B2): "ALL" không tự thành giỏ mua → không thêm; bước sau xin xác nhận liệt kê đúng các món (apply_order_gate)
+            c.all_unconfirmed = list(dict.fromkeys(A._par(x) for x in s.discussed))
+            return [], "ALL_unconfirmed", []
+        return list(s.discussed), "ALL", []
+    if "CART" in targets:
+        return [], "CART", []
+    if targets:
+        picks = []
+        for ref in targets:
+            t = (getattr(s, "reqs", None) and s.reqs.refmap.get(ref)) or None
+            if t and t.get("type") == "product":
+                picks += [x for x in t.get("skus") or () if x not in picks]
+        src = "target_ref"
+    elif mentioned and not c.compare:
+        picks, src = list(mentioned), "mentioned"
+    else:
+        return [], None, []
+
+    def grounded(acc):
+        if not ev:
+            return len(mentioned) == 1
+        return bool(A.ACC_WORD_RX.search(ev)) or any(x == acc for x in A.find_products(ev))
+    unclear = []
+    if src == "mentioned":
+        for x in [p for p in picks if A.is_accessory(p)]:
+            if not grounded(x):
+                picks.remove(x); unclear.append(x)
+    else:
+        picked = {A._par(p) for p in picks}
+        unclear = [x for x in mentioned if A.is_accessory(x) and A._par(x) not in picked and ev and grounded(x)]
+    return picks, src, unclear
+
+
 def _finish(c):
     """Hậu xử lý của _plan (L987–993)."""
     s = c.s
     if "no_info" in c.goals or "handoff" in c.goals:
-        s.open_questions.append(c.text[:200])
+        s.open_questions.append(s._record_view(c.text)[:200])
     s.fail_streak = s.fail_streak + 1 if "order_failed" in c.goals else 0
+    # G1 (FINAL 10/11): đơn có kết quả chưa rõ → chuyển nhân viên đối soát ngay lần đầu (planner không tự đối soát/tạo lại)
+    if "order_unresolved" in c.goals and "handoff" not in c.goals:
+        c.facts["handoff"] = s._handoff(c.text, "loi_he_thong")      # ticket đã có thì không tạo lại (_handoff)
+        c.goals.append("handoff"); s.outcome = "chuyen_may"
     if s.fail_streak >= 2 and "handoff" not in c.goals:
-        c.facts["handoff"] = s.tools.call("handoff.transfer", brief=s._handoff_brief(c.text, "loi_he_thong"))
+        c.facts["handoff"] = s._handoff(c.text, "loi_he_thong")
         c.goals = [g for g in c.goals if g != "order_failed"] + ["handoff"]; s.outcome = "chuyen_may"
     return list(dict.fromkeys(c.goals)), c.facts
 
 
-def plan(s, text, slots, route, rows=None):
-    """Thay cho CallSession._plan. Ghi các dòng đã khớp vào s.table_rows (trace planner.table)."""
+def plan(s, text, slots, route, rows=None, owner=None):
+    """Thay cho CallSession._plan. Ghi các dòng đã khớp vào s.table_rows (trace planner.table).
+
+    owner (12/11, harness/planner_variants.py): chủ sở hữu tiến trình của biến thể B2/B3. None = B1 (bảng như cũ, không đổi
+    hành vi). Có owner: dòng owner.owns(row) KHÔNG chạy bằng bảng; tới vị trí dòng đầu tiên của mỗi pha (owner.phase(row)) thì
+    gọi owner.run(c, pha) đúng một lần. Các dòng chung (an toàn, danh tính, mở đầu, fallback…) vẫn chạy bằng bảng. Biến thể có
+    owner luôn qua hậu xử lý _finish đúng một lần (quy tắc finalization: unresolved → handoff không bị mất)."""
     from harness import improve_hook
     c = Ctx(s, text, slots, route)
     s.table_rows = []
     s.semantic_plan = None
     rows = rows if rows is not None else load_rows(extra=improve_hook.planner_rows())
     _prepare_pre(c)
+    if owner is not None:
+        return _plan_owned(c, rows, owner)
     if settings.planner_selector != "rules":
         from harness.planner_executor import run
         _prepare(c)
@@ -730,6 +1134,10 @@ def plan(s, text, slots, route, rows=None):
     for row in pre + [None] + [r for r in rows if r.get("stage") != "pre"]:
         if row is None:                      # hết các dòng stage=pre → giai đoạn 2 của bước chuẩn bị
             _prepare(c)
+            if c.u is not None and target_safety(c) == "stop":
+                s.table_rows.append("SAFETY")
+                s.table_prev_goals = list(c.goals)
+                return c.goals, c.facts
             continue
         g = row.get("group")
         if g and g in done_groups:
@@ -744,5 +1152,64 @@ def plan(s, text, slots, route, rows=None):
             s.table_prev_goals = list(c.goals)
             return c.goals, c.facts          # như các lệnh return giữa chừng của _plan: không qua hậu xử lý
     out = _finish(c)
+    s.table_prev_goals = list(out[0])
+    return out
+
+
+def _plan_owned(c, rows, owner):
+    """Bảng với chủ sở hữu tiến trình (B2/B3). Dòng chung chạy như B1; dòng thuộc owner nhường cho owner.run theo pha."""
+    s = c.s
+    pre = [r for r in rows if r.get("stage") == "pre"]
+    done_groups, ran = set(), []
+    stopped, n_log = False, None
+    post = getattr(owner, "post_stop_rows", frozenset())
+    for row in pre + [None] + [r for r in rows if r.get("stage") != "pre"]:
+        if row is None:
+            _prepare(c)
+            if c.u is not None and target_safety(c) == "stop":
+                s.table_rows.append("SAFETY")
+                s.table_prev_goals = list(c.goals)
+                return c.goals, c.facts
+            continue
+        if stopped:
+            # 13/11 (B2 S5): owner đã kết thúc phần sở hữu → chỉ các dòng phản hồi CHUNG trong allowlist của owner (R24a/b, R25,
+            # R35) theo đúng predicate / group / thứ tự, mỗi dòng tối đa một lần. Không chạy E07 / R36 / dòng owner; không chạy
+            # khi lượt đã chuyển nhân viên; R35 (hoãn) không chạy khi owner đã ghi trong lượt. Safety / danh tính đã return trước.
+            if row["id"] not in post or owner.owns(row):
+                continue
+            if {"handoff", "cancel_handoff"} & set(c.goals):
+                continue
+            if row["id"] == "R35" and any(x.get("name") in ("order.create", "order.update", "schedule.callback", "handoff.transfer")
+                                          for x in s.tools.log[n_log:]):
+                continue
+        if owner.owns(row):
+            ph = owner.phase(row)
+            if ph in ran:
+                continue
+            ran.append(ph)
+            s.table_rows.append(f"{owner.name}:{ph}")
+            n0 = len(s.tools.log)
+            if owner.run(c, ph) == "stop":
+                if not post:
+                    break                            # B3: như v6 (không có dòng chung sau khi owner dừng)
+                stopped, n_log = True, n0
+                s.table_rows.append(f"{owner.name}:post_stop")
+            continue
+        g = row.get("group")
+        if g and g in done_groups:
+            continue
+        if not matches(c, row.get("when") or {}):
+            continue
+        if g:
+            done_groups.add(g)
+        s.table_rows.append(row["id"])
+        res = HANDLERS[row["do"]["handler"]](c, row)
+        if row["mode"] == "terminal" or res == "stop":
+            s.table_prev_goals = list(c.goals)
+            return c.goals, c.facts          # dòng chung kết thúc lượt: y như B1 (không qua hậu xử lý)
+    n_open = len(s.open_questions)
+    out = _finish(c)
+    if len(s.open_questions) > n_open and n_open and s.open_questions[-1] == s.open_questions[n_open - 1]:
+        s.open_questions.pop()               # handler của owner đã ghi câu này (vd chuyển máy) → không ghi hai lần
     s.table_prev_goals = list(out[0])
     return out

@@ -140,7 +140,7 @@
     "legacy_description": "So ngân sách khách nói (budget_fit.budget_vnd) với giá bán final_price_vnd trong FACTS: nói rõ giá bán là bao nhiêu và có nằm trong ngân sách không (within_budget). Không gọi ngân sách của khách là giá; không hứa quà hay ưu đãi ngoài FACTS."
   },
   "callback_scheduled": {
-    "description": "Xác nhận ngày và giờ hẹn thực tế trong callback; giải thích moved_reason nếu lịch được dời.",
+    "description": "Xác nhận ngày và giờ hẹn thực tế trong callback; nếu lịch được dời thì giải thích lý do dời (chỉ khi dữ liệu có lý do dời lịch).",
     "required_facts": {
       "callback.callback_at": "string"
     },
@@ -150,7 +150,7 @@
       "callback.ddmm": "string"
     },
     "response_requirements": [
-      "Xác nhận ngày và giờ hẹn thực tế trong callback; giải thích moved_reason nếu lịch được dời."
+      "Xác nhận ngày và giờ hẹn thực tế trong callback; nếu lịch được dời thì giải thích lý do dời (chỉ khi dữ liệu có lý do dời lịch)."
     ],
     "question_slot": null,
     "legacy_description": null
@@ -173,7 +173,8 @@
     },
     "optional_facts": {},
     "response_requirements": [
-      "Đọc các món và tổng tiền từ cart; đây là giỏ hàng, chưa khẳng định đã tạo đơn."
+      "Đọc các món và tổng tiền từ cart; đây là giỏ hàng, chưa khẳng định đã tạo đơn.",
+      "Món có price_note: đọc kèm tên chương trình đó (khuyến mãi phụ thuộc thành phần giỏ), không nói đó là giá mua riêng."
     ],
     "question_slot": null,
     "legacy_description": null
@@ -416,10 +417,12 @@
     },
     "optional_facts": {
       "order.estimated_delivery_ddmm": "string",
-      "order.estimated_delivery": "date"
+      "order.estimated_delivery": "date",
+      "order.payment_default": "bool"
     },
     "response_requirements": [
-      "Xác nhận mã đơn và tổng tiền; chỉ nêu ngày giao khi facts cung cấp. Không hỏi xác nhận đặt lại."
+      "Xác nhận mã đơn và tổng tiền; chỉ nêu ngày giao khi facts cung cấp. Không hỏi xác nhận đặt lại.",
+      "order.payment_default = true (khách chưa chọn cách thanh toán): nói rõ đơn thanh toán khi nhận hàng (COD)."
     ],
     "question_slot": null,
     "legacy_description": "Báo mã đơn, tổng tiền, ngày giao dự kiến (estimated_delivery_ddmm, dạng ngày/tháng). Không hỏi xác nhận lại đơn."
@@ -470,7 +473,7 @@
     "legacy_description": "Nêu trạng thái và ngày giao dự kiến (estimated_delivery, dạng ngày/tháng) của đơn nếu có."
   },
   "order_updated": {
-    "description": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại.",
+    "description": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại. Không nói đã hoàn tiền xong: yêu cầu mới được tiếp nhận.",
     "required_facts": {
       "update.order_id": "string"
     },
@@ -480,7 +483,7 @@
       "update.refund_days": "string"
     },
     "response_requirements": [
-      "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại."
+      "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại. Không nói đã hoàn tiền xong: yêu cầu mới được tiếp nhận."
     ],
     "question_slot": null,
     "legacy_description": "Xác nhận đã tạo yêu cầu đổi/trả; nêu số tiền hoàn lại (refund_vnd) hoặc bù thêm (extra_payment_vnd) và thời gian hoàn (refund_days) có trong FACTS.update. Không hỏi xác nhận lại."
@@ -519,10 +522,16 @@
     "optional_facts": {
       "quote.list_price_vnd": "money",
       "quote.promo_names": "array",
-      "quote.in_stock": "bool"
+      "quote.in_stock": "bool",
+      "quote.price_context": "string",
+      "quote.ask_topics": "array",
+      "quote.ineligible_promos": "array",
+      "quote.expired_promo_names": "array",
+      "quote.has_gift": "bool"
     },
     "response_requirements": [
-      "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó."
+      "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó.",
+      "Nếu quote.price_context = 'standalone': nói rõ đây là giá MUA RIÊNG một máy (khác giá trong giỏ)."
     ],
     "question_slot": null,
     "legacy_description": "Báo giá bán final_price_vnd. Nếu có khuyến mãi: nói 'giá niêm yết X, ... còn Y'. Nếu khách còn hỏi điều khác (chứng nhận, thông số, công dụng…) mà FACTS không có: nói rõ 'em chưa có thông tin' về điều đó."
@@ -541,13 +550,13 @@
     "legacy_description": null
   },
   "refund_amount": {
-    "description": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm.",
+    "description": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm. Đây là số tiền SẼ hoàn (dự kiến nếu refund.basis = order_price), không nói đã hoàn tiền xong.",
     "required_facts": {
       "refund.refund_vnd": "money"
     },
     "optional_facts": {},
     "response_requirements": [
-      "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm."
+      "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm. Đây là số tiền SẼ hoàn (dự kiến nếu refund.basis = order_price), không nói đã hoàn tiền xong."
     ],
     "question_slot": null,
     "legacy_description": "Trả lời đúng câu khách hỏi số tiền hoàn: nêu FACTS.refund.refund_vnd của đơn FACTS.refund.order_id; nếu có refund_days thì nêu thời gian hoàn. Không báo giá bán hiện tại, không hỏi thêm."
@@ -610,6 +619,213 @@
     "optional_facts": {},
     "response_requirements": [
       "Nêu mã các đơn đã tạo; nói rõ phần còn lại chưa tạo được."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "order_unresolved": {
+    "description": "Nói hệ thống chưa xác nhận được kết quả tạo đơn (unresolved_order.product); KHÔNG nói đơn đã tạo, KHÔNG nói thất bại; nói em không tạo thêm đơn để tránh trùng và nhân viên sẽ kiểm tra rồi báo lại.",
+    "required_facts": {},
+    "optional_facts": {
+      "unresolved_order.product": "string"
+    },
+    "response_requirements": [
+      "Nói hệ thống chưa xác nhận được kết quả tạo đơn (unresolved_order.product); KHÔNG nói đơn đã tạo, KHÔNG nói thất bại; nói em không tạo thêm đơn để tránh trùng và nhân viên sẽ kiểm tra rồi báo lại."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "condition_pending": {
+    "description": "Khách đặt kèm điều kiện chưa xác định được (chờ người nhà đồng ý, chờ thời điểm...): ghi nhận điều kiện (condition.text), nói em CHƯA lên đơn, khi nào khách xác nhận thì em lên đơn. Không hứa giữ hàng, giữ giá hay giữ khuyến mãi.",
+    "required_facts": {
+      "condition.type": "string"
+    },
+    "optional_facts": {
+      "condition.text": "string"
+    },
+    "response_requirements": [
+      "Nói chưa lên đơn vì còn điều kiện; không hứa giữ hàng / giá / khuyến mãi."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "condition_unmet": {
+    "description": "Khách chỉ đặt khi giá không vượt condition.max_vnd nhưng tổng hiện tại (condition.total_vnd) cao hơn: nói rõ tổng hiện tại cao hơn mức khách đặt nên em chưa lên đơn.",
+    "required_facts": {
+      "condition.max_vnd": "money",
+      "condition.total_vnd": "money"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Nêu tổng hiện tại cao hơn mức khách đặt; chưa lên đơn."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_which_order": {
+    "description": "Khách có nhiều đơn mà yêu cầu chưa rõ đơn nào: liệt kê ngắn các đơn (which_orders) và hỏi khách muốn thao tác với đơn nào. Chưa thực hiện gì.",
+    "required_facts": {
+      "which_orders": "list"
+    },
+    "optional_facts": {
+      "which_orders_action": "string"
+    },
+    "response_requirements": [
+      "Hỏi khách chọn đơn; chưa thực hiện thao tác.",
+      "Có which_orders_action thì hỏi đúng thao tác đó (vd \"chị muốn đổi địa chỉ giao cho đơn nào\"), không xin khách nói lại cả câu."
+    ],
+    "question_slot": "order_id",
+    "legacy_description": null
+  },
+  "ask_exchange_or_return": {
+    "description": "Khách vừa nói cả đổi và trả cho cùng đơn: hỏi rõ khách muốn đổi hàng hay trả hàng hoàn tiền. Chưa tạo yêu cầu nào.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi rõ đổi hay trả; chưa tạo yêu cầu."
+    ],
+    "question_slot": "other",
+    "legacy_description": null
+  },
+  "ask_which_product": {
+    "description": "(Đích 11/11) Khách chốt mua nhưng chưa rõ sản phẩm nào trong các mẫu đang bàn: liệt kê ngắn (which_products) và hỏi khách lấy mẫu nào. Chưa lên đơn.",
+    "required_facts": {
+      "which_products": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi khách chọn mẫu; chưa lên đơn."
+    ],
+    "question_slot": "product",
+    "legacy_description": null
+  },
+  "ask_multi_request": {
+    "description": "(Đích 11/11) Trong cùng lượt khách yêu cầu đặt nhiều sản phẩm như các yêu cầu riêng: hỏi khách có lên chung một đơn gồm các món đó không. Chưa lên đơn, không tự gộp.",
+    "required_facts": {
+      "multi_request.products": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi lên chung một đơn; chưa lên đơn."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "ask_additional_order": {
+    "description": "(Đích 11/11) Khách lại chốt đúng sản phẩm của đơn đã lên trong cuộc: hỏi khách có muốn đặt THÊM một đơn nữa không. Chưa tạo thêm đơn.",
+    "required_facts": {
+      "additional_order.products": "list"
+    },
+    "optional_facts": {
+      "additional_order.overlap": "list",
+      "additional_order.order_id": "string"
+    },
+    "response_requirements": [
+      "Hỏi có đặt thêm một đơn nữa không; chưa tạo đơn mới."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "ask_parked_request": {
+    "description": "(Đích 11/11) Khách vừa chốt mẫu mới trong khi yêu cầu mẫu trước chưa rõ còn giữ hay thay: hỏi khách có còn muốn đặt mẫu trước (parked_request) không. Không tự đặt mẫu trước.",
+    "required_facts": {
+      "parked_request.products": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi có còn đặt mẫu trước không; không tự thực hiện."
+    ],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "exchange_window_info": {
+    "description": "(Đích 11/11) Nêu đơn (exchange_window.order_id) tạo ngày created_ddmm áp dụng chính sách đổi trả exchange_window.days ngày kể từ ngày nhận hàng; hệ thống chưa có ngày nhận nên chưa xác định còn hạn — không nói còn hạn, không nói quá hạn, không nói đã tạo yêu cầu.",
+    "required_facts": {
+      "exchange_window.order_id": "string",
+      "exchange_window.days": "integer"
+    },
+    "optional_facts": {
+      "exchange_window.created_ddmm": "string"
+    },
+    "response_requirements": [
+      "Nêu đúng số ngày theo phiên bản của đơn; chưa kết luận hạn; chưa tạo yêu cầu."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "explain_promo_expired": {
+    "description": "(Đích 11/11) Mức giá khách nhắc khớp báo giá trước của shop cho cùng sản phẩm khi còn chương trình price_change.promo_name, tool xác nhận chương trình đó đã hết: nói rõ điều đó (không đọc lại số cũ) rồi báo giá hiện tại.",
+    "required_facts": {
+      "price_change.promo_name": "string"
+    },
+    "optional_facts": {
+      "price_change.promo_end_ddmm": "string"
+    },
+    "response_requirements": [
+      "Nói chương trình đã hết hạn; không đọc lại con số cũ."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "price_claim_unverified": {
+    "description": "(Đích 11/11) Khách nhắc một mức giá khác giá hiện tại mà không có căn cứ đối chiếu: nói chưa đối chiếu được mức giá đó với báo giá nào của shop, không giải thích nguyên nhân, không đọc lại số khách nhắc.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": [
+      "Không bịa nguyên nhân chênh giá; không đọc lại số khách nhắc."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_which_attribute": {
+    "description": "(B2 13/11) Khách hỏi về một mẫu đã xác định nhưng không nói rõ muốn biết thông tin gì: hỏi lại đúng nội dung, gợi ý các thông tin catalog có của mẫu đó. Không đọc giá, không bịa thuộc tính.",
+    "required_facts": {
+      "attribute_ask.product": "string"
+    },
+    "optional_facts": {
+      "attribute_ask.options": "array"
+    },
+    "response_requirements": [
+      "Hỏi khách muốn biết thông tin gì về mẫu; chỉ gợi ý thông tin catalog có."
+    ],
+    "question_slot": "other",
+    "legacy_description": null
+  },
+  "cart_item_already": {
+    "description": "(B2 13/11) Khách bảo thêm mẫu đã có sẵn trong giỏ: báo mẫu đó đã có trong giỏ; giỏ không ghi số lượng nên không khẳng định đã tăng số lượng.",
+    "required_facts": {
+      "cart_already.products": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Báo mẫu đã có trong giỏ; không khẳng định số lượng mới."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_accessory_intent": {
+    "description": "(13/11) Khách nhắc phụ kiện (vd màng lọc) trong câu yêu cầu thêm giỏ nhưng chưa đủ căn cứ là muốn mua phụ kiện đó: hỏi khách có muốn thêm phụ kiện vào giỏ không. Chưa thêm vào giỏ, không tạo đơn.",
+    "required_facts": {
+      "accessory_ask.products": "list"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Hỏi khách có muốn thêm phụ kiện vào giỏ không; chưa thêm, chưa tạo đơn."
+    ],
+    "question_slot": "other",
+    "legacy_description": null
+  },
+  "address_change_unavailable": {
+    "description": "(V51, 16/11) Không đổi địa chỉ giao cho đơn trong address_block (đơn ngoài cuộc gọi này, hoặc đơn đã ở trạng thái kết thúc theo order.status): báo khách đúng lý do. Không ghi, không nói đã cập nhật, không hứa chuyển máy / gọi lại khi chưa có tool thành công.",
+    "required_facts": {
+      "address_block": "object"
+    },
+    "optional_facts": {
+      "address_block.product": "string",
+      "address_block.why": "string"
+    },
+    "response_requirements": [
+      "Báo chưa / không đổi được địa chỉ giao cho đúng đơn trong address_block; không nói đã cập nhật; không hứa chuyển máy."
     ],
     "question_slot": null,
     "legacy_description": null

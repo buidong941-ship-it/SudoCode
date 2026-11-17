@@ -99,7 +99,10 @@ def pack(dst, extra=None):
                                              stderr=subprocess.DEVNULL).strip())
     except Exception:
         commit, dirty = None, None
-    info = json.dumps({"commit": commit, "uncommitted_changes": dirty, "data_sha256": data_hash(),
+    import hashlib
+    btc = {p: hashlib.sha256(open(os.path.join(ROOT, p), "rb").read()).hexdigest()       # phiên bản BTC thực dùng (11/2026)
+           for p in ("eval/mock_tools.py", "eval/reference_eval.py", "schemas/tools.schema.json") if os.path.exists(os.path.join(ROOT, p))}
+    info = json.dumps({"commit": commit, "uncommitted_changes": dirty, "data_sha256": data_hash(), "btc_sha256": btc,
                        "packed_at": time.strftime("%Y-%m-%d %H:%M:%S")}).encode()
     with tarfile.open(dst, "w:gz") as t:
         t.add(ROOT, arcname="repo", filter=keep)
@@ -156,8 +159,12 @@ def push(k, a):
         needs.append("TYPESAFE_API_KEY")
     if any("EXTRACTOR_JEV_HYBRID=1" in value for value in (a.env + a.variant)) and "TYPESAFE_API_KEY" not in needs:
         needs.append("TYPESAFE_API_KEY")
-    if a.generator == "deepseek" or a.router == "llm":
+    if a.generator == "deepseek" or a.router == "llm" or "REQUESTS_BACKEND=deepseek" in a.env or "UNDERSTANDING=deepseek" in a.env:   # D68 cổng yêu cầu / bộ hiểu thống nhất
         needs.append("DEEPSEEK_API_KEY")
+    if "ARCH=target" in a.env:          # cấu hình đích: DeepSeek hiểu khách + Jev question audit (trừ khi JEV_SIMULATED=1)
+        needs += [n for n in ("DEEPSEEK_API_KEY", "TYPESAFE_API_KEY") if n not in needs]
+    if 'DEEPSEEK_SIMULATED=1' in a.env:
+        needs = [name for name in needs if name != 'DEEPSEEK_API_KEY']
     if 'JEV_SIMULATED=1' in a.env:
         needs = [name for name in needs if name != 'TYPESAFE_API_KEY']
     job = {"job": a.job, "suite_args": suite, "needs_qwen": needs_qwen, "needs_secrets": needs,

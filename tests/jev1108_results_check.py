@@ -23,6 +23,7 @@ s = agent.CallSession.__new__(agent.CallSession)
 s.customer = {'phone': '0912222999'}; s.phone = '0912222999'
 s.cart = ['SKU-AP-X', 'SKU-AF-4L']; s.focus = 'SKU-AP-X'; s.orders_created = []; s.history = []
 s.known = {'address': '15 Đường A', 'payment': 'COD'}; s.expired = {}; s.old_addr_asked = False
+s.unresolved_writes = set(); s._why = lambda *a: None
 s._resolve_variant = lambda sku, text: sku
 s._quote = lambda sku, *args, **kwargs: {'sku': sku, 'final_price_vnd': 1000000, 'promo_codes': [], 'in_stock': True}
 seen = []
@@ -31,13 +32,14 @@ def call(name, **args):
     sku = args['sku']; seen.append(sku)
     if sku == 'SKU-AF-4L' and seen.count(sku) == 1:
         return {'error': 'temporary_fixture_failure'}
-    return {'order_id': 'OD1' if sku == 'SKU-AP-X' else 'OD2', 'total_vnd': 1000000}
+    # dạng response của eval/mock_tools.order_create (status created) — bộ phân loại kết quả G1 kiểm cả status
+    return {'order_id': 'OD1' if sku == 'SKU-AP-X' else 'OD2', 'status': 'created', 'total_vnd': 1000000}
 s.tools = SimpleNamespace(call=call)
 with patch.object(settings, 'planner_selector', 'jev'):
     facts = {}; goals = s._plan_order('lên đơn', facts)
     assert goals == ['order_partial'] and len(s.orders_created) == 1
     assert facts['partial_orders'][0]['order_id'] == 'OD1'
-    proof = [{'name': 'order.create', 'result': {'order_id': 'OD1'}}]
+    proof = [{'name': 'order.create', 'result': {'order_id': 'OD1', 'status': 'created', 'total_vnd': 1000000}}]
     assert enforce({'goals': goals, 'facts': facts}, proof)['goals'] == ['order_partial']
     assert enforce({'goals': goals, 'facts': facts}, [])['goals'] == ['contract_error']
     assert s._plan_order('thử lại', {}) == ['order_created']

@@ -40,7 +40,8 @@ def summarize(kind, facts, history, allowed_money, generator_backend, max_chars)
     try:
         llm = LLM(b, role="extract")                      # L3: tóm tắt chạy ở endpoint của extractor nếu có
         convo = [f"{'Khách' if h['role'] == 'customer' else 'Nhân viên'}: {h['text']}" for h in history[-12:]]
-        data = {"FACTS": facts, "HỘI_THOẠI": convo}
+        from harness.payload_policy import scrub
+        data = {"FACTS": scrub(json.loads(json.dumps(facts, ensure_ascii=False, default=str)))[0], "HỘI_THOẠI": convo}   # cụm 1: allowlist
         red = Redactor() if llm.external else None
         if red:
             data = red.redact(json.loads(json.dumps(data, ensure_ascii=False, default=str)))

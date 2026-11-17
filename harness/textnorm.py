@@ -158,11 +158,16 @@ def parse_relative_datetime(text, today):
     if not day:
         return None
     hour = None
-    m = re.search(r"(\d{1,2})\s*(?:giờ|h|g)(?:\s*(\d{2}))?", t)
+    # 11/11 (5.4): "9 rưỡi" / "9 giờ rưỡi" / "9h rưỡi" → :30; "9:30" → :30. Parser định dạng dùng chung với R0: khác biệt mong
+    # đợi chỉ ở câu có "rưỡi" hoặc "H:MM" sau giờ (trước đây ra :00 / bỏ phút); số tiền "5 triệu rưỡi" không khớp (cần chữ số
+    # ngay trước "rưỡi" hoặc trước giờ/h/g).
+    m = re.search(r"(?<![\d.,])(\d{1,2})\s*(?:giờ|h|g)?\s*rưỡi\b", t) or re.search(r"(?<![\d.,])(\d{1,2}):(\d{2})\b", t) \
+        or re.search(r"(\d{1,2})\s*(?:giờ|h|g)(?:\s*(\d{2}))?", t)
     if m:
         h = int(m.group(1))
         if ("chiều" in t or "tối" in t) and h < 12: h += 12
-        hour = f"{h:02d}:{int(m.group(2) or 0):02d}"
+        mins = 30 if "rưỡi" in m.group(0) else int((m.group(2) if m.lastindex and m.lastindex >= 2 else None) or 0)
+        hour = f"{h:02d}:{mins:02d}" if h < 24 and mins < 60 else None
     elif "chiều" in t: hour = "15:00"
     elif "sáng" in t: hour = "09:00"
     elif "tối" in t: hour = "19:00"

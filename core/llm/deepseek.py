@@ -65,6 +65,10 @@ class LLM:
             for chunk in stream:
                 if getattr(chunk, "usage", None):
                     usage = {"prompt_tokens": chunk.usage.prompt_tokens, "completion_tokens": chunk.usage.completion_tokens}
+                    # đề xuất 08/11 mục 6.3.4: giữ số token cache tiền tố provider báo (DeepSeek), để đo trước khi kết luận tiết kiệm
+                    for k in ("prompt_cache_hit_tokens", "prompt_cache_miss_tokens"):
+                        if getattr(chunk.usage, k, None) is not None:
+                            usage[k] = getattr(chunk.usage, k)
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta.content or ""

@@ -53,7 +53,22 @@ CUSTOMER_LLM_CUE_RX = re.compile(
 CUSTOMER_CUE_FOLD_RX = re.compile(fold(CUSTOMER_LLM_CUE_RX.pattern), re.I)
 
 
+def _stance_slots(text, slots, meta):
+    """Chốt cuối cho mọi nhánh trích slot khách (luật / Qwen / Jev) theo một luật stance chung (harness/stance.py).
+    Bất biến (10/11, FINAL G3, không phụ thuộc CONTRACT_V2): hỏi về một phương thức thanh toán ("có COD không em?") không
+    phải là chọn phương thức đó — slot `payment` chỉ nhận khi mệnh đề chứa nó là lựa chọn khẳng định.
+    CONTRACT_V2 mở rộng cùng luật cho màu/size/địa chỉ ('không lấy màu đen' không phải chọn màu đen)."""
+    if isinstance(slots, dict):
+        from harness.stance import filter_customer_slots
+        filter_customer_slots(text, slots, meta, only=None if settings.contract_v2 else ("payment",))
+    return slots
+
+
 def customer_slots(text, today, meta=None, context=None, asked=None):
+    return _stance_slots(text, _customer_slots_routes(text, today, meta, context, asked), meta)
+
+
+def _customer_slots_routes(text, today, meta=None, context=None, asked=None):
     rules = customer_slots_rules(text, today)
     if settings.extractor_backend == "rules":
         return rules
@@ -85,7 +100,38 @@ def customer_slots(text, today, meta=None, context=None, asked=None):
                 meta["customer_qwen_skipped"] = True
             return _lock(jev_slots, rules, meta)
     from harness import llm_extract
-    return _lock(llm_extract.customer_slots(text, today, rules, settings.extractor_backend, meta, context), rules, meta)
+    return _lock(_two_sources(llm_extract.customer_slots(text, today, _arbitrate(rules, meta), settings.extractor_backend, meta, context),
+                              set(rules), meta), rules, meta)
+
+
+# 10/11: đã bỏ quy tắc "Jev rỗng + CERT không chứng nhận rỗng → gọi Qwen" theo quyết định người dùng (không để runtime
+# phụ thuộc thêm vào CERT trên đường tới cấu hình đích). Nhãn rỗng của Jev lại là kết luận hợp lệ như trước.
+
+# Slot là đối số tool ghi mà Qwen phải tự xác nhận khi Jev đã bỏ (không chỉ giữ giá trị luật). 10/11: RT-11 "mai mốt anh gọi lại"
+# (khách tự gọi) — luật cắt callback_requested, Jev bỏ đúng, nhưng nhánh Qwen giữ nguyên slot luật nên đặt lịch sai.
+# address/payment giữ hành vi A6 đã đo (luật thắng khi Jev bỏ) — chưa đổi khi chưa đo.
+ARBITRATED = frozenset({"callback_requested"})
+
+
+def _two_sources(result, rule_keys, meta):
+    """Slot ARBITRATED chỉ nhận khi luật cũng cắt được (luật + Jev/Qwen đồng ý). RT-11: chỉ Qwen thấy "mai mốt anh gọi lại" là hẹn
+    shop gọi → không đặt lịch. Sửa tại chỗ, trả result."""
+    if isinstance(result, dict):
+        for k in ARBITRATED:
+            if k in result and k not in rule_keys:
+                result.pop(k)
+                if meta is not None:
+                    meta.setdefault("single_source_dropped", []).append(k)
+    return result
+
+
+def _arbitrate(rules, meta):
+    dropped = set((meta or {}).get("jev_dropped_rule_slots") or []) & ARBITRATED
+    if not dropped:
+        return rules
+    if meta is not None:
+        meta["qwen_arbitrated_slots"] = sorted(dropped)
+    return {k: v for k, v in rules.items() if k not in dropped}
 
 
 def _lock(result, rules, meta):
@@ -108,6 +154,16 @@ def customer_llm_candidate(text, context=None):
 
 
 def analyze_agent(text, known_values, meta=None, focus_sku=None):
+    """CONTRACT_V2: mọi nhánh (rules / hybrid / LLM / Jev / tách riêng) đi qua CÙNG một bước chấp nhận claim theo stance
+    (harness/stance.py): claim giá trị chỉ nhận khi mệnh đề chứa nó khẳng định; rule claim không còn mặc định đúng."""
+    questions, claims = _analyze_agent_routes(text, known_values, meta, focus_sku)
+    if settings.contract_v2:
+        from harness.stance import filter_claims
+        claims = filter_claims(claims, meta)
+    return questions, claims
+
+
+def _analyze_agent_routes(text, known_values, meta=None, focus_sku=None):
     q_rules = agent_questions(text, known_values, use_classifier=settings.question_clf)
     c_rules = agent_claims(text, focus_sku=focus_sku)
     if settings.extractor_backend == "rules":
@@ -215,6 +271,13 @@ def _analyze_agent_confidence(text, known_values, q_rules, c_rules, meta, focus_
 
 
 def customer_slots_start(text, today, meta=None, context=None, asked=None):
+    slots, pending = _customer_slots_start_routes(text, today, meta, context, asked)
+    if isinstance(pending, dict):
+        pending["stance_text"] = text
+    return _stance_slots(text, slots, meta), pending
+
+
+def _customer_slots_start_routes(text, today, meta=None, context=None, asked=None):
     if settings.extractor_backend != "hybrid" or not settings.extractor_async:
         return customer_slots(text, today, meta, context), None
     from harness import llm_extract
@@ -246,6 +309,7 @@ def customer_slots_start(text, today, meta=None, context=None, asked=None):
                 meta["customer_qwen_skipped"] = True
                 meta["backend"] = "hybrid:jev_grounded_rules"
             return _lock(dict(jev_slots), rules, meta), None
+    cert_rules, rules = rules, _arbitrate(rules, meta)
     if not customer_llm_candidate(text, context):
         if meta is not None:
             meta["customer_llm_skipped"] = "no_slot_cue"
@@ -253,7 +317,9 @@ def customer_slots_start(text, today, meta=None, context=None, asked=None):
     pending = llm_extract.submit_customer_slots(text, today, rules, meta, context)
     locked = ((meta or {}).get("customer_confidence") or {}).get("certified_slots") or []
     if locked and isinstance(pending, dict):
-        pending["cert_locked"] = {k: rules[k] for k in locked if k in rules}
+        pending["cert_locked"] = {k: cert_rules[k] for k in locked if k in cert_rules}
+    if isinstance(pending, dict):
+        pending["rule_keys"] = set(cert_rules)
     return dict(rules), pending
 
 
@@ -266,6 +332,18 @@ def customer_slots_finish(pending, slots, wait):
     for d in (slots, out):                   # 1c (06/11): chốt cuối cho mọi nhánh (luật / Qwen / Jev): "địa chỉ" chỉ là SĐT → bỏ
         if isinstance(d, dict) and phone_only_address(d.get("address")):
             d.pop("address")
+    if isinstance(pending, dict) and "rule_keys" in pending:
+        meta0 = pending.get("outer")
+        _two_sources(slots, pending["rule_keys"], meta0)
+        _two_sources(out, pending["rule_keys"], None)
+    text = pending.get("stance_text") if isinstance(pending, dict) else None
+    if text is not None:
+        meta = pending.get("outer") if isinstance(pending, dict) else None
+        before = set(slots) if isinstance(slots, dict) else set()
+        _stance_slots(text, slots, meta)
+        if isinstance(out, dict) and isinstance(slots, dict):
+            for k in before - set(slots):
+                out.pop(k, None)             # slot Qwen thêm muộn nhưng bị loại theo stance: không báo là đã thêm
     return out
 
 

@@ -82,7 +82,10 @@ def customer(text, rules, meta=None, context=None):
     return {key: value for key, value in rules.items() if key in selected}
 
 
-PROTECTED = {"address", "payment"}
+# Slot là đối số của một tool ghi: Jev bỏ slot luật đã cắt được span thì không nhận ngay, xử lý theo JEV_DROP_POLICY.
+# 10/11 (V3-155/158): thêm callback_requested (đối số schedule.callback) — Jev giả lập trả rỗng cho "mai 17 giờ em gọi lại
+# giúp chị", slot bị bỏ, agent vẫn hứa gọi lại mà không đặt lịch. Cùng lý do với địa chỉ/thanh toán của order.create (A6).
+PROTECTED = {"address", "payment", "callback_requested"}
 
 
 def claims(sentence, rule_claims, meta=None):

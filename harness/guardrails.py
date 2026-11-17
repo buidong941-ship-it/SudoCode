@@ -145,20 +145,143 @@ def warranty_problems(text, allowed_months):
     return []
 
 
+import json as _json
+from pathlib import Path as _Path
+
+COMMITMENTS = [dict(c, rx=re.compile(c["pattern"])) for c in
+               _json.loads(_Path(__file__).with_name("commitments.json").read_text(encoding="utf-8"))["commitments"]]
+
+
+def _committed(text, rx):
+    """Các vị trí khớp `rx` (trên bản fold) mà mệnh đề chứa nó có thể bị nghe như cam kết (stance.COMMITMENT)."""
+    from harness import stance
+    return [sp for sp in stance.spans_rx(text, rx) if stance.stance_at(text, *sp) in stance.COMMITMENT]
+
+
+def commitment_problems(text, goals):
+    """CONTRACT_V2: nói 'đã làm X' phải có goal kết quả X (đã qua validator) trong lượt này."""
+    have = set(goals or ())
+    return [c["message"] for c in COMMITMENTS if not have & set(c["allowed_goals"]) and _committed(text, c["rx"])]
+
+
+def warranty_problems_v2(text, allowed_months):
+    """Như warranty_problems nhưng xét từng giá trị theo mệnh đề chứa nó (stance) thay vì bỏ qua cả câu có chữ 'không'.
+    'Không lo ạ, máy bảo hành 3 năm' bị bắt; 'hiện chưa có chính sách bảo hành 3 năm' không bị bắt."""
+    if not allowed_months:
+        return []
+    from harness import stance
+    f = stance.pfold(text)
+    for m in WARRANTY_RX.finditer(f):
+        sents = stance.clauses(text)
+        cl = next(((s, e) for s, e, _ in sents if s <= m.start() < max(e, s + 1)), (0, len(f)))
+        if re.search(r"\b(mo rong|goi|mua them)\b", f[cl[0]:cl[1]]):
+            continue
+        if stance.stance_at(text, m.start(), m.end()) not in stance.COMMITMENT:
+            continue
+        n = int(m.group(1)) if m.group(1).isdigit() else _NUM_WORD[m.group(1)]
+        months = n * (12 if m.group(2) == "nam" else 1)
+        if months not in allowed_months:
+            ok = ", ".join(f"{v} tháng" for v in sorted(allowed_months))
+            return [f"nói bảo hành {months} tháng nhưng catalog của sản phẩm trong cuộc gọi là {ok}; "
+                    f"chỉ được nói đúng thời hạn bảo hành của catalog, không hứa thêm"]
+    return []
+
+
+GIFT_PROMISE_RX = re.compile(r"\b(giu|ghi|them|tang)(\s+\w+){0,4}\s+qua\b")
+PCT_RX = re.compile(r"(giam|bot|chiet khau|off|uu dai)\D{0,12}?(\d{1,2})\s*%")
+CURATIVE_RX = re.compile(r"\b(chua|dieu tri|tri)\s+(duoc\s+)?(benh|hen|tac tia|viem)|\btang tiet sua\b")
+
+
+def stance_problems(text, promos):
+    """CONTRACT_V2: hứa quà, mức giảm %, công dụng chữa bệnh — xét theo stance của từng vị trí (một luật phủ định chung)."""
+    out = []
+    if promos is not None:
+        if _committed(text, GIFT_PROMISE_RX) and not any(p.get("type") == "gift" for p in promos.get("active", [])):
+            expired = any(p.get("type") == "gift" for p in promos.get("expired", []))
+            out.append('nói chương trình quà tặng đã hết hạn như còn hiệu lực' if expired
+                       else 'hứa quà tặng nhưng tool chưa xác nhận có chương trình quà tặng')
+        ok_pct = {int(pr["discount_percent"]) for pr in promos.get("active") or () if pr.get("discount_percent")}
+        from harness import stance
+        for s, e in _committed(text, PCT_RX):
+            pct = int(PCT_RX.match(stance.pfold(text), s).group(2))
+            if pct not in ok_pct:
+                out.append(f"nói giảm {pct}% nhưng tool của cuộc gọi không có KM {pct}% đang áp dụng")
+                break
+    if _committed(text, CURATIVE_RX):
+        out.append('không được khẳng định công dụng điều trị/y tế chưa có nguồn; chuyển chuyên viên và không xác nhận công dụng')
+    return out
+
+
+# CONTRACT_V2: số tiền khách nêu bị đọc như giá sản phẩm khi "giá" làm chủ ngữ của số trong cùng mệnh đề, kể cả có tên
+# SP chen giữa ("giá HikePro hiện là 1.000.000đ"); không tính khi khoảng giữa nói ngân sách / chênh lệch / phí / bên khác,
+# hoặc mệnh đề là thuật lại / hỏi / phủ định (stance chung). Full 09/11 V3-089: PRICE_CUE_RX chỉ xét cụm sát số nên lọt.
+PRICE_GAP_EXCLUDE_RX = re.compile(r"\b(ngan sach|tam|khoang|duoi|tren|giam|phi|coc|hoan|ship|chenh|hon|bot|ben (kia|khac)"
+                                  r"|cho khac|tiet kiem)\b")
+
+
+def _price_subject_v2(text, s):
+    from harness import stance
+    t = stance.canon(text)
+    if t != text:
+        return False
+    pre = next((stance.pfold(t[cs:s]) for cs, ce, _ in stance.clauses(t) if cs <= s < ce), None)
+    if not pre:
+        return False
+    hits = list(re.finditer(r"\bgia\b", pre))
+    if not hits:
+        return False
+    gap = pre[hits[-1].end():]
+    if len(gap.split()) > 6 or PRICE_GAP_EXCLUDE_RX.search(gap):
+        return False
+    return stance.stance_at(t, s) in stance.ASSERTED
+
+
+def _promo_problems_core(text, promos):
+    """Phần KM của promo_problems không gồm hứa quà và mức giảm % (hai phần này chuyển sang stance_problems)."""
+    out = []
+    for s in re.split(r"(?<=[.!?])\s+", text):
+        f = fold(s)
+        if s.rstrip().endswith("?") or not PROMO_POS_RX.search(f) or not PROMO_NOUN_RX.search(f) or PROMO_NEG_RX.search(f):
+            continue
+        if SHIP_ONLY_RX.search(f) and not re.search(r"(giam|\btang\b|qua tang|%)", SHIP_ONLY_RX.sub(" ", f)):
+            continue
+        if not promos.get("active"):
+            out.append("khẳng định đang có khuyến mãi nhưng tool trong cuộc gọi không có khuyến mãi nào đang áp dụng; "
+                       "không được nói có khuyến mãi/ưu đãi/quà tặng")
+            break
+        old = [pr for pr in promos.get("expired") or () if _promo_signature(pr, s)]
+        if old and not any(_promo_signature(pr, s) for pr in promos["active"]):
+            out.append(f"nói chương trình {old[0]['promo_code']} đã hết hạn như còn hiệu lực")
+            break
+    return out
+
+
+# Định danh kiểu code (snake_case ASCII, vd moved_reason, order_id, final_price_vnd): không bao giờ là lời nói tiếng Việt với khách.
+FIELD_NAME_RX = re.compile(r"\b[a-z][a-z0-9]*_[a-z0-9_]*[a-z0-9]\b")
+
+
 def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_money=(), goals=(), customer_money=(), promos=None,
           warranty=None):
     """customer_money: số tiền khách tự nói (ngân sách, giá bên khác) và không có trong tool — được nhắc lại
     ("ngân sách 5,5 triệu của anh") nhưng không được đọc như giá bán (B5, BTCL-031).
     promos: trạng thái KM theo tool của cuộc gọi (D22); None = không kiểm.
-    warranty: tập `warranty_months` (catalog) của các sản phẩm đang nói trong cuộc gọi (1c J1); rỗng / None = không kiểm."""
-    problems = [] if promos is None else promo_problems(text, promos)
-    problems += warranty_problems(text, warranty)
-    from harness.assertions import curative_problems
-    problems += curative_problems(text)
+    warranty: tập `warranty_months` (catalog) của các sản phẩm đang nói trong cuộc gọi (1c J1); rỗng / None = không kiểm.
+    CONTRACT_V2: phủ định/hỏi/giả định xét theo harness/stance.py, thêm kiểm cam kết đã thực hiện (commitments.json)."""
+    if settings.contract_v2:
+        problems = [] if promos is None else _promo_problems_core(text, promos)
+        problems += warranty_problems_v2(text, warranty)
+        problems += stance_problems(text, promos)
+        problems += commitment_problems(text, goals)
+    else:
+        problems = [] if promos is None else promo_problems(text, promos)
+        problems += warranty_problems(text, warranty)
+        from harness.assertions import curative_problems
+        problems += curative_problems(text)
     for s, _, v in find_money(text):
         if v in IMPORT_PRICES or v in internal_numbers:
             problems.append(f"lộ giá nội bộ {v}")
-        elif v in customer_money and PRICE_CUE_RX.search(fold(text[max(0, s - 30):s])):
+        elif v in customer_money and (PRICE_CUE_RX.search(fold(text[max(0, s - 30):s]))
+                                      or (settings.contract_v2 and _price_subject_v2(text, s))):
             problems.append(f"đọc số tiền {v} khách nêu như giá sản phẩm")
         elif v in forbidden_money:
             problems.append(f"đọc lại giá {v} khách nêu, không khớp báo giá hiện tại")
@@ -175,6 +298,9 @@ def check(text, allowed_money, internal_numbers=(), forbidden_money=(), stale_mo
         problems.append("bình luận đối thủ")
     if INTERNAL_MENTION_RX.search(f):
         problems.append("nhắc thông tin nội bộ")
+    m = FIELD_NAME_RX.search(text)
+    if m:
+        problems.append(f"lộ tên trường kỹ thuật '{m.group()}'")   # cụm 3 (V3-158 "moved_reason"): lời nói không chứa định danh code
     for g in goals:
         if g in REQUIRED and not REQUIRED[g][0].search(f):
             problems.append(REQUIRED[g][1])

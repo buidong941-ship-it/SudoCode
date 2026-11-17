@@ -22,7 +22,9 @@ def main():
     assert validate(['order_created', 'out_of_stock'], {'order': {'order_id': 'OD1', 'total_vnd': 1}})
     plan = {'goals': ['order_created'], 'facts': {'order': {'order_id': 'OD1', 'total_vnd': 1}}}
     assert enforce(dict(plan), [])['goals'] == ['contract_error']
-    assert enforce(dict(plan), [{'name': 'order.create', 'result': {'order_id': 'OD1'}}])['goals'] == ['order_created']
+    # 10/11: thành công tạo đơn phải có đúng dạng response mock BTC (status=created, total_vnd), không chỉ "có order_id"
+    assert enforce(dict(plan), [{'name': 'order.create', 'result': {'order_id': 'OD1'}}])['goals'] == ['contract_error']
+    assert enforce(dict(plan), [{'name': 'order.create', 'result': {'order_id': 'OD1', 'status': 'created', 'total_vnd': 1}}])['goals'] == ['order_created']
     assert 'ask_address' in REGISTRY and REGISTRY['ask_payment']['question_slot'] == 'payment'
     class Session:
         def __init__(self):

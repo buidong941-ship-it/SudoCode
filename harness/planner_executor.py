@@ -1,5 +1,70 @@
 """Ordered multi-action execution with code permissions and grounded arguments."""
+import json
+from pathlib import Path
+
 from harness import planner_state, planner_decision
+
+CONTRACT = json.loads(Path(__file__).with_name('action_contract.json').read_text(encoding='utf-8'))['actions']
+NON_WRITE = {'policy_question', 'ask_price', 'order_status', 'defer_decision', 'product_advice'}
+
+
+def speech_act_gate(action, c, s, previous):
+    """CONTRACT_V2: action ghi dữ liệu chỉ chạy khi lời khách là yêu cầu khẳng định (stance chung) hoặc là xác nhận
+    ngắn cho một việc đang chờ. Trả None = cho chạy; (nhãn, action/goal thay thế) = không ghi."""
+    spec = CONTRACT.get(action)
+    if not spec:
+        return None
+    from harness import stance
+    if action == 'give_delivery_info' and any(c.slots.get(k) for k in ('address', 'payment')):
+        return None                     # slot đã qua cổng stance của extractor: khách thực sự đưa giá trị
+    spans = stance.spans_rx(c.text, spec['cue'])
+    if spans:
+        got = stance.stances(c.text, spans)
+        if any(g in stance.REQUEST for g in got):
+            return None
+        for label in ('question', 'negated', 'conditional', 'reported', 'unknown'):
+            if label in got:
+                return label, spec['on'].get(label if label != 'unknown' else 'question')
+    elif not stance.is_bare_ack(c.text):
+        # Không định vị được từ chỉ thao tác nhưng câu có nội dung (đưa địa chỉ, mô tả lỗi, "gửi trả lại nha"...):
+        # thiếu cue không phải bằng chứng "không yêu cầu". Chỉ chặn khi cả lượt là câu hỏi; còn lại để selector quyết.
+        if stance.utterance_is_question(c.text):
+            return 'question', spec['on'].get('question')
+        return None
+    fallback = spec['on'].get('no_pending')
+    if fallback is None:
+        return None
+    if set(s.table_prev_goals or []) & set(spec.get('pending_goals', [])):
+        return None
+    if spec.get('pending_buy_ok') and getattr(s, 'buy_intent', False):
+        return None
+    if previous:
+        asked = stance.spans_rx(previous, spec['cue'])
+        if any(st == stance.QUESTION for st in stance.stances(previous, asked)):
+            return None                 # agent vừa hỏi đúng việc này → "ừ em" là trả lời câu hỏi đó
+    return 'no_pending', fallback
+
+
+def _run_fallback(fallback, c, s, state, T, trace, actions):
+    if isinstance(fallback, list):                  # vd hỏi về trả hàng: chính sách + số tiền hoàn của đơn đã có (chỉ đọc)
+        for f in fallback:
+            _run_fallback(f, c, s, state, T, trace, actions)
+        return
+    if fallback == 'refund_amount':
+        if state.has_order and 'refund_amount' not in c.goals:
+            T.h_refund_amount(c, None)
+            trace['executed_actions'].append('refund_amount')
+        return
+    if not fallback or fallback in actions or fallback in trace['executed_actions']:
+        return
+    if fallback == 'confirm_order':
+        c.goals.append('confirm_order' if (s.focus or s.cart) else 'ask_product')
+        return
+    if fallback == 'order_status' and not state.has_order:
+        fallback = 'policy_question'
+    if fallback in NON_WRITE:
+        execute(fallback, c, T)
+        trace['executed_actions'].append(fallback)
 
 ORDER = ['request_handoff', 'cancel_order', 'give_delivery_info', 'add_to_cart', 'product_advice', 'policy_question', 'ask_price', 'change_order_address', 'exchange_order', 'return_order', 'order_status', 'place_order', 'cart_total', 'schedule_callback', 'defer_decision', 'greeting_closing', 'unclear']
 
@@ -87,6 +152,13 @@ def run(c):
             trace['blocked'].append({'action': action, 'missing': missing})
             c.goals.append('order_not_found' if 'order' in missing else 'ask_address' if 'address' in missing else 'ask_product')
             continue
+        if T.settings.contract_v2:
+            # Sau kiểm quyền/requires (thiếu điều kiện thì không thực thi gì, kể cả fallback), trước thao tác ghi.
+            gate = speech_act_gate(action, c, s, previous)
+            if gate is not None:
+                trace['blocked'].append({'action': action, 'reason': f'speech_act:{gate[0]}', 'fallback': gate[1]})
+                _run_fallback(gate[1], c, s, state, T, trace, actions)
+                continue
         try:
             execute(action, c, T)
             trace['executed_actions'].append(action)

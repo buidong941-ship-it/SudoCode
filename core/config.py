@@ -114,6 +114,10 @@ class Settings:
     jev_simulated: bool = field(default_factory=lambda: _env("JEV_SIMULATED", "0") == "1")
     goal_contract: bool = field(default_factory=lambda: _env("GOAL_CONTRACT", "0") == "1")
     extractor_no_jev: bool = field(default_factory=lambda: _env("EXTRACTOR_NO_JEV", "0") == "1")
+    # 09/11: hợp đồng v2 — một luật stance chung (harness/stance.py) cho claim, slot lựa chọn của khách, guardrail và
+    # action ghi dữ liệu; kiểm cam kết "đã làm" (harness/commitments.json); xác nhận ngắn chỉ hiệu lực khi có việc đang chờ;
+    # (đối soát tạo đơn theo SKU/ngày đã bỏ 10/11, FINAL G1). D59 duyệt 10/11: mặc định BẬT; CONTRACT_V2=0 = hành vi cũ.
+    contract_v2: bool = field(default_factory=lambda: _env("CONTRACT_V2", "1") == "1")
     planner_selector: str = field(default_factory=lambda: _check_choice("PLANNER_SELECTOR", "rules", {"rules", "qwen", "jev"}))
     planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
     # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json.
@@ -124,6 +128,44 @@ class Settings:
     # L1 (05/11): gọi router song song với bước trích slot (router không cần slot). D58: mặc định BẬT; =0 = nối tiếp như cũ (trace trùng, tests/latency_parallel_check.py).
     # Chỉ song song ở lượt không đọc SĐT và không đang hỏi danh tính (định danh có thể đổi tóm tắt phiên trước).
     parallel_router: bool = field(default_factory=lambda: _env("PARALLEL_ROUTER", "1") not in ("0", "off", "false"))
+    # D68 (người dùng duyệt 10/11): DeepSeek flash quyết định khách có yêu cầu thao tác ghi hay không (harness/request_gate.py).
+    # Rỗng = tắt (agent y hệt R0). REQUESTS_GATE=control (chặn tool ghi) | shadow (chỉ ghi trace).
+    requests_backend: str = field(default_factory=lambda: _env("REQUESTS_BACKEND", ""))
+    requests_gate: str = field(default_factory=lambda: _env("REQUESTS_GATE", "control"))
+    requests_timeout_s: float = field(default_factory=lambda: float(_env("REQUESTS_TIMEOUT_S", "10")))
+    # Kiến trúc đích (người dùng duyệt triển khai 11/11): UNDERSTANDING=deepseek → MỘT lần gọi DeepSeek Flash thay router +
+    # nhận diện yêu cầu + trích slot khách (rules/CERT/Jev hybrid/Qwen) — harness/understanding.py. Rỗng = R0.
+    understanding: str = field(default_factory=lambda: _env("UNDERSTANDING", ""))
+    understanding_timeout_s: float = field(default_factory=lambda: float(_env("UNDERSTANDING_TIMEOUT_S", "20")))
+    # Cấu hình ĐÍCH đầy đủ (11/11, NHAN-XET-VA-YEU-CAU-CHINH-SUA-KIEN-TRUC-DICH K01–K14): ARCH=target bật cùng lúc
+    # bộ hiểu DeepSeek hợp đồng v2 + state yêu cầu/pending bằng code + chính sách an toàn bằng code + predicate có kiểu +
+    # response blocks/renderer + MỘT pipeline audit câu cuối (Jev question, Qwen claim). Không CERT, không cascade Jev hybrid,
+    # không cổng D68. Rỗng = R0/TG cũ (snapshot đối chứng). Cấu hình mâu thuẫn bị từ chối ở check_arch().
+    arch: str = field(default_factory=lambda: _check_choice("ARCH", "", {"", "target"}))
+    # 12/11 (THIET-KE-B1-B2-JEV-B3-WORKFLOW): chủ sở hữu tiến trình nghiệp vụ trên cấu hình đích. b1 = bảng hiện tại (đối chứng,
+    # mặc định); b2_jev = Jev chọn từng bước (observe → decide → execute → observe); b3_workflow = workflow có guard theo từng
+    # yêu cầu. Factory dựng planner MỘT lần khi mở session (harness/planner_variants.py); đổi biến thể = run/session mới.
+    planner_variant: str = field(default_factory=lambda: _check_choice("PLANNER_VARIANT", "b1", {"b1", "b2_jev", "b3_workflow"}))
+    # Ngân sách hữu hạn của vòng lập kế hoạch B2 (mục 4.4). Ghi vào <out>.config.json; áp dụng như nhau giữa các lần đo.
+    # Cách đếm (v3, 12/11): MỘT quyết định = một lần gọi bộ quyết định Jev (kể cả lần bị validator / chống lặp từ chối);
+    # tool call = mọi lời gọi ToolBox trong vòng (kể cả bên trong commit / answer_ask, kể cả lời gọi lỗi); trần tool kiểm TRƯỚC
+    # mỗi hành động có thể gọi tool (không ngắt giữa một hành động); deadline tính từ lúc vào vòng tới trước quyết định kế tiếp.
+    # 10 quyết định = cấu hình THĂM DÒ người dùng duyệt 12/11 (chưa phải ngân sách cuối); deadline chốt theo số E1.
+    # PLANNER_B2_MIN_CONF: 0 = chưa áp ngưỡng (confidence Jev không phải xác suất đã hiệu chuẩn).
+    b2_max_decisions: int = field(default_factory=lambda: int(_env("PLANNER_B2_MAX_DECISIONS", "10")))
+    b2_max_tool_calls: int = field(default_factory=lambda: int(_env("PLANNER_B2_MAX_TOOL_CALLS", "13")))   # 13/11: người dùng duyệt nâng 12 → 13 (tư vấn danh mục 8 mẫu khi đang bàn một mẫu tốn tối đa 13)
+    b2_deadline_s: float = field(default_factory=lambda: float(_env("PLANNER_B2_DEADLINE_S", "12")))
+    b2_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_B2_MIN_CONF", "0")))
+    # 13/11 (duyệt): câu cuối gửi ra backend/UI ngay sau guardrail (callback on_emit); audit hậu kỳ chạy nền trên đúng câu đã
+    # gửi. AUDIT_ASYNC=0: vẫn emit thật nhưng turn() đợi audit xong mới trả về (chẩn đoán). Hết phiên / job đợi audit tối đa
+    # AUDIT_DRAIN_TIMEOUT_S rồi ghi audit_status=timeout (không bỏ im lặng).
+    audit_async: bool = field(default_factory=lambda: _env("AUDIT_ASYNC", "1") == "1")
+    audit_drain_timeout_s: float = field(default_factory=lambda: float(_env("AUDIT_DRAIN_TIMEOUT_S", "240")))
+    # B3: MỘT bước = một hành động nguyên tử workflow chạy trong lượt (read_* / check_window / commit_request / clarify), cộng
+    # dồn mọi pha và mọi yêu cầu của lượt; tới trần thì dừng (`max_steps`), yêu cầu còn lại giữ nguyên trạng thái.
+    b3_max_steps: int = field(default_factory=lambda: int(_env("PLANNER_B3_MAX_STEPS", "8")))
+    # Chỉ để kiểm tích hợp không có Secret: Qwen đóng vai DeepSeek ở bộ hiểu (trace ghi rõ). Không dùng cho số báo cáo.
+    deepseek_simulated: bool = field(default_factory=lambda: _env("DEEPSEEK_SIMULATED", "0") == "1")
     # L3 (05/11): endpoint Qwen RIÊNG cho extractor + summarizer (vd vLLM thứ hai ở GPU 1), để không tranh GPU với generator.
     # Rỗng = dùng chung QWEN_BASE_URL như cũ. scripts/serve_llm.sh tự bật thêm server cho cổng này.
     qwen_extract_base_url: str = field(default_factory=lambda: _env("QWEN_EXTRACT_BASE_URL", ""))
@@ -174,7 +216,11 @@ class Settings:
                 "extractor_jev_hybrid": self.extractor_jev_hybrid, "jev_drop_policy": self.jev_drop_policy,
                 "extractor_cert_version": self.extractor_cert_version, "cert_v2_relax": self.cert_v2_relax,
                 "planner_backend": self.planner_backend, "planner_selector": self.planner_selector,
-                "planner_jev_min_conf": self.planner_jev_min_conf, "jev_simulated": self.jev_simulated, "goal_contract": self.goal_contract, "extractor_no_jev": self.extractor_no_jev,
+                "planner_jev_min_conf": self.planner_jev_min_conf, "jev_simulated": self.jev_simulated, "goal_contract": self.goal_contract, "extractor_no_jev": self.extractor_no_jev, "contract_v2": self.contract_v2, "requests_backend": self.requests_backend or None, "requests_gate": self.requests_gate, "understanding": self.understanding or None, "arch": self.arch or None, "deepseek_simulated": self.deepseek_simulated,
+                "planner_variant": self.planner_variant,
+                "planner_b2_budget": {"max_decisions": self.b2_max_decisions, "max_tool_calls": self.b2_max_tool_calls,
+                                      "deadline_s": self.b2_deadline_s, "min_conf": self.b2_min_conf},
+                "planner_b3_max_steps": self.b3_max_steps,
                 "planner_skip_since": list(self.planner_skip_since), "product_lexicon": self.product_lexicon,
                 "parallel_router": self.parallel_router, "order_qty": self.order_qty, "qwen_extract_base_url": self.qwen_extract_base_url or None,
                 "improve_dir": self.improve_dir,
@@ -193,6 +239,55 @@ def _check_removed():
     if _env("PLANNER_TABLE", "1").lower() in ("0", "off", "false"):
         raise ValueError("PLANNER_TABLE=0 không còn được hỗ trợ (_plan cũ đã bỏ 06/11). "
                          "Muốn planner như trước D51: PLANNER_SKIP_SINCE=D51")
+
+
+# Cờ legacy chỉ còn ý nghĩa trên R0 / TG cũ. Trên ARCH=target chúng KHÔNG được đọc (hợp đồng: audit đích không gọi CERT /
+# Jev hybrid / Qwen-sau-Jev; generator đích không dùng coverage→sinh lại). Ghi vào config để biết cờ nào bị bỏ qua.
+TARGET_IGNORED_FLAGS = ("EXTRACTOR_CONFIDENCE_GATE", "EXTRACTOR_CERT_VERSION", "EXTRACTOR_JEV_HYBRID", "EXTRACTOR_NO_JEV",
+                        "AGENT_CLAIM_BACKEND", "AGENT_QUESTION_BACKEND", "QUESTION_CLF", "STRIP_QUESTIONS", "JEV_DROP_POLICY",
+                        "PLANNER_BACKEND", "PARALLEL_ROUTER")
+
+
+PLANNER_VARIANTS = ("b1", "b2_jev", "b3_workflow")
+
+
+def check_variant(variant, s=None):
+    """Tổ hợp mâu thuẫn bị từ chối rõ (mục 3): b2/b3 chỉ chạy trên ARCH=target; selector legacy giữ rules; B2 không dùng
+    planner LLM dự phòng (PLANNER_BACKEND) và không fallback. Ngân sách B2 phải hữu hạn, dương."""
+    s = s or settings
+    if variant not in PLANNER_VARIANTS:
+        raise ValueError(f"PLANNER_VARIANT={variant!r} không hợp lệ; chọn một trong {PLANNER_VARIANTS}")
+    if variant == "b1":
+        return
+    if s.arch != "target":
+        raise ValueError(f"PLANNER_VARIANT={variant} chỉ chạy với ARCH=target (dùng chung bộ hiểu DeepSeek + request_state)")
+    if s.planner_selector != "rules":
+        raise ValueError(f"PLANNER_VARIANT={variant} mâu thuẫn với PLANNER_SELECTOR={s.planner_selector} (selector legacy)")
+    if s.planner_backend != "rules":
+        raise ValueError(f"PLANNER_VARIANT={variant} mâu thuẫn với PLANNER_BACKEND={s.planner_backend} (planner LLM dự phòng cũ)")
+    if variant == "b2_jev" and not (s.b2_max_decisions > 0 and s.b2_max_tool_calls > 0 and s.b2_deadline_s > 0):
+        raise ValueError("PLANNER_VARIANT=b2_jev cần ngân sách hữu hạn > 0 (PLANNER_B2_MAX_DECISIONS/_MAX_TOOL_CALLS/_DEADLINE_S)")
+    if variant == "b3_workflow" and s.b3_max_steps <= 0:
+        raise ValueError("PLANNER_VARIANT=b3_workflow cần PLANNER_B3_MAX_STEPS > 0")
+
+
+def check_arch(s=None):
+    """K08/K11: ARCH=target không được khởi động thêm một bộ hiểu thứ hai. Cấu hình mâu thuẫn → ValueError (từ chối rõ),
+    không lặng lẽ gọi thêm API. → dict mô tả cờ legacy bị bỏ qua (ghi vào <out>.config.json)."""
+    s = s or settings
+    check_variant(s.planner_variant, s)
+    if s.arch != "target":
+        return {}
+    if s.requests_backend:
+        raise ValueError("ARCH=target không chạy cùng REQUESTS_BACKEND (cổng D68 cũ = bộ hiểu thứ hai). Để trống REQUESTS_BACKEND.")
+    if s.understanding not in ("", "deepseek"):
+        raise ValueError(f"ARCH=target chỉ dùng bộ hiểu DeepSeek; UNDERSTANDING={s.understanding!r} mâu thuẫn")
+    if s.planner_selector != "rules":
+        raise ValueError("ARCH=target dùng bảng planner với predicate có kiểu; PLANNER_SELECTOR khác 'rules' là selector Jev/Qwen cũ")
+    # C.5 (16/11): target CHỈ được nạp gói FAQ đã duyệt (harness/improve_hook.approved() từ chối gói có loại khác khi mở phiên).
+    # IMPROVE_DIR rỗng = C.5 tắt (vòng R0); đặt IMPROVE_DIR = thư mục gói FAQ = vòng R1.
+    return {"ignored_legacy_flags": {k: os.environ.get(k) for k in TARGET_IGNORED_FLAGS if os.environ.get(k) not in (None, "")},
+            **({"improve": {"dir": s.improve_dir, "scope": "faq_only"}} if s.improve_dir else {})}
 
 
 _check_removed()

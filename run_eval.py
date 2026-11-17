@@ -86,26 +86,50 @@ def _run_scenario(scen, config, run_id, router_backend, gen_backend):
     from harness import knowledge
     knowledge.search("đổi trả", k=1)
     router, gen = Router(router_backend), Generator(gen_backend)
-    rows = []
+    rows, call_rows, sess = [], [], None
+
+    def flush(s):
+        """Hết cuộc gọi (hoặc lỗi giữa chừng): đợi audit nền của phiên rồi mới ghi các lượt (trace đủ claims / questions)."""
+        if s is not None:
+            s.drain_audits()
+        for call, i, row, recv in call_rows:
+            out = {"run_id": run_id, "config": config, "scenario_id": sid, "call": call, "turn": i, **row}
+            # backend nhận đúng câu đã emit (callback thật), audit chạy trên đúng chuỗi đó
+            out["emit_check"] = {"received": recv is not None,
+                                 "sha_match": bool(recv) and recv["sha256"] == (row.get("emitted") or {}).get("sha256")}
+            rows.append(out)
+        call_rows.clear()
+
     try:
         for c in view["calls"]:
             cur.update(call=c["call"], turn=0, text="")
             cclog.set_context(f"{sid} {c['call']}")
-            sess = CallSession(memory=mem, today=c["date"], call_name=c["call"], session_id=f"{sid}:{c['call']}",
-                               channel=c["channel"], channel_identity=c["channel_identity"],
-                               phone=view["phone"] if c["channel"] == "hotline" else None,
-                               input_mode=c["input_mode"], router=router, generator=gen, config=config)
-            if c["seed_history"]:
-                sess.phone = sess.phone or view["phone"]
-            sess.start()
-            if c["seed_history"] and sess.customer:
+            received = {}
+            mk = lambda: CallSession(memory=mem, today=c["date"], call_name=c["call"], session_id=f"{sid}:{c['call']}",
+                                     channel=c["channel"], channel_identity=c["channel_identity"],
+                                     phone=(view["phone"] if c["channel"] == "hotline" or c["seed_history"] else None),
+                                     input_mode=c["input_mode"], router=router, generator=gen, config=config,
+                                     on_emit=lambda m: received.__setitem__(m["turn"], {**m, "recv_wall": time.time()}))
+            # 13/11: PHA OFFLINE trước mỗi cuộc gọi (dữ liệu đã có trước khi khách gọi): nạp lịch sử CRM (_bind) và lịch sử
+            # seed của kịch bản vào bộ nhớ bằng một phiên phụ (không end(), không emit, bỏ tool log). Sau đó start() của phiên
+            # thật là phần RUNTIME đo Call Brief: tra CRM / bộ nhớ + bind + dựng brief + kiểm freshness (giá / KM / tồn / đơn)
+            # tới khi object brief cuối sẵn sàng; không dựng lại brief sau start().
+            t_off = time.perf_counter()
+            pre = mk()
+            pre.start()
+            n_seed = 0
+            if c["seed_history"] and pre.customer:
                 for h in c["seed_history"]:
-                    cid = h.get("customer_id") or sess.customer["customer_id"]
-                    sess.import_old_session(h, cid)
-                if mem.read_enabled:
-                    sess._bind(sess.customer["customer_id"], sess.customer["name"], sess.customer["honorific"], sess.customer["phone"], None)
-                    sess.brief = sess._build_brief(); sess.brief["latency_ms"] = sess.brief_ms
-                    sess.start_tool_log += sess.tools.take_log()
+                    pre.import_old_session(h, h.get("customer_id") or pre.customer["customer_id"])
+                    n_seed += 1
+            crm_import = list(pre.crm_import_log)
+            pre.tools.take_log()
+            offline = {"ms": int((time.perf_counter() - t_off) * 1000), "seed_sessions": n_seed,
+                       "imported_sessions": len(crm_import), "scope": "crm + seed import trước cuộc gọi (không tính Call Brief)"}
+            sess = mk()
+            sess.start()
+            if crm_import:
+                sess.crm_import_log = crm_import          # trace lượt 1: kết quả nạp lịch sử (offline), như trước
             b = sess.brief or {}
             log.info("--- %s %s kênh=%s khách=%s quay_lại=%s must_not_ask=%s stale=%s brief=%sms", c["call"], c["date"],
                      c["channel"], (sess.customer or {}).get("customer_id"), b.get("is_returning"), b.get("must_not_ask"),
@@ -115,12 +139,20 @@ def _run_scenario(scen, config, run_id, router_backend, gen_backend):
                 cclog.set_context(f"{sid} {c['call']} t{i}")
                 row = sess.turn(t)
                 _log_turn(log, row)
-                rows.append({"run_id": run_id, "config": config, "scenario_id": sid, "call": c["call"], "turn": i, **row})
-            sess.end()
+                if i == 1:
+                    row["call_brief_offline"] = offline
+                call_rows.append((c["call"], i, row, received.get(sess.turn_no)))
+            sess.end()                                   # đợi audit nền + ghi bộ nhớ phiên
+            flush(None)
+            sess = None
     except Exception as e:
         tb = traceback.format_exc()
         where = f"{cur['call']} lượt {cur['turn']}" if cur["turn"] else f"{cur['call']} (lúc mở cuộc gọi)"
         log.error("LỖI ở %s — khách nói: %r\n%s", where, cur["text"], tb.rstrip())
+        try:
+            flush(sess)
+        except Exception:
+            pass
         rows.append({"run_id": run_id, "config": config, "scenario_id": sid, "call": cur["call"], "turn": cur["turn"],
                      "customer_text": cur["text"], "error": f"{type(e).__name__}: {e}", "traceback": tb})
     return sid, rows
@@ -142,16 +174,24 @@ def main():
     ap.add_argument("--only", nargs="*", help="chỉ chạy các scenario_id này")
     ap.add_argument("--transport", default=settings.tool_transport, choices=["mcp", "direct"],
                     help="mcp = tool + bộ nhớ qua MCP server (mặc định); direct = gọi hàm trực tiếp (để so sánh)")
+    ap.add_argument("--planner-variant", default=settings.planner_variant, choices=["b1", "b2_jev", "b3_workflow"],
+                    help="chủ sở hữu tiến trình trên ARCH=target (12/11): b1 bảng | b2_jev Jev từng bước | b3_workflow; một job = một biến thể")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="in khối từng lượt ra màn hình và ghi log mức DEBUG (đủ tham số/kết quả tool, HTTP status) vào <out>.log")
     ap.add_argument("--log-level", default=os.environ.get("LOG_LEVEL", "INFO"), choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                     help="mức log ghi vào <out>.log (mặc định LOG_LEVEL hoặc INFO)")
     a = ap.parse_args()
 
+    from core.config import check_arch
+    # biến thể đặt qua env để tiến trình con (workers) dựng đúng planner; không đổi biến thể giữa chừng trong một run
+    os.environ["PLANNER_VARIANT"] = settings.planner_variant = a.planner_variant
+    arch_note = check_arch(settings)        # K08: ARCH=target + cờ mâu thuẫn → ValueError ngay khi khởi chạy
     scens = load_scenarios(a.scenarios)
     if a.only:
         scens = [s for s in scens if s["scenario_id"] in a.only]
     run_id = a.run_id or time.strftime("run-%Y%m%d-%H%M%S")
+    if settings.arch == "target" and a.planner_variant not in run_id:
+        run_id = f"{run_id}-{a.planner_variant}"      # namespace bộ nhớ <run_id>:<config>:<scenario> tách theo biến thể
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     from harness.memory import engine
     engine()
@@ -213,7 +253,7 @@ def main():
                                "extractor_backend": a.extractor})
     meta = {"run_id": run_id, "config": a.config, "scenarios": a.scenarios, "n_scenarios": len(scens), "n_rows": n_rows,
             "errors": n_err, "router": a.router, "generator": a.generator, "extractor": a.extractor,
-            "settings": effective_settings, "commit": commit, "seconds": round(time.time() - t0, 1)}
+            "settings": effective_settings, "commit": commit, "planner_variant": a.planner_variant, "seconds": round(time.time() - t0, 1), **({"arch": arch_note} if settings.arch else {})}
     json.dump(meta, open(os.path.splitext(a.out)[0] + ".config.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     print(f"{len(scens)} kịch bản, {n_rows} lượt, {n_err} lỗi → {a.out}  ({meta['seconds']}s, router={a.router}, "
           f"generator={a.generator}, extractor={a.extractor}, transport={a.transport})")

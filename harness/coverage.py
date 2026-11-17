@@ -64,8 +64,13 @@ def content(text, goals, facts):
             out.append(f"thiếu số tiền hoàn {facts['refund']['refund_vnd']:,}đ".replace(",", "."))
         elif g == "cart_total" and facts.get("cart") and not _has_money(text, facts["cart"].get("total_vnd")):
             out.append(f"thiếu tổng tiền giỏ {facts['cart']['total_vnd']:,}đ".replace(",", "."))
-        elif g == "callback_scheduled" and facts.get("callback") and not _has_time(text, facts["callback"].get("callback_at")):
-            out.append("thiếu giờ hẹn gọi lại")
+        elif g == "callback_scheduled" and facts.get("callback"):
+            cb = facts["callback"]
+            if not _has_time(text, cb.get("callback_at")):
+                out.append("thiếu giờ hẹn gọi lại")
+            # cụm 3: lịch THỰC TẾ (có thể đã dời khỏi giờ khách xin) — phải nói đúng ngày, không chỉ giờ
+            if not (_has_date(text, cb.get("callback_at")) or (cb.get("weekday") and cb["weekday"] in text.lower())):
+                out.append(f"thiếu ngày hẹn gọi lại {cb.get('ddmm') or ''}".strip())
         elif g == "order_status" and facts.get("orders"):
             f = fold(text)
             if not any((o.get("order_id") and o["order_id"].lower() in text.lower())

@@ -1,0 +1,45 @@
+{
+ "_doc": "CONTRACT_V2 (09/11) — hợp đồng hành vi hội thoại cho action GHI dữ liệu (đề xuất DE-XUAT-HOP-DONG-ACTION-TRANG-THAI-NGHIEP-VU-2026-11-09 mục 2–3). Selector chỉ ĐỀ XUẤT action; executor chỉ thực thi khi lời khách thực sự là yêu cầu. `cue` (trên bản fold) định vị chỗ khách nói về thao tác; nhãn stance (harness/stance.py) của các vị trí đó quyết định: có vị trí 'affirmed' → chạy; chỉ có hỏi / phủ định / giả định / thuật lại → không ghi, chuyển sang `on.<nhãn>`. Không định vị được cue: câu có nội dung (đưa địa chỉ, mô tả lỗi...) → chỉ chặn khi cả lượt là câu hỏi (`on.question`), còn lại để selector quyết; thiếu cue không phải bằng chứng 'không yêu cầu' (sửa 09/11 sau Full selector). Chỉ câu thuần xác nhận (stance.is_bare_ack: 'ừ em', 'ok', 'được') mới cần việc đang chờ: chỉ chạy khi có việc đang chờ — lượt trước có goal thuộc `pending_goals`, hoặc câu agent vừa nói là CÂU HỎI về đúng thao tác đó (cue nằm trong phạm vi hỏi), hoặc `pending_buy_ok` và đang trong luồng mua — ngược lại chuyển sang `on.no_pending` (null = thao tác không cần sự đồng ý riêng, cứ chạy). Đây là quy tắc theo nhóm hành vi, không theo từng câu lỗi; selector, quyền và requires vẫn giữ nguyên.",
+ "actions": {
+  "place_order": {
+   "cue": "\\b(dat|chot|len don|lay|mua|ship|giao|order)\\b",
+   "pending_goals": ["confirm_order", "confirm_new_price", "confirm_old_address", "ask_address", "ask_payment", "ask_variant", "ask_phone", "cod_limit", "order_failed", "contract_error"],
+   "pending_buy_ok": true,
+   "on": {"question": "policy_question", "negated": "defer_decision", "conditional": "confirm_order", "reported": "confirm_order", "no_pending": "confirm_order"}
+  },
+  "give_delivery_info": {
+   "cue": "\\b(cod|chuyen khoan|thanh toan|tien mat|giao (ve|toi|den|qua)|dia chi|nhan hang)\\b",
+   "pending_goals": ["ask_address", "ask_payment", "ask_phone", "confirm_old_address", "confirm_order", "cod_limit"],
+   "pending_buy_ok": true,
+   "on": {"question": "policy_question", "negated": "policy_question", "conditional": "policy_question", "reported": "policy_question", "no_pending": "confirm_order"}
+  },
+  "add_to_cart": {
+   "cue": "\\b(them|lay|cho|bo vao|mua|nua)\\b",
+   "on": {"question": "ask_price", "negated": "defer_decision", "conditional": "ask_price", "reported": "ask_price", "no_pending": null}
+  },
+  "change_order_address": {
+   "cue": "\\b(doi|sua|cap nhat|chuyen|giao (ve|toi|den|sang|qua))\\b|\\bdia chi\\b",
+   "pending_goals": ["confirm_delivery_address", "address_updated", "order_status", "ask_address"],
+   "on": {"question": "policy_question", "negated": "order_status", "conditional": "policy_question", "reported": "order_status", "no_pending": "order_status"}
+  },
+  "exchange_order": {
+   "cue": "\\b(doi|sang size|sang mau|lay size|lay mau)\\b",
+   "pending_goals": ["exchange_offer", "ask_new_size"],
+   "on": {"question": "policy_question", "negated": "order_status", "conditional": "policy_question", "reported": "policy_question", "no_pending": "policy_question"}
+  },
+  "return_order": {
+   "cue": "\\b(tra (lai|hang|ve)?|hoan( tien)?|gui tra)\\b",
+   "pending_goals": ["exchange_offer", "refund_amount", "order_updated"],
+   "on": {"question": ["policy_question", "refund_amount"], "negated": "order_status", "conditional": "policy_question", "reported": "policy_question", "no_pending": "policy_question"}
+  },
+  "cancel_order": {
+   "cue": "\\b(huy|bo don|khong lay nua|thoi khong (lay|mua))\\b",
+   "pending_goals": ["order_status", "order_created", "order_exists"],
+   "on": {"question": "policy_question", "negated": "order_status", "conditional": "policy_question", "reported": "policy_question", "no_pending": "order_status"}
+  },
+  "schedule_callback": {
+   "cue": "\\b(goi lai|lien lac lai|hen|goi cho (chi|anh|co|chu|bac|em))\\b",
+   "on": {"question": "policy_question", "negated": "defer_decision", "conditional": "defer_decision", "reported": "defer_decision", "no_pending": null}
+  }
+ }
+}
