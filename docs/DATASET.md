@@ -189,3 +189,124 @@ Dev v3 còn tạo tín hiệu (các bộ dev cũ đã 92–100% TSR với cùng 
 ### 9.5. Ghi chú liêm chính dữ liệu (03/11)
 
 Holdout v3 do chính trợ lý viết trong phiên 03/11, nên phiên đó đã thấy toàn bộ câu thoại holdout v3. Phiên đó **không sửa code hệ thống** và chỉ chạy hệ thống trên phần dev. Các phiên sửa hệ thống sau này không được đọc `datagen/templates_v3/build_v3.py`, `datagen/templates_v3/1_holdout.json`, `datagen/out_v3_claude_rewrites.py`, `datagen/out_v3/*/holdout` trước ngày đóng băng cấu hình; `improve/collect.py` đã chặn mọi đường dẫn chứa `holdout`. Khi báo số holdout v3 cần nêu rõ người viết là cùng một trợ lý với người sửa hệ thống (khác phiên).
+
+## 10. Tổ chức dataset tập trung và holdout mới H13 (13/11/2026)
+
+Bàn giao: `docs/PLAN/BAN-GIAO-TO-CHUC-DATASET-VA-TEMPLATE-MOI-2026-11-13.md`. Đầu mối mới là **`datagen/datasets/`**
+(README ở đó). Không di chuyển, xóa hay sửa file dữ liệu gốc nào. Đặt ở `datagen/datasets/` thay vì `data/datasets/`
+vì `data/` bị `.gitignore` và bị loại khỏi gói Kaggle.
+
+### 10.1. Kiểm kê (đếm bằng `scripts/dataset_registry.py index`, job Kaggle `midzid/sudocode-ds-h1113`)
+
+| Bộ (dataset@version/phần) | File | Vai trò | Ghi chú |
+|---|---:|---|---|
+| btc_public_sample | 7 | btc_sample | báo riêng |
+| gen@out-v1 dev/test | 45 / 22 | source_text | câu mẫu của gen@nat-v1 |
+| gen@nat-v1 dev / test | 45 / 22 | dev / observed_eval | test đã chạy 25 lần |
+| btcl@v1 dev/holdout (+raw) | 28 / 40 | superseded | thiếu bản vá |
+| **btcl@v1_1** dev / holdout (+raw) | 28 / 40 | **dev chuẩn** / lineage_exposed | holdout chưa mở chữ nhưng đã đo qua v2_1 |
+| btcl@v2 dev/holdout (+raw) | 28 / 40 | superseded | thiếu bản vá |
+| btcl@v2_1 dev / holdout (+raw) | 28 / 40 | robustness_variant / observed_eval | holdout đo D44 |
+| btcl_d7@v1 dev (+raw) | 30 | dev | |
+| v3@v1 dev / holdout (+raw) | 81 / 77 | dev / **observed_eval** | holdout đã đo và đọc lỗi 06–12/11 |
+| redteam@1c | 14 | dev | guardrail |
+| jev1108@new / @identity | 12 / 1 | dev | |
+| function_probe@1107 | 94 kịch bản + 251 mục | component_check | không có đáp án TSR |
+| synth_slots b1/b2/b3 | 101 / 52 / 113 câu | component_check | 266 câu, khớp manifest cũ |
+| extract_eval customer/agent/facts_used/real_ref | 60 / 120 / 16 / 200 | component_check | real_ref: CC BY-NC 4.0 |
+| BTC asr / rag | `asr/ground_truth.json`, `rag/qa_labeled.json` (60 câu) | component_check | chấm bằng reference_eval |
+| dataset/transcripts, audio | 134 / 120 mp3 (đếm bằng `ls`) | derived_artifact | không có trong gói Kaggle |
+| **h13@r1 holdout** | 84 | **holdout_new (guarded)** | mục 10.3 |
+
+**Tổng:** 1.350 file kịch bản (kể cả raw; 1.266 trước khi thêm H13 final), 806 file ở các phần chạy; **441 kịch bản độc lập** (434 của nhóm + 7 BTC),
+tính theo `lineage_group` (raw/final, bản vá, viết lại lời chỉ tính một): gen 67, BTC-like 68, D7 30, v3 158,
+red-team 14, JEV1108 13, H13 84. Trước H13 là 350 kịch bản độc lập của nhóm.
+
+Trùng văn bản lời khách (chuẩn hóa) giữa các phần cũ, theo `audit.json → inventory_same_text_between_parts`:
+btcl v1↔v1_1 và v2↔v2_1 trùng toàn bộ (68 + 68, bản vá chỉ đổi đáp án/khách CRM, đúng lineage); gen out↔nat 3 kịch bản
+(lượt chat/ASR giữ nguyên khi naturalize); **1 kịch bản gen@out-v1/test trùng lời khách với một mẫu BTC** — cần xem lại
+nếu báo số trên gen test.
+
+### 10.2. Suite (danh sách đã giải: `datagen/datasets/suites/resolved/`)
+
+| Suite | n | Thành phần |
+|---|---:|---|
+| dev | 92 | gen@nat-v1 26 (1/template), btcl@v1_1 14, d7 10, v3 dev 15 (1/template), red-team 14, JEV1108 13 |
+| regression | 44 | **tập con của dev**: red-team 14, btcl 14 (1/loại ca khó), d7 5, v3 8 (6 ca khó + 2 thường), gen 2 thường, identity 1 |
+| observed_v3 | 77 | V3 holdout cũ |
+| observed_other | 62 | gen@nat-v1/test 22 + btcl@v2_1/holdout 40 |
+| btc_sample | 7 | mẫu BTC |
+| holdout_h13 | 84 | guarded: `materialize` từ chối nếu thiếu `--allow-guarded` (đã kiểm trên Kaggle) |
+
+Runner chưa đọc suite trực tiếp: `materialize` chép file (kiểm sha256, chặn trùng `scenario_id`) vào thư mục staging rồi
+chạy `run_eval.py --scenarios <dir>`. Lệnh này đã chạy trên Kaggle với suite regression (rules/offline, chỉ kiểm đường ống,
+không phải số báo cáo): 44 kịch bản, 184 lượt, 0 lỗi, reference_eval xuất bảng bình thường.
+
+### 10.3. Holdout mới H13
+
+Người viết: Claude (claude-opus-5-5), viết tay trong phiên 13/11, không gọi API; **cùng trợ lý từng sửa hệ thống ở các
+phiên khác**, phải nêu khi báo số. Template: `datagen/datasets/releases/h1113/templates/build_h1113.py` (không commit).
+Seed 20261113, tiền tố `H13`.
+
+**Bộ chạy: `datagen/datasets/releases/h1113/final/holdout/H13-001…084.json`** (đã naturalize, đóng băng). `raw/holdout`
+là bản trước naturalize, cùng 84 kịch bản và đáp án, không cộng thêm.
+
+**Naturalize (người dùng duyệt 13/11):**
+- Claude viết lại tay từng cuộc gọi hotline (146 cuộc). Cách viết: từ đệm, ngập ngừng, đảo ý, giọng Bắc/Nam theo địa chỉ, nói vòng.
+- Nguồn lời viết lại: `releases/h1113/naturalize/h13_claude_rewrites.py` (không commit). Áp vào bằng
+  `naturalize.py --backend claude --offline --import-claude`.
+- **314/338 lượt được viết lại, 0 lượt bị trả về câu gốc** vì mất mỏ neo. 24 lượt chat Fanpage/ASR giữ nguyên như quy ước.
+- Ca mơ hồ có chủ ý (F10n, F11n, F17n) vẫn giữ mơ hồ. Đáp án không đổi.
+
+**21 họ × 4 biến thể = 84 kịch bản** (trong khoảng 20–25 họ / 60–100 ca của bàn giao). Họ thứ 21 vì nhóm "ranh giới
+hỏi/yêu cầu" có ba kiểu ranh giới khác nhau (điều kiện phí, số lượng giả định, chỉ hỏi giờ làm việc), đây là trục B2 yếu
+nhất ở báo cáo v6. Các họ có cặp dương/âm dùng hai template cùng `family`, không bao giờ tách split.
+
+| Nhóm | Họ | Diễn biến mới so với bộ cũ |
+|---|---|---|
+| Nhiều ý cùng lượt | F01, F02 | chốt + địa chỉ + hỏi bảo hành trong một lượt; tra đơn + hỏi giá món khác + báo vắng nhà (không tạo đơn món chỉ hỏi giá) |
+| Hỏi / yêu cầu | F03 ±, F04 ±, F05 ± | đổi size "nếu miễn phí" (lần 1 miễn phí → làm; lần 2 phí 30.000đ/chiều → không làm); "lấy 2 cái" và "nếu lấy 2 cái thì bao nhiêu"; hỏi giờ tổng đài rồi hẹn / không hẹn |
+| Sửa / rút | F06, F07 ± | đặt hai món rồi rút một (tổng đơn đúng món giữ); đổi màu trước khi đủ thông tin (màu mới còn → đặt; hết và khách không nhận màu cũ → không đặt) |
+| Giỏ, số lượng | F08, F09 | thêm phụ kiện sau đơn cũ thành đơn mới, dùng lại địa chỉ; giỏ hai món thay size một món |
+| Nhiều sản phẩm / đơn | F10 ±, F11 ± | hai đơn giày: gọi tên rõ → đổi đúng đơn, mơ hồ → hỏi lại; "cái rẻ hơn" trong hai mẫu đã báo và "cái em tư vấn" |
+| Điều kiện | F12 ±, F13 ± | giá trần bằng giá cũ, KM còn/hết tại ngày gọi lại; người nhà chỉ đồng ý nếu có khóa trẻ em (catalog) |
+| Nhớ qua phiên | F14, F15 ± | đổi địa chỉ hồ sơ ở phiên không có đơn, phiên sau dùng địa chỉ mới; mua lại và chỉ hỏi giá giùm người khác |
+| Đa kênh / danh tính | F16, F17 ± | đơn qua tổng đài → hỏi ngày giao qua Fanpage (khách CRM); khách mới chat Fanpage có/không để lại SĐT rồi gọi hotline |
+| Chính sách và nguồn | F18 ±, F19 | phụ thu hàng cồng kềnh ngoài nội thành dù miễn phí ship (nối hai mệnh đề VC-02); KM 11-11 chưa bắt đầu (KM-02) rồi đang chạy |
+| Khả năng trả lời | F20, F21 ± | cùng lượt một thuộc tính có nguồn (spec) và một không có nguồn; tên mẫu qua ASR khớp một mẫu / nhiều mẫu |
+
+Mô tả "khác bộ cũ ở diễn biến nào" của từng họ nằm ở `manifest.json → templates[].diff_vs_old`.
+
+**Coverage:** 60 kịch bản dương, 24 âm (29%); 42/84 (50%) có ít nhất một bước then chốt bị cấm ghi (`must_not_call_tools`),
+4 ca bắt buộc nói "không có thông tin". Phiên: 54 ca 2 phiên, 10 ca 3 phiên, 20 ca 1 phiên (76% đa phiên). Kênh: 150 cuộc
+hotline, 8 cuộc Fanpage; 4 cuộc transcript ASR. 4 khách CRM (F16), còn lại là khách tổng hợp mới.
+
+**Kiểm lại sau naturalize (job CPU `midzid/sudocode-ds-h1113-nat`, `scripts/h1113_naturalize_job.sh`, mọi bước PASS):**
+- `validate.py --strict` trên `final/holdout`: 0 lỗi, 0 cảnh báo.
+- Đóng băng `--freeze final`; raw được kiểm còn nguyên byte và lưu ở `manifest.json → frozen_raw`.
+- Canary: hoàn hảo PASS 84/84, rỗng FAIL 84/84, sai có chủ ý FAIL 84/84.
+- Trùng lớp 1: 0 file trùng hash, 0 kịch bản trùng văn bản; 2/338 lượt trùng nguyên câu với bộ cũ (đều là "Ừ cảm ơn em nha.").
+- Lớp 2: 0 SĐT khách tổng hợp trùng bộ cũ.
+- 8-gram: tối đa 18/338 lượt (với V3 holdout), không đổi so với bản raw.
+- Suite `holdout_h13` vẫn bị chặn khi thiếu `--allow-guarded`.
+
+**Kiểm bản raw (một job Kaggle CPU, `scripts/h1113_dataset_job.sh`):**
+- Sinh 84/84; `validate.py --strict`: 0 lỗi, 0 cảnh báo (giá/KM/tồn/ngày giao/hoàn tiền đối chiếu `mock_tools`; trace hoàn hảo PASS, trace rỗng FAIL).
+- Đóng băng `--freeze raw` (sha256 từng file trong `manifest.json → frozen`).
+- Canary qua `reference_eval`: hoàn hảo PASS 84/84, rỗng FAIL 84/84, sai có chủ ý (giá +1.000đ, sai action, sai giờ hẹn, gọi tool cấm, bỏ tra đơn) FAIL 84/84.
+- Trùng lớp 1: 0 file trùng hash, 0 kịch bản trùng văn bản chuẩn hóa; 1/338 lượt khách trùng nguyên câu với bộ cũ ("Để chị hỏi ý chồng rồi gọi lại em nha.").
+- Lớp 2: 0 scenario_id trùng; 0 SĐT khách tổng hợp trùng bộ cũ; 4 khách CRM dùng lại (không tránh được, CRM của BTC chỉ có 50 khách).
+- Lớp 3: 8-gram chung tối đa 18/338 lượt (với V3 holdout), chủ yếu là địa chỉ sinh từ cùng danh sách đường phố. Khung diễn biến thô của F09 trùng T16 và của F21 âm trùng V3 `asr-re-khong-ro`; đã xem lại: F09 là thay biến thể trong giỏ (T16 là vượt hạn mức COD), F21 là tên mẫu mơ hồ (V3 là đường truyền rè).
+
+**Hạn chế của đáp án** (theo schema BTC, không đổi evaluator):
+- `must_say_any` khớp cụm từ, nên câu trả lời đúng nhưng diễn đạt khác có thể bị chấm trượt (đã thêm nhiều cụm thay thế nhưng không phủ hết).
+- `reference_eval` chấp nhận mọi `order_id` do `order.create` tạo ở phiên trước; ở F10 chỉ `new_variant_sku` phân biệt đơn đúng.
+- Mỗi trường `ground_truth_facts` chỉ một giá trị: các cuộc nhiều SKU (F02, F06, F09, F11) chỉ kiểm một giá, tổng đơn kiểm bằng `total_match_vnd`.
+- F04 dương yêu cầu một dòng `qty=2`; tách thành hai dòng qty 1 sẽ trượt.
+- F14 không so chuỗi địa chỉ trong `args_match` (định dạng có thể khác); dùng `must_carry_over`, `trace_must_not_match` địa chỉ cũ và `memory_expectation` (chỉ sàng lọc).
+- F17 âm giả định agent không được nối phiên chat Fanpage (fb_id không có trong CRM, khách không để SĐT) với hotline, dù harness nạp bộ nhớ theo kịch bản.
+- F18 hiểu VC-02 là phụ thu cồng kềnh 30.000đ áp dụng ngoài nội thành kể cả khi được miễn phí ship theo giá trị đơn.
+
+**Exposure:** generated + reviewed-for-data-quality + naturalize (Claude, 13/11). Chưa chạy B1/B2/B3 hay agent nào trên H13.
+Phiên/model sửa agent không đọc `releases/h1113/templates|naturalize|raw|final`, phần H13 trong `index.jsonl` hay `runs/kaggle/ds-h1113*/`.
+Khi người dùng duyệt đo: `materialize --suite holdout_h13 --allow-guarded`, ghi exposure `evaluated` vào `registry.json`.

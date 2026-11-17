@@ -28,6 +28,22 @@
 | RAG | hybrid `BAAI/bge-m3` + BM25 gộp bằng RRF, kho numpy, không reranker (GPU 1) |
 | Khác | transport MCP, SQLite; `LLM_CACHE=off` |
 
+Công thức CERT2
+
+CERT2 là kiểm tra nhị phân, không phải xác suất model tự tin. Với mỗi slot được hỗ trợ:
+
+cₛ=Gₛ∧ Uₛ∧ Kₛ∧ NEGₛ∧ QUESₛ∧ Nₛ∧ Cₛ
+
+Trong đó:
+
+- G: giá trị có căn cứ trong câu, hợp lệ theo kiểm tra của slot.
+- U: không có các giá trị cạnh tranh gây mơ hồ.
+- K: có dấu hiệu phù hợp với slot.
+- NEG: không bị phủ định quanh giá trị.
+- QUES: không nhầm câu hỏi thành lựa chọn đã chốt.
+- N: không có mẫu ngữ cảnh rủi ro như giả định, trích dẫn.
+- C: ngữ cảnh đủ rõ; câu trả lời ngắn phải phù hợp câu hỏi trước khi cần.
+
 ### Kiểm tra trước khi chạy (đều qua)
 
 - Đếm đủ 77 kịch bản.

@@ -2,7 +2,7 @@
 
 Khi làm lại tool và chạy thử trên gói dữ liệu BTC phát, team gặp một số chỗ chưa rõ là chủ ý hay lỗi. Team tổng hợp lại để hỏi một lần, tránh làm lệch đáp án chấm.
 
-Mọi mục dưới đây đều đã được chạy thử trên gói dữ liệu hiện tại (ngày tham chiếu 15/10/2026). Tool được gọi trực tiếp từ `eval/mock_tools.py`, script chấm từ `eval/reference_eval.py`.
+Các mục ban đầu được ghi trên gói dữ liệu có ngày tham chiếu 15/10/2026. Tool tham chiếu là `eval/mock_tools.py`, script chấm là `eval/reference_eval.py`. Mục C4 có bổ sung bằng chứng ngày 12/11/2026 từ V3 holdout do team tự sinh và evaluator BTC bản 11/2026; không phải bộ test ẩn chính thức. Các mục lịch sử khác chưa được xác nhận lại toàn bộ trên bản BTC mới.
 
 Mức ảnh hưởng ghi ở đầu mỗi mục:
 
@@ -316,7 +316,7 @@ Khách đã hỏi giá từng chiếc thì câu trả lời đầy đủ bắt b
 
 - câu trả lời đúng và đầy đủ bị tính HR = 50%;
 - agent chỉ báo giá sản phẩm chính, tức là trả lời thiếu câu hỏi của khách, lại được HR = 0%;
-- agent không nêu con số nào cũng được HR = 0%.
+- nếu không có claim kiểm chứng được trong nhóm giá/KM thì HR nhóm đó không xác định (`null`), không phải bằng chứng không bịa.
 
 Cách chấm này khuyến khích agent giấu bớt thông tin. Điều đó ngược với mục đích của HR theo mục A.4 của đề: đo phát ngôn bịa so với nguồn sự thật. Team không đổi tên `field` của claim để né phép chấm, vì như vậy dễ bị coi là "ăn gian" khi BTC rà tay extractor.
 
@@ -326,6 +326,53 @@ Hỏi:
 - HR có đối chiếu theo `sku` của claim không? Nếu không, BTC có cho phép thêm `sku` vào `ground_truth_facts` (vd. `{"price_vnd": {"SKU-AP-Y": 5200000, "SKU-AP-PRO": 7690000}}`), hoặc bỏ qua claim có `sku` khác sản phẩm chính không?
 - Nếu BTC muốn kiểm tra rằng agent tư vấn đúng sản phẩm, thì việc đó được chấm bằng `success_if` (vd. `must_say_any`, `args_match`) hay bằng HR?
 - Bộ test ẩn có ca khách so sánh nhiều sản phẩm trong cùng một cuộc gọi không (persona `khach_mua_nhieu_mon`)?
+
+### C4 — bổ sung bằng chứng ngày 12/11/2026: giá khớp tool nhưng bị so với đối tượng khác
+
+**Phân biệt nguồn lỗi:** các ví dụ dưới đây cho thấy giá agent nói khớp dữ liệu tool cho sản phẩm/biến thể được nhắc. Vấn đề đang hỏi BTC nằm ở phép đối chiếu trong script HR và cách biểu diễn đáp án, không phải bằng chứng `pricing.get_quote` trả giá sai.
+
+Trong `eval/reference_eval.py::hallucination_rate`, phép kiểm hiện tại tương đương:
+
+```python
+f = claim["field"]
+if f in ground_truth_facts:
+    wrong = claim["value"] != ground_truth_facts[f]
+```
+
+Phép so này không chọn đáp án theo SKU/biến thể của claim, cũng không phân biệt thời điểm báo giá cũ và giá hiện tại. Một field như `price_vnd` chỉ được so với một giá trị ở cấp cuộc gọi.
+
+**Ví dụ cụ thể V3-031:** agent báo giày size 42 giá niêm yết 1.290.000đ, sau KM còn 1.161.000đ, khớp tool. Khách đổi sang size 43 ở lượt sau. Đáp án cuộc gọi lưu giá size 43 là 1.340.000đ. Bộ chấm lấy cả hai số của size 42 so với 1.340.000đ và đếm hai claim sai. Việc khách đổi size sau đó không làm câu báo giá size 42 trước đó trở thành sai.
+
+Các claim được phân tích là đúng cho đối tượng đang nói:
+
+| Ca / cuộc / lượt | Field | Đối tượng agent nói | Giá agent nói, khớp nguồn tool (đ) | Giá evaluator dùng (đ) |
+|---|---|---|---:|---:|
+| V3-027 / call_2 / 1 | `price_vnd` | Joie Pact `SKU-MB-STR1`, nhắc lại báo giá phiên trước | 3.490.000 | 6.790.000 của mẫu thay thế Combi Sugocal |
+| V3-031 / call_1 / 1 | `list_price_vnd` | RunLite 1 size 42 đen | 1.290.000 | 1.340.000 của size 43 |
+| V3-031 / call_1 / 1 | `price_vnd` | RunLite 1 size 42 đen, sau KM | 1.161.000 | 1.340.000 của size 43 |
+| V3-032 / call_1 / 1 | `list_price_vnd` | RunLite 2 Pro size 42 đen | 1.690.000 | 1.740.000 của size 43 |
+| V3-032 / call_1 / 1 | `price_vnd` | RunLite 2 Pro size 42 đen, sau KM | 1.521.000 | 1.740.000 của size 43 |
+| V3-033 / call_1 / 1 | `list_price_vnd` | RunLite 1 size 42 xám | 1.290.000 | 1.340.000 của size 43 |
+| V3-033 / call_1 / 1 | `price_vnd` | RunLite 1 size 42 xám, sau KM | 1.161.000 | 1.340.000 của size 43 |
+| V3-035 / call_1 / 1 | `price_vnd` | Nồi chiên Xiaomi 4.5L `SKU-AF-XM` | 1.590.000 | 3.990.000 của Philips 6.2L |
+
+**Ảnh hưởng đã quan sát:** Full có HR giá/KM chính thức 6,3% = 12/191. Trong 12 claim bị chấm sai có 8 claim thuộc bảng trên. Hai claim khác do audit của team gắn nhầm ngưỡng KM/tiền hoàn thành giá bán; hai claim còn lại là lỗi trả lời tiền hoàn thật của agent. Không quy cả 12 claim cho BTC. Năm claim tồn kho cũng gặp lệch đối tượng giữa mẫu hết hàng và mẫu thay thế còn hàng; chúng ảnh hưởng HR chung, không nằm trong 8 claim giá ở bảng.
+
+**Câu hỏi đề nghị BTC xác nhận:**
+
+1. Với câu báo giá đúng SKU/biến thể theo tool tại thời điểm nói, nhưng khác giá trị `ground_truth_facts[field]` cấp cuộc gọi, BTC có xác nhận đây là trường hợp bộ chấm HR chưa phân biệt được đối tượng không?
+2. BTC có định dạng claim/đáp án chính thức để đối chiếu theo `(field, SKU, biến thể, thời điểm)` không? Riêng báo giá cũ cần gắn nguồn/thời điểm như thế nào?
+3. BTC có cập nhật evaluator để hỗ trợ nhiều giá đúng theo đối tượng và thời điểm trong cùng cuộc gọi không? Chỉ cho phép một danh sách số tiền mà không gắn đối tượng vẫn có thể bỏ lọt giá gán nhầm sản phẩm.
+4. Trong khi chờ hướng dẫn, team nên giữ trace đầy đủ và báo số evaluator kèm bảng đối chiếu nguồn như trên phải không? Team không muốn giấu giá đúng, đổi tên field hoặc bỏ claim để giảm HR.
+
+**Bằng chứng nội bộ để truy nguyên:**
+
+- [Báo cáo holdout sau sửa, mục 5b](PLAN/BAO-CAO-HOLDOUT-V3-SAU-HOAN-THIEN-PLANNER-2026-11-12.md).
+- Phân tích claim: `runs/kaggle/tgt-1112-hocmp/out/tgt-1112-hocmp/cmp/hr_review_tt_ho.json`.
+- Report evaluator: `runs/kaggle/tgt-1112-hocmp/out/tgt-1112-hocmp/cmp/report_tt_ho.json`.
+- Trace Full: `runs/kaggle/hold1111b-full/out/t-1110-rg/holdout/full.jsonl`.
+
+Trạng thái: đã ghi câu hỏi và bằng chứng, chưa gửi BTC, chưa có xác nhận của BTC; giữ nguyên số chính thức và code chấm.
 
 **C5. [Lệch kết quả] Mẫu PII trong `guardrail_violations`**
 
