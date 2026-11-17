@@ -19,8 +19,17 @@ STOP = {"em", "anh", "chi", "a", "co", "khong", "cho", "minh", "voi", "thi", "la
         "nay", "do", "the", "nao", "gi", "ben", "shop", "toi", "vay", "roi", "con", "neu", "khi", "mot", "nhung", "cai"}
 
 
+class ImproveScopeError(ValueError):
+    """C.5 (16/11): ARCH=target chỉ nạp FAQ; gói có loại khác / mục bị loại khi nạp → từ chối, không âm thầm bỏ qua."""
+
+
 def enabled():
     return bool(settings.improve_dir)
+
+
+def faq_only():
+    """ARCH=target: đường cải tiến CHỈ là FAQ (không playbook / exemplar / cue / planner row / alias lịch sử)."""
+    return settings.arch == "target"
 
 
 def approved():
@@ -28,8 +37,20 @@ def approved():
         return None
     if _cache["dir"] != settings.improve_dir:
         from improve.loader import load_approved
-        _cache.update(dir=settings.improve_dir, data=load_approved(settings.improve_dir))
+        data = load_approved(settings.improve_dir)
+        if faq_only():
+            bad = {k: len(v) for k, v in data["items"].items() if k != "faq" and v}
+            if bad or data["skipped"]:
+                raise ImproveScopeError(f"ARCH=target chỉ nạp gói FAQ: IMPROVE_DIR={settings.improve_dir!r} có loại khác {bad} "
+                                        f"hoặc mục không hợp lệ {[s[0] for s in data['skipped']]}")
+        _cache.update(dir=settings.improve_dir, data=data)
     return _cache["data"]
+
+
+def preflight():
+    """Kiểm gói ngay khi mở phiên (từ chối khởi động thay vì lỗi giữa cuộc gọi). → hash gói | None khi tắt."""
+    a = approved()
+    return a["hash"] if a else None
 
 
 def reset():
@@ -170,3 +191,10 @@ def apply_to_plan(plan, text, goals):
 def stamp(used):
     a = approved()
     return {"approved_hash": a["hash"], "used": used} if a else None
+
+
+def faq_stamp(retrieved, used):
+    """C.5 target: retrieved = FAQ có trong kết quả tra cứu của lượt (đã nạp, đã tìm thấy); used = FAQ có câu được renderer CHỌN
+    đọc trong câu cuối (policy_refs). loaded ≠ used."""
+    a = approved()
+    return {"approved_hash": a["hash"], "scope": "faq_only", "retrieved": sorted(set(retrieved)), "used": sorted(set(used))} if a else None
