@@ -11,7 +11,8 @@ Tab:
 - Demo C.6   cuộc 1 (tư vấn, báo giá + KM, hẹn hỏi người nhà) → cuộc 2 (chốt đơn) → cuộc 3 (hỏi vận đơn, M2)
 - Bộ nhớ     dòng thời gian của khách: phiên, báo giá, fact (kể cả bị thay thế, có nguồn), kết quả hành động
 - Chỉ số     report có nhãn phiên bản / bộ dữ liệu / backend / ngày đo (không lấy số cũ làm số hiện hành)
-- Cải tiến   Knowledge Gap Loop: gap → bản nháp FAQ + nguồn + test → duyệt / loại (tên người duyệt) → đóng gói → kích hoạt → rollback
+- Cải tiến   Knowledge Gap Loop: gom gap (feedback nhân viên + tùy chọn trace/report dev) → soạn nháp FAQ (DeepSeek) + nguồn
+             + test → duyệt / loại (tên người duyệt) → đóng gói → kích hoạt → rollback
 """
 import hashlib
 import json
@@ -285,6 +286,17 @@ with tab_improve:
     st.markdown(f"Kho duyệt C.5: `{os.path.relpath(root, E.ROOT)}`. Gap đến từ **điểm chấm tự động** (trace + report dev) và "
                 "**like/dislike của nhân viên**. Bản nháp FAQ do DeepSeek chọn câu nguồn; câu trả lời là câu NGUYÊN VĂN của chunk "
                 "policy được trích (code kiểm lại). Chỉ người duyệt mới đưa FAQ vào gói; model không kích hoạt gì.")
+    # 17/11 (v52n-ui2): nối feedback nhân viên → gap → nháp FAQ ngay trên UI (trước đây chỉ chạy được bằng CLI)
+    st.subheader("1. Gom gap")
+    n_fb = sum(1 for l in open(E.FEEDBACK, encoding="utf-8") if l.strip()) if os.path.exists(E.FEEDBACK) else 0
+    st.caption(f"Feedback nhân viên: {n_fb} bản ghi (`{os.path.relpath(E.FEEDBACK, E.ROOT)}`), trace UI: {len(E.ui_traces())} tệp. "
+               "Chỉ dislike thành gap; like được lưu làm tín hiệu tốt.")
+    gc1, gc2 = st.columns(2)
+    ev_trace = gc1.text_input("Trace dev (tùy chọn, nguồn điểm chấm tự động)", "", placeholder="runs/.../full.jsonl")
+    ev_report = gc2.text_input("report.json tương ứng (tùy chọn)", "", placeholder="runs/.../report.json")
+    if st.button("Gom gap từ feedback nhân viên" + (" + điểm chấm tự động" if ev_trace else "")):
+        r = subprocess.run(E.gap_cmd(root, ev_trace or None, ev_report or None), capture_output=True, text=True, timeout=600)
+        (st.success if r.returncode == 0 else st.error)(r.stdout or r.stderr)
     gaps = {}
     gp = S.paths(root)["gaps"]
     if os.path.exists(gp):
@@ -292,8 +304,24 @@ with tab_improve:
             if l.strip():
                 g = json.loads(l)
                 gaps[g["id"]] = g
-    st.caption(f"{len(gaps)} gap · " + ", ".join(f"{k}: {v}" for k, v in
-                                                sorted({f"{g.get('feedback_source')}:{g['type']}": 0 for g in gaps.values()}.items())))
+    st.caption(f"{len(gaps)} gap · " + ", ".join(f"{k}: {v}" for k, v in E.gap_counts(gaps.values()).items()))
+    st.subheader("2. Soạn nháp FAQ (DeepSeek)")
+    dc1, dc2 = st.columns([3, 1])
+    dtypes = dc1.multiselect("Loại gap", ["staff_dislike", "no_info", "task_fail"], default=["staff_dislike", "no_info", "task_fail"])
+    dlimit = dc2.number_input("Tối đa", 1, 50, 20)
+    if st.button("Soạn nháp FAQ", disabled=not (gaps and dtypes),
+                 help="DeepSeek chỉ chọn câu policy theo ID; code kiểm nguyên văn. Gap đã có đề xuất / đã kết luận thì bỏ qua."):
+        with st.spinner("DeepSeek đang soạn nháp…"):
+            r = subprocess.run(E.draft_cmd(root, dtypes, dlimit), capture_output=True, text=True, timeout=1200)
+        (st.success if r.returncode == 0 else st.error)(r.stdout or r.stderr[-2000:])
+        dr = os.path.join(root, "draft_result.json")
+        if r.returncode == 0 and os.path.exists(dr):
+            res = json.load(open(dr, encoding="utf-8"))
+            for k in ("unanswered", "invalid"):
+                if res.get(k):
+                    with st.expander(f"{k} ({len(res[k])}) — gap giữ chưa trả lời, không bịa chính sách"):
+                        st.json(res[k])
+    st.subheader("3. Duyệt")
     pend = [p for p in S.list_state("pending", root) if p["kind"] == "faq"]
     st.subheader(f"Chờ duyệt ({len(pend)})")
     try:

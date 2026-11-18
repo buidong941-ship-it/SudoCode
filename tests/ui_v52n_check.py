@@ -2,7 +2,7 @@
 config snapshot v52n); nhãn nêu B2-v52n; kiểm hash code theo freeze của profile (khớp → chạy; lệch → startup_check từ chối, nhãn
 cảnh báo); profile b2_v51a vẫn chọn được để đối chiếu. Hành vi hội thoại / C.5 của UI do tests/ui_b2_check.py kiểm (không đổi).
 
-Chạy: python tests/ui_v52n_check.py   (Kaggle CPU; cần runs/freeze/20261117-v52n-ui/code_sha256.txt và
+Chạy: python tests/ui_v52n_check.py   (Kaggle CPU; cần runs/freeze/20261117-v52n-ui2/code_sha256.txt (bản vá UI 17/11) và
 runs/snapshots/20261117-b2-v52n/config.json — job có --include hai tệp này)"""
 import json
 import os
@@ -33,11 +33,11 @@ prof = json.load(open(os.path.join(ROOT, "profiles", "b2_v52n.json"), encoding="
 old = json.load(open(os.path.join(ROOT, "profiles", "b2_v51a.json"), encoding="utf-8"))
 ok(E.PROFILE == "b2_v52n" and E.PROFILE_INFO["profile"] == "b2_v52n", f"profile mặc định b2_v52n: {E.PROFILE_INFO['profile']}")
 ok(prof["env"] == old["env"], "env b2_v52n giống hệt b2_v51a (env job API v52n đã kiểm)")
-ok(prof["freeze"] == "runs/freeze/20261117-v52n-ui" and prof["core_freeze"] == "runs/freeze/20261117-v52n-cand", "profile khai đúng freeze")
+ok(prof["freeze"] == "runs/freeze/20261117-v52n-ui2" and prof["core_freeze"] == "runs/freeze/20261117-v52n-cand", "profile khai đúng freeze")
 snap = os.path.join(ROOT, prof["snapshot"], "config.json")
 ok(os.path.exists(snap) and E.PROFILE_INFO["profile_drift"] == [], f"profile khớp config snapshot v52n: drift={E.PROFILE_INFO['profile_drift']}")
 code = E.PROFILE_INFO["code"]
-ok(code["status"] == "ok" and code["checked"] >= 250, f"code khớp freeze v52n-ui: {code['status']} {code['checked']} lệch={code['bad'][:5]}")
+ok(code["status"] == "ok" and code["checked"] >= 250, f"code khớp freeze v52n-ui2: {code['status']} {code['checked']} lệch={code['bad'][:5]}")
 info = E.startup_check()
 ok(info["ok"] and info["arch"] == "target" and info["planner_variant"] == "b2_jev", f"startup_check: {info}")
 ok("B2-v52n" in info["label"] and "khác cấu hình đo" in info["label"] and "CẢNH BÁO" not in info["label"], f"nhãn: {info['label']}")

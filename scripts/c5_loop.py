@@ -86,8 +86,12 @@ def staff_gaps(feedback_path, ui_traces):
             continue
         r = rows.get(fb.get("msg_id"))
         if r is None:
+            # 17/11 (v52n-ui2): bản ghi feedback của UI đã mang lời khách / agent của đúng câu → giữ để còn soạn nháp được
             gaps.append({"id": C.gap_id("staff", fb.get("msg_id")), "type": "staff_dislike", "feedback_source": "staff_feedback",
-                         "unmatched": True, "feedback": fb})
+                         "unmatched": True, "feedback": fb, "scenario": fb.get("ns"), "turn": fb.get("turn"),
+                         "customer_text": fb.get("customer_text"), "agent_text": fb.get("agent_text"),
+                         "detail": {"note": fb.get("note"), "by": fb.get("by"), "at": fb.get("at"), "msg_id": fb.get("msg_id"),
+                                    "package_hash": fb.get("package_hash")}})
             continue
         gaps.append({"id": C.gap_id("staff", fb["msg_id"]), "type": "staff_dislike", "subtype": "dislike", "feedback_source": "staff_feedback",
                      "scenario": r.get("scenario_id") or fb.get("ns"), "call": r.get("call"), "turn": r.get("turn"),
@@ -176,8 +180,10 @@ def draft_one(llm, gap, cands):
             menu.append(f"[{sid}] {s}")
     if not menu:
         return None, "không có chunk policy phù hợp"
+    note = str(((gap.get("detail") or {}).get("note")) or "").strip()      # ghi chú của nhân viên khi bấm dislike (nếu có)
     prompt = ("Bạn soạn BẢN NHÁP FAQ cho tổng đài bán hàng. Câu khách mà agent chưa trả lời được:\n"
-              f"KHÁCH: {gap.get('customer_text')}\nAGENT ĐÃ NÓI: {gap.get('agent_text')}\n\n"
+              f"KHÁCH: {gap.get('customer_text')}\nAGENT ĐÃ NÓI: {gap.get('agent_text')}\n"
+              + (f"GHI CHÚ NHÂN VIÊN: {note[:300]}\n" if note else "") + "\n"
               "Các câu chính sách được phép dùng (chỉ chọn theo ID, không viết lại):\n" + "\n".join(menu[:40]) +
               "\n\nNếu các câu trên trả lời ĐÚNG điều khách hỏi: decision=faq, chunk_id = chunk chứa các câu, sentence_ids = 1-3 ID "
               "câu cùng chunk đó, topic = chủ đề ngắn, question = câu hỏi chuẩn hóa theo cách khách nói. Nếu không câu nào trả lời "
@@ -203,8 +209,9 @@ def cmd_draft(a):
     llm = DeepSeek()
     chunks = allowed_chunks()
     p = S.paths(a.root)
-    gaps = [g for g in C.load(p["gaps"]) if g["type"] in a.types.split(",") and g.get("customer_text")][: a.limit]
-    res = {"drafted": [], "unanswered": [], "invalid": []}
+    done = handled_gaps(a.root) if not a.redo else {}
+    gaps = [g for g in C.load(p["gaps"]) if g["type"] in a.types.split(",") and g.get("customer_text") and g["id"] not in done][: a.limit]
+    res = {"drafted": [], "unanswered": [], "invalid": [], "skipped_handled": len(done)}
     for g in gaps:
         cands = [h for h in rag.search(g["customer_text"], k=4) if h.get("chunk_id") in chunks]
         cands = [chunks[h["chunk_id"]] for h in cands]
@@ -220,10 +227,32 @@ def cmd_draft(a):
             continue
         state, pid = S.propose(prop, author="deepseek-draft", root=a.root)
         res["drafted"].append({"gap": g["id"], "id": pid, "state": state, "chunk": payload["source"]["chunk_id"]})
-    S.log("c5_draft", a.root, **{k: len(v) for k, v in res.items()})
+    led = os.path.join(p["root"], LEDGER)
+    with open(led, "a", encoding="utf-8") as fh:                 # sổ kết luận: lần sau không soạn lại cùng gap (tốn API, trùng)
+        for k in ("drafted", "unanswered", "invalid"):
+            for x in res[k]:
+                fh.write(json.dumps({"gap": x["gap"], "result": k, "at": now()}, ensure_ascii=False) + "\n")
+    counts = {k: (len(v) if isinstance(v, list) else v) for k, v in res.items()}
+    S.log("c5_draft", a.root, **counts)
     with open(os.path.join(p["root"], "draft_result.json"), "w", encoding="utf-8") as fh:
         json.dump(res, fh, ensure_ascii=False, indent=1)
-    print(json.dumps({k: len(v) for k, v in res.items()}, ensure_ascii=False))
+    print(json.dumps(counts, ensure_ascii=False))
+
+
+LEDGER = "draft_ledger.jsonl"
+
+
+def handled_gaps(root):
+    """17/11 (v52n-ui2): gap đã có đề xuất (mọi trạng thái, theo source_gaps) hoặc đã kết luận ở lần soạn trước (sổ LEDGER)
+    → {gap_id: lý do}. Nút "Soạn nháp" bấm nhiều lần không soạn lại cùng gap; --redo để soạn lại."""
+    out = {}
+    for st in S.STATES:
+        for prop in S.list_state(st, root):
+            for gid in prop.get("source_gaps") or []:
+                out[gid] = f"proposal:{st}"
+    for r in load_jsonl(os.path.join(S.paths(root)["root"], LEDGER)):
+        out.setdefault(r.get("gap"), f"ledger:{r.get('result')}")
+    return out
 
 
 # ------------------------------------------------------------------ đóng gói + test hồi quy tự sinh
@@ -327,7 +356,7 @@ def main(argv=None):
     p = sub.add_parser("gaps"); p.add_argument("--root", required=True); p.add_argument("--trace"); p.add_argument("--report")
     p.add_argument("--feedback"); p.add_argument("--ui-trace", nargs="*", default=[]); p.add_argument("--append", action="store_true")
     p = sub.add_parser("draft"); p.add_argument("--root", required=True); p.add_argument("--limit", type=int, default=20)
-    p.add_argument("--types", default=",".join(DRAFT_TYPES))
+    p.add_argument("--types", default=",".join(DRAFT_TYPES)); p.add_argument("--redo", action="store_true")
     p = sub.add_parser("package"); p.add_argument("--root", required=True); p.add_argument("--name", required=True)
     p.add_argument("--by", required=True); p.add_argument("--out", required=True)
     for name in ("activate", "rollback", "status"):

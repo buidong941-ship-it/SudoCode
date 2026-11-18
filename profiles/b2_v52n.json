@@ -1,9 +1,10 @@
 {
- "_doc": "Cấu hình chính B2-v52n (chốt 17/11/2026 theo quyết định nghiệm thu bổ sung N-TXN). Env GIỐNG HỆT b2_v51a = env job API v52n-api-r1..r3-1117 đã kiểm (cổng cpu_gate 14958f5d…). Code: freeze runs/freeze/20261117-v52n-ui (lõi = runs/freeze/20261117-v52n-cand, chỉ thêm UI / profile / tunnel). Quay lui: c5-cand (profiles/b2_v51a.json + runs/extra_1115/c5_files + runs/extra_1115/v52nui_rollback). Dùng: python scripts/with_profile.py profiles/b2_v52n.json -- <lệnh>; UI đọc tệp này.",
+ "_doc": "Cấu hình chính B2-v52n (chốt 17/11/2026 theo quyết định nghiệm thu bổ sung N-TXN). Env GIỐNG HỆT b2_v51a = env job API v52n-api-r1..r3-1117 đã kiểm (cổng cpu_gate 14958f5d…). Code: freeze runs/freeze/20261117-v52n-ui2 (17/11, bản vá UI: số cuộc gọi lấy từ DB + nối feedback nhân viên → gap → nháp FAQ; lõi = runs/freeze/20261117-v52n-cand, chỉ khác UI / profile / tunnel / c5_loop — c5_loop không nằm trên đường chạy run_eval). Bản trước: runs/freeze/20261117-v52n-ui. Quay lui: c5-cand (profiles/b2_v51a.json + runs/extra_1115/c5_files + runs/extra_1115/v52nui_rollback). Dùng: python scripts/with_profile.py profiles/b2_v52n.json -- <lệnh>; UI đọc tệp này.",
  "profile": "b2_v52n",
  "label": "B2-v52n",
  "snapshot": "runs/snapshots/20261117-b2-v52n",
- "freeze": "runs/freeze/20261117-v52n-ui",
+ "freeze": "runs/freeze/20261117-v52n-ui2",
+ "freeze_prev": "runs/freeze/20261117-v52n-ui",
  "core_freeze": "runs/freeze/20261117-v52n-cand",
  "rollback": {
   "profile": "profiles/b2_v51a.json",

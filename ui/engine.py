@@ -8,8 +8,8 @@ Tách biệt:
 
 Profile (17/11):
 - `b2_v52n` (MẶC ĐỊNH, cấu hình chính chốt 17/11): env `profiles/b2_v52n.json` (giống hệt env b2_v51a = env job API v52n đã kiểm),
-  snapshot `runs/snapshots/20261117-b2-v52n`. Thêm KIỂM CODE: có tệp freeze của profile (`runs/freeze/20261117-v52n-ui/
-  code_sha256.txt`) thì băm từng tệp; lệch → từ chối chạy, nhãn nêu số tệp lệch. Không có tệp freeze → nhãn ghi "chưa kiểm hash code".
+  snapshot `runs/snapshots/20261117-b2-v52n`. Thêm KIỂM CODE: có tệp freeze của profile (`runs/freeze/20261117-v52n-ui2/
+  code_sha256.txt`; bản trước v52n-ui) thì băm từng tệp; lệch → từ chối chạy, nhãn nêu số tệp lệch. Không có tệp freeze → nhãn ghi "chưa kiểm hash code".
 - `b2_v51a` (quay lui / đối chiếu): nạp env của `profiles/b2_v51a.json` (bản sao env snapshot backend đã chọn; ARCH=target,
   PLANNER_VARIANT=b2_jev, DeepSeek / Jev thật, Qwen compose). Máy có snapshot `runs/snapshots/20261116-b2-v51A/config.json`
   thì đối chiếu thêm; lệch → từ chối chạy. Khởi động kiểm lại settings khớp profile.
@@ -21,6 +21,9 @@ Profile (17/11):
 Câu trả lời UI hiện = câu backend gửi qua callback `on_emit` (đã qua guardrail, đúng lúc phát; không giả streaming).
 Mỗi lượt có event_id: Streamlit rerun với cùng event_id trả lại kết quả cũ, không gọi model / tool ghi lần hai.
 Feedback nhân viên (like/dislike theo message) và trace UI ghi vào data/ui/ (ngoài Git) — nguồn feedback 2 của C.5.
+17/11 (v52n-ui2): tab Cải tiến gọi `c5_loop.py gaps` trên feedback + trace UI (`gap_cmd`) và `c5_loop.py draft` (`draft_cmd`),
+nên dislike trên UI thực sự đi vào vòng gap → nháp FAQ → duyệt. Số cuộc gọi lấy từ DB (`_next_call_no`): tải lại trang không
+còn trùng session_id / msg_id.
 Gói FAQ C.5 đang kích hoạt (data/c5/active.json) chỉ được nạp khi MỞ phiên mới, không đổi giữa phiên.
 """
 import json
@@ -199,6 +202,43 @@ def export_ui_data():
     return buf.getvalue()
 
 
+C5_LOOP = os.path.join(ROOT, "scripts", "c5_loop.py")
+
+
+def ui_traces():
+    import glob
+    return sorted(glob.glob(os.path.join(TRACES, "*.jsonl")))
+
+
+def gap_cmd(root=None, trace=None, report=None):
+    """17/11 (v52n-ui2): argv `c5_loop.py gaps` cho nút "Gom gap" ở tab Cải tiến — nguồn 2 (like/dislike nhân viên, khớp msg_id với
+    trace UI) và tùy chọn nguồn 1 (trace + report dev của bộ đánh giá). --append: gap đã có id thì bỏ qua, không mất gap cũ."""
+    cmd = [sys.executable, C5_LOOP, "gaps", "--root", root or C5_ROOT, "--feedback", FEEDBACK, "--append"]
+    if trace:
+        cmd += ["--trace", trace] + (["--report", report] if report else [])
+    tr = ui_traces()
+    if tr:
+        cmd += ["--ui-trace", *tr]
+    return cmd
+
+
+def draft_cmd(root=None, types=None, limit=20):
+    """argv `c5_loop.py draft` (DeepSeek soạn NHÁP vào pending/; gap đã có đề xuất hoặc đã kết luận thì bỏ qua)."""
+    cmd = [sys.executable, C5_LOOP, "draft", "--root", root or C5_ROOT, "--limit", str(int(limit))]
+    if types:
+        cmd += ["--types", ",".join(types)]
+    return cmd
+
+
+def gap_counts(gaps):
+    """{"nguồn:loại": số} — đếm thật (bản cũ ở tab Cải tiến luôn ra 0)."""
+    out = {}
+    for g in gaps:
+        k = f"{g.get('feedback_source')}:{g.get('type')}"
+        out[k] = out.get(k, 0) + 1
+    return dict(sorted(out.items()))
+
+
 def _append(path, rec):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as fh:
@@ -245,11 +285,30 @@ class Engine:
             improve_hook.reset()
         self.package = pkg
 
+    def _next_call_no(self):
+        """17/11 (v52n-ui2): số cuộc gọi kế tiếp lấy từ DB của namespace, không chỉ từ bộ đếm trong RAM.
+
+        Engine sống trong st.session_state (theo phiên trình duyệt), còn DB UI nằm trên đĩa: tải lại trang / tunnel nối lại tạo
+        Engine mới với n_calls = 0 → `call_1` trùng session_id cũ → UNIQUE(turns.ns, session_id, turn) khi ghi lượt, và msg_id
+        của feedback trùng giữa hai lần. Lấy max(số call_N đã có trong sessions + turns, bộ đếm RAM) + 1."""
+        from sqlalchemy import select
+        from harness import memory as M
+        e = getattr(self.mem, "e", None) or M.engine()
+        pre, used = f"{self.ns}:call_", {self.n_calls}
+        with e.connect() as c:
+            for t in (M.sessions, M.turns):
+                for sid in c.execute(select(t.c.session_id).where(t.c.ns == self.ns)).scalars():
+                    tail = sid[len(pre):] if sid and sid.startswith(pre) else ""
+                    if tail.isdigit():
+                        used.add(int(tail))
+        return max(used) + 1
+
     def start_call(self, phone, channel="hotline", day=None, channel_identity=None, input_mode="text"):
         _, _, CallSession, _, _ = _imports()
         self.end_call()
         self._load_package()
-        self.n_calls += 1
+        prev_n = self.n_calls
+        self.n_calls = self._next_call_no()
         day = day or self.start_date
         name = f"call_{self.n_calls}"
         self.sess = CallSession(memory=self.mem, today=day, call_name=name, session_id=f"{self.ns}:{name}",
@@ -261,7 +320,7 @@ class Engine:
             brief = self.sess.start()
         except Exception:
             self.sess = None                      # mở phiên lỗi (vd gói FAQ sai phạm vi) → không giữ phiên dở dang
-            self.n_calls -= 1
+            self.n_calls = prev_n
             raise
         self.calls.append({"call": name, "date": day, "channel": channel, "brief": brief, "turns": [],
                            "session_id": f"{self.ns}:{name}", "package_hash": self.package.get("approved_hash")})
