@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-13",
+  "about": "Danh mục dataset tập trung (bàn giao docs/PLAN/BAN-GIAO-TO-CHUC-DATASET-VA-TEMPLATE-MOI-2026-11-13.md). File này do người/Claude viết tay: vai trò, nguồn, lineage, exposure. Số đếm và sha256 do `scripts/dataset_registry.py index` tính và ghi vào registry.lock.json + index.jsonl, không gõ tay. Khóa của một kịch bản là (dataset_id, version, scenario_id). Không di chuyển hay sửa file gốc.",
+  "exposure_vocabulary": ["generated", "reviewed-for-data-quality", "used-for-development", "evaluated", "inspected-after-evaluation"],
+  "role_vocabulary": {
+    "btc_sample": "dữ liệu BTC phát; báo riêng, không trộn vào dữ liệu nhóm",
+    "dev": "phát triển; được đọc và sửa hệ thống theo",
+    "robustness_variant": "cùng kịch bản với bản dev chuẩn nhưng khác lời; dùng đo độ bền, không đếm là kịch bản mới",
+    "observed_eval": "từng là holdout/test, đã đo và đọc lỗi; chỉ dùng đối chiếu lịch sử, không còn độc lập với các sửa đổi từ nó",
+    "lineage_exposed": "chữ chưa mở nhưng cấu trúc/đáp án đã được đo qua bản anh em cùng lineage",
+    "superseded": "bị thay bởi bản vá/bản chạy khác; giữ để tái lập report cũ, không dùng cho số mới",
+    "source_text": "bản câu mẫu trước khi viết lại lời khách; giữ để tái tạo",
+    "holdout_new": "holdout mới, đóng băng; chỉ mở khi người dùng duyệt đo",
+    "component_check": "bộ kiểm thành phần (extractor, ASR, RAG, probe); không phải kịch bản TSR",
+    "derived_artifact": "sản phẩm phái sinh từ kịch bản (transcript, audio); không đếm là kịch bản độc lập"
+  },
+  "datasets": [
+    {
+      "dataset_id": "btc_public_sample", "version": "btc-2026-10", "lineage_group": "btc_sample",
+      "format": "btc_scenario", "provenance": "BTC (gói đề vòng 1)", "created_at": "2026-10",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": null,
+      "parts": [
+        {"part": "sample", "path": "test_set/public_sample", "role": "btc_sample",
+         "exposure": [{"status": "used-for-development", "date": "2026-10", "by": "nhóm + Claude"}]}
+      ],
+      "notes": "7 kịch bản mẫu của BTC. Giữ nguyên, báo riêng, không cộng vào dữ liệu nhóm."
+    },
+    {
+      "dataset_id": "gen", "version": "out-v1", "lineage_group": "gen67",
+      "format": "btc_scenario", "provenance": "nhóm: datagen/templates (27 template) → resolver.py", "created_at": "2026-10",
+      "parent_version": null, "supersedes": [], "canonical": false, "template_family_count": 27,
+      "parts": [
+        {"part": "dev", "path": "datagen/out/dev", "role": "source_text", "exposure": [{"status": "used-for-development", "date": "2026-10"}]},
+        {"part": "test", "path": "datagen/out/test", "role": "source_text", "exposure": [{"status": "evaluated", "date": "2026-10", "note": "qua bản out_nat/test"}]}
+      ],
+      "notes": "Lời khách dạng câu mẫu. Bản chạy chuẩn là gen@nat-v1 (cùng 67 kịch bản, cùng đáp án, lời khách viết lại)."
+    },
+    {
+      "dataset_id": "gen", "version": "nat-v1", "lineage_group": "gen67",
+      "format": "btc_scenario", "provenance": "gen@out-v1 + naturalize.py (DeepSeek viết lại lời khách, giữ số/tên)", "created_at": "2026-10",
+      "parent_version": "out-v1", "supersedes": [], "canonical": true, "lineage": "paraphrase", "template_family_count": 27,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_nat/dev", "role": "dev",
+         "exposure": [{"status": "used-for-development", "date": "2026-10"}]},
+        {"part": "test", "path": "datagen/out_nat/test", "role": "observed_eval",
+         "exposure": [{"status": "evaluated", "date": "2026-10-08", "note": "25 lần chạy, 14 cấu hình (docs/NHAT-KY/CAU-HINH-DA-CHAY.md)"},
+                      {"status": "inspected-after-evaluation", "date": "2026-10"}]}
+      ],
+      "notes": "Bộ chạy của gen. Test đã chạy nhiều lần nên coi là observed."
+    },
+    {
+      "dataset_id": "btcl", "version": "v1", "lineage_group": "btcl68",
+      "format": "btc_scenario", "provenance": "nhóm: templates_btc_like → generate_btc_like_benchmark.py", "created_at": "2026-10-30",
+      "parent_version": null, "supersedes": [], "canonical": false, "template_family_count": 14,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_btc_like_final_v1/final/dev", "role": "superseded", "exposure": [{"status": "used-for-development", "date": "2026-11-01"}]},
+        {"part": "holdout", "path": "datagen/out_btc_like_final_v1/final/holdout", "role": "superseded", "text_opened": false,
+         "exposure": [{"status": "generated", "date": "2026-10-30"}, {"status": "evaluated", "date": "2026-11-03", "note": "cấu trúc/đáp án được đo qua btcl@v2_1 holdout"}]}
+      ],
+      "raw_paths": ["datagen/out_btc_like_final_v1/raw/dev", "datagen/out_btc_like_final_v1/raw/holdout"],
+      "notes": "Thiếu bản vá cross-channel/delivery_address (5 ca). Thay bằng v1_1."
+    },
+    {
+      "dataset_id": "btcl", "version": "v1_1", "lineage_group": "btcl68",
+      "format": "btc_scenario", "provenance": "btcl@v1 + patch_crosschannel_v1_1.py (vá dev BTCL-016/017, holdout BTCL-018/019/020)", "created_at": "2026-11-01",
+      "parent_version": "v1", "supersedes": ["v1"], "canonical": true, "lineage": "patch", "template_family_count": 14,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_btc_like_final_v1_1/final/dev", "role": "dev",
+         "exposure": [{"status": "used-for-development", "date": "2026-11-01"}]},
+        {"part": "holdout", "path": "datagen/out_btc_like_final_v1_1/final/holdout", "role": "lineage_exposed", "text_opened": false,
+         "exposure": [{"status": "generated", "date": "2026-11-01"}, {"status": "evaluated", "date": "2026-11-03", "note": "qua btcl@v2_1 holdout (D30: chỉ mở một trong hai)"}]}
+      ],
+      "raw_paths": ["datagen/out_btc_like_final_v1_1/raw/dev", "datagen/out_btc_like_final_v1_1/raw/holdout"],
+      "notes": "Bản dev BTC-like chuẩn. Holdout chưa mở chữ nhưng 40 kịch bản này đã được đo qua v2_1, nên không còn độc lập."
+    },
+    {
+      "dataset_id": "btcl", "version": "v2", "lineage_group": "btcl68",
+      "format": "btc_scenario", "provenance": "btcl@v1, lời khách viết lại tay 01/11; bỏ price_vnd ở call_1 của BTCL-021…025", "created_at": "2026-11-01",
+      "parent_version": "v1", "supersedes": [], "canonical": false, "lineage": "paraphrase+answer_change", "template_family_count": 14,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_btc_like_final_v2/final/dev", "role": "superseded", "exposure": [{"status": "generated", "date": "2026-11-01"}]},
+        {"part": "holdout", "path": "datagen/out_btc_like_final_v2/final/holdout", "role": "superseded", "text_opened": false, "exposure": [{"status": "generated", "date": "2026-11-01"}]}
+      ],
+      "raw_paths": ["datagen/out_btc_like_final_v2/raw/dev", "datagen/out_btc_like_final_v2/raw/holdout"],
+      "notes": "Thiếu bản vá cross-channel → không dùng trực tiếp (DATASET.md §8.2). Thay bằng v2_1."
+    },
+    {
+      "dataset_id": "btcl", "version": "v2_1", "lineage_group": "btcl68",
+      "format": "btc_scenario", "provenance": "btcl@v2 + patch_crosschannel_v1_1.py --date 2026-11-02 (D29)", "created_at": "2026-11-02",
+      "parent_version": "v2", "supersedes": ["v2"], "canonical": false, "lineage": "patch", "template_family_count": 14,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_btc_like_final_v2_1/final/dev", "role": "robustness_variant",
+         "exposure": [{"status": "used-for-development", "date": "2026-11-02", "note": "job A, D28: đo độ bền với cách nói khác"}]},
+        {"part": "holdout", "path": "datagen/out_btc_like_final_v2_1/final/holdout", "role": "observed_eval",
+         "exposure": [{"status": "evaluated", "date": "2026-11-03", "note": "D44, holdout BTC-like mở một lần"},
+                      {"status": "inspected-after-evaluation", "date": "2026-11-06"}]}
+      ],
+      "raw_paths": ["datagen/out_btc_like_final_v2_1/raw/dev", "datagen/out_btc_like_final_v2_1/raw/holdout"],
+      "notes": "Holdout v2_1 là bản BTC-like đã đo; HR không so trực tiếp với v1_1 vì đáp án BTCL-021…025 khác."
+    },
+    {
+      "dataset_id": "btcl_d7", "version": "v1", "lineage_group": "btcd7",
+      "format": "btc_scenario", "provenance": "Claude: templates_btc_like/build_templates_d7.py + naturalize --backend claude", "created_at": "2026-11-02",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": 10,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_btc_like_d7/final/dev", "role": "dev", "exposure": [{"status": "used-for-development", "date": "2026-11-02"}]}
+      ],
+      "raw_paths": ["datagen/out_btc_like_d7/raw/dev"],
+      "notes": "5 họ lỗi × 2 diễn biến."
+    },
+    {
+      "dataset_id": "v3", "version": "v1", "lineage_group": "v3",
+      "format": "btc_scenario", "provenance": "Claude 03/11: templates_v3 + out_v3_claude_rewrites.py", "created_at": "2026-11-03",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": 36,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_v3/final/dev", "role": "dev", "exposure": [{"status": "used-for-development", "date": "2026-11-03"}]},
+        {"part": "holdout", "path": "datagen/out_v3/final/holdout", "role": "observed_eval",
+         "exposure": [{"status": "generated", "date": "2026-11-03", "by": "Claude (cùng trợ lý sửa hệ thống, khác phiên)"},
+                      {"status": "evaluated", "date": "2026-11-06"},
+                      {"status": "inspected-after-evaluation", "date": "2026-11-06", "note": "đọc lỗi, dùng chẩn đoán B1/B2/B3 và A/B clarify tới 12/11"},
+                      {"status": "inspected-after-evaluation", "date": "2026-11-13", "by": "Claude", "note": "đọc build_v3.py/out_v3_claude_rewrites.py phần đầu để đối chiếu họ template khi viết H13"}]}
+      ],
+      "raw_paths": ["datagen/out_v3/raw/dev", "datagen/out_v3/raw/holdout"],
+      "notes": "Giữ tên/path 'holdout' lịch sử nhưng vai trò là observed_eval: đã đo và sửa theo lỗi nhiều lần."
+    },
+    {
+      "dataset_id": "redteam", "version": "1c", "lineage_group": "redteam",
+      "format": "btc_scenario", "provenance": "Claude 06/11, viết tay (bộ red-team 1c)", "created_at": "2026-11-06",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": null,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_redteam/dev", "role": "dev", "exposure": [{"status": "used-for-development", "date": "2026-11-06"}]}
+      ],
+      "notes": "14 ca guardrail (J1–J6). Phát triển/hồi quy, không dùng báo số."
+    },
+    {
+      "dataset_id": "jev1108", "version": "new", "lineage_group": "jev1108",
+      "format": "btc_scenario", "provenance": "Claude 08/11 (JEV1108-TRIEN-KHAI.md)", "created_at": "2026-11-08",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": null,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_jev1108_new/dev", "role": "dev", "exposure": [{"status": "used-for-development", "date": "2026-11-08"}]}
+      ],
+      "notes": "12 ca một lượt kiểm hợp đồng action; đã dùng chẩn đoán."
+    },
+    {
+      "dataset_id": "jev1108", "version": "identity", "lineage_group": "jev1108",
+      "format": "btc_scenario", "provenance": "Claude 08/11", "created_at": "2026-11-08",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": null,
+      "parts": [
+        {"part": "dev", "path": "datagen/out_jev1108_identity/dev", "role": "dev", "exposure": [{"status": "used-for-development", "date": "2026-11-08"}]}
+      ],
+      "notes": "1 ca kiểm danh tính."
+    },
+    {
+      "dataset_id": "function_probe", "version": "1107", "lineage_group": "function_probe",
+      "format": "probe_scenario", "provenance": "datagen/function_probe/build_items.py (07/11)", "created_at": "2026-11-07",
+      "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": null,
+      "parts": [
+        {"part": "scenarios", "path": "datagen/function_probe/scenarios", "role": "component_check",
+         "exposure": [{"status": "used-for-development", "date": "2026-11-07"}]},
+        {"part": "items", "path": "datagen/function_probe/items.jsonl", "format": "jsonl", "role": "component_check", "exposure": [{"status": "used-for-development", "date": "2026-11-07"}]}
+      ],
+      "notes": "Kịch bản dựng tự động chỉ có lượt khách, không có đáp án TSR; gold ở labels.json/partB.jsonl. Phần C lấy từ lượt trượt của V3 holdout. Không phải holdout."
+    },
+    {
+      "dataset_id": "synth_slots", "version": "b1-b3", "lineage_group": "synth_slots",
+      "format": "tsv", "provenance": "Claude 01–03/11 (datagen/synth_slot_sentences.py, slot_specs.json)", "created_at": "2026-11-01",
+      "parent_version": null, "supersedes": [], "canonical": true,
+      "parts": [
+        {"part": "b1", "path": "datagen/synth_slots/b1.tsv", "format": "tsv", "role": "component_check", "exposure": [{"status": "used-for-development"}]},
+        {"part": "b2", "path": "datagen/synth_slots/b2.tsv", "format": "tsv", "role": "component_check", "exposure": [{"status": "used-for-development"}]},
+        {"part": "b3", "path": "datagen/synth_slots/b3.tsv", "format": "tsv", "role": "component_check", "exposure": [{"status": "used-for-development"}]}
+      ],
+      "notes": "Câu đơn theo slot; chia mine/eval theo prompt_id (manifest.json). Không gộp thành kịch bản."
+    },
+    {
+      "dataset_id": "extract_eval", "version": "1101", "lineage_group": "extract_eval",
+      "format": "jsonl", "provenance": "nhóm/Claude gán tay; real_ref lấy mẫu từ CSConDa (CC BY-NC 4.0)", "created_at": "2026-10",
+      "parent_version": null, "supersedes": [], "canonical": true,
+      "parts": [
+        {"part": "customer", "path": "tests/extract_eval/customer.jsonl", "format": "jsonl", "role": "component_check", "exposure": [{"status": "used-for-development"}]},
+        {"part": "agent", "path": "tests/extract_eval/agent.jsonl", "format": "jsonl", "role": "component_check", "exposure": [{"status": "used-for-development"}]},
+        {"part": "facts_used", "path": "tests/extract_eval/facts_used.jsonl", "format": "jsonl", "role": "component_check", "exposure": [{"status": "used-for-development"}]},
+        {"part": "real_ref", "path": "tests/extract_eval/real_ref.jsonl", "format": "jsonl", "role": "component_check", "license": "CC BY-NC 4.0, ghi nguồn hcmut-ura (DATASET.md §8.1)", "exposure": [{"status": "used-for-development"}]}
+      ],
+      "notes": "Không đóng gói lại corpus CSConDa ngoài repo."
+    },
+    {
+      "dataset_id": "btc_asr", "version": "btc-2026-10", "lineage_group": "btc_asr",
+      "format": "json", "provenance": "BTC", "created_at": "2026-10", "parent_version": null, "supersedes": [], "canonical": true,
+      "parts": [{"part": "ground_truth", "path": "asr/ground_truth.json", "format": "json", "role": "component_check", "exposure": [{"status": "used-for-development"}]}],
+      "notes": "Benchmark ASR của BTC; chấm theo normalization_rule. Audio (asr/audio) không có trong gói Kaggle."
+    },
+    {
+      "dataset_id": "btc_rag", "version": "btc-2026-10", "lineage_group": "btc_rag",
+      "format": "json", "provenance": "BTC", "created_at": "2026-10", "parent_version": null, "supersedes": [], "canonical": true,
+      "parts": [{"part": "qa_labeled", "path": "rag/qa_labeled.json", "format": "json", "role": "component_check", "exposure": [{"status": "used-for-development"}]}],
+      "notes": "60 câu RAG trên corpus policy/; chấm bằng reference_eval.py --rag."
+    },
+    {
+      "dataset_id": "team_transcripts", "version": "1015", "lineage_group": "gen67",
+      "format": "dir", "provenance": "datagen/export_transcripts.py + make_audio.py trên gen/BTC sample", "created_at": "2026-10",
+      "parent_version": null, "supersedes": [], "canonical": true,
+      "parts": [
+        {"part": "transcripts", "path": "dataset/transcripts", "format": "dir", "role": "derived_artifact", "local_count": 134, "exposure": [{"status": "used-for-development"}]},
+        {"part": "audio", "path": "dataset/audio", "format": "dir", "role": "derived_artifact", "local_count_mp3": 120, "exposure": [{"status": "used-for-development"}]}
+      ],
+      "notes": "Không có trong git và không có trong gói Kaggle (scripts/kaggle_job.py loại dataset/). Số local đếm bằng ls ngày 13/11: 134 transcript, 120 mp3 (khớp DATASET.md). Không đếm là kịch bản độc lập."
+    },
+    {
+      "dataset_id": "h13", "version": "r1", "lineage_group": "h13",
+      "format": "btc_scenario", "provenance": "Claude 13/11: datagen/datasets/releases/h1113 (21 họ template viết tay, không gọi API) → generate_btc_like_benchmark.py --prefix H13 --seed 20261113 → naturalize --backend claude (lời viết lại tay trong releases/h1113/naturalize/h13_claude_rewrites.py)",
+      "created_at": "2026-11-13", "parent_version": null, "supersedes": [], "canonical": true, "template_family_count": 21,
+      "release_dir": "datagen/datasets/releases/h1113",
+      "raw_paths": ["datagen/datasets/releases/h1113/raw/holdout"],
+      "parts": [
+        {"part": "holdout", "path": "datagen/datasets/releases/h1113/final/holdout", "role": "holdout_new", "guarded": true,
+         "exposure": [{"status": "generated", "date": "2026-11-13", "by": "Claude (claude-opus-5-5), cùng trợ lý từng sửa hệ thống ở các phiên khác"},
+                      {"status": "reviewed-for-data-quality", "date": "2026-11-13", "by": "Claude (cùng phiên viết)",
+                       "note": "đọc validate_raw.json, audit.json và 4 kịch bản mẫu H13-015/051/067/074; job Kaggle midzid/sudocode-ds-h1113 v2; chưa chạy agent nào trên bộ này"},
+                      {"status": "generated", "date": "2026-11-13", "by": "Claude (cùng phiên viết)",
+                       "note": "naturalize: viết lại 146 cuộc hotline (chat Fanpage và cuộc có ASR giữ nguyên); người dùng duyệt naturalize ngày 13/11"}]}
+      ],
+      "notes": "Holdout mới. Bộ chạy là final/holdout (đã naturalize); raw/holdout là bản trước naturalize, cùng 84 kịch bản (không cộng). Chỉ materialize khi người dùng duyệt đo (--allow-guarded)."
+    }
+  ]
+}

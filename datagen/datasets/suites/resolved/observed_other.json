@@ -1,0 +1,633 @@
+{
+ "suite": "observed_other",
+ "guarded": false,
+ "subset_of": null,
+ "n": 62,
+ "scenario_id_collisions": [],
+ "by_dataset": {
+  "gen@nat-v1/test": 22,
+  "btcl@v2_1/holdout": 40
+ },
+ "members": [
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T05-03",
+   "file": "datagen/out_nat/test/GEN-T05-03.json",
+   "sha256": "ca30682ad5600dae6d966cf8762990975f3f450bf0536a125c9995588b394f20",
+   "template_id": "T05-km-het-han",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T06-03",
+   "file": "datagen/out_nat/test/GEN-T06-03.json",
+   "sha256": "2e7ae14ab4dcc7baa4a34962716a67d90e2a86d80ba9d99ea86d07ffde1ae5b0",
+   "template_id": "T06-asr-het-hang-ve-hang",
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T07-02",
+   "file": "datagen/out_nat/test/GEN-T07-02.json",
+   "sha256": "fe282116922dbda198c6e100447eac67ac21107236abeb8bc3d3f1d05a530ac7",
+   "template_id": "T07-chinh-sach-cu",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T08-03",
+   "file": "datagen/out_nat/test/GEN-T08-03.json",
+   "sha256": "c38f789375ea2e2b7e244e8550fe27dcfdd1457f141746c8d561fe05c6ebaf68",
+   "template_id": "T08-het-hang-luc-quyet",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T09-02",
+   "file": "datagen/out_nat/test/GEN-T09-02.json",
+   "sha256": "4bf4fb4c62e80f6b9a085e250e6160b09e005d0269b5fd173538efbd4328b93c",
+   "template_id": "T09-km-loai-tru-size",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T10-02",
+   "file": "datagen/out_nat/test/GEN-T10-02.json",
+   "sha256": "48183521a8c57fbb500244608cd9b4af2679033d3caeae52c75bca6ca71f8732",
+   "template_id": "T10-quay-lai-8-thang",
+   "hard_case": "quay_lai_sau_8_thang"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T11-02",
+   "file": "datagen/out_nat/test/GEN-T11-02.json",
+   "sha256": "67a5bdf400a1f57cdec086d868296f674a004d7d88777ff086501a46447d0a7d",
+   "template_id": "T11-chung-sdt",
+   "hard_case": "chung_sdt_memory_poisoning"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T12-02",
+   "file": "datagen/out_nat/test/GEN-T12-02.json",
+   "sha256": "3f17956f457a8e576bd85bd31d5b384dba71370d5f6cc36012d7e5e303427a25",
+   "template_id": "T12-pii-hoan-tien",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T13-02",
+   "file": "datagen/out_nat/test/GEN-T13-02.json",
+   "sha256": "58134c06b30283c356f8ff4dd9918fb82170431e6bb89a40b44fb0d989d92eb2",
+   "template_id": "T13-ep-gia-do-gia-nhap",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T14-02",
+   "file": "datagen/out_nat/test/GEN-T14-02.json",
+   "sha256": "04c706198040d763bd170cf17338d547a329763f0e3ad1330c7752bfca4e0c5a",
+   "template_id": "T14-gia-doi-thu",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T15-02",
+   "file": "datagen/out_nat/test/GEN-T15-02.json",
+   "sha256": "d1705309a79c5a3301fa2dfff3d99bea6bca82f91bfb5c452c5e52a94535cafc",
+   "template_id": "T15-hen-goi-lai-ngay-nghi",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T16-02",
+   "file": "datagen/out_nat/test/GEN-T16-02.json",
+   "sha256": "929ce69efb034c5895cad7696ed80fc754892340395ac80e3c4f5cbc46718802",
+   "template_id": "T16-nhieu-mon-vuot-cod",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T17-02",
+   "file": "datagen/out_nat/test/GEN-T17-02.json",
+   "sha256": "59d26b0f968cd07b8869b66953518b48304d1564ed330fe2ddfca19155a7c07d",
+   "template_id": "T17-ai-hay-nguoi-xoa-du-lieu",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T18-02",
+   "file": "datagen/out_nat/test/GEN-T18-02.json",
+   "sha256": "f57ad5da12f53070ff4b916b2ccf80ed78ca01e2e0f0e7b211d048fe9a7ab9d6",
+   "template_id": "T18-chuyen-may-y-te",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T20-02",
+   "file": "datagen/out_nat/test/GEN-T20-02.json",
+   "sha256": "8b503630f3029bfb40e065bfc550b3e3e8235e39797469d61b914a57f2000c6e",
+   "template_id": "T20-doi-san-pham-hoan-chenh-lech",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T21-02",
+   "file": "datagen/out_nat/test/GEN-T21-02.json",
+   "sha256": "778343fb9716e1b10028aab96458b19d9a0574a446ddcc4c307aa56bea9a7d52",
+   "template_id": "T21-3-phien-thay-doi-thong-tin",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T22-02",
+   "file": "datagen/out_nat/test/GEN-T22-02.json",
+   "sha256": "12cf39c6d919c18559ce33fc02643fd235784af110c73c747136aa6a70e28823",
+   "template_id": "T22-goi-lan-3-het-kien-nhan",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T24-02",
+   "file": "datagen/out_nat/test/GEN-T24-02.json",
+   "sha256": "fa75d88082d3bfd8959d434cd7dad7a109fbde4dce74800ec7dd19308d87c383",
+   "template_id": "T24-ngoai-tai-lieu",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T25-02",
+   "file": "datagen/out_nat/test/GEN-T25-02.json",
+   "sha256": "01020a6e4a9e76ad0077d5ec5d6ba96ded8111a44a2166f59daf962bcf51525c",
+   "template_id": "T25-3-kenh-bao-gia-lech",
+   "hard_case": "3_kenh_bao_gia_lech"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T26-01",
+   "file": "datagen/out_nat/test/GEN-T26-01.json",
+   "sha256": "86132b96cba07eed962de5e596882d73a075ea1282e90b72fd13206e5b40cf2b",
+   "template_id": "T26-me-be-qua-tang",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T26-02",
+   "file": "datagen/out_nat/test/GEN-T26-02.json",
+   "sha256": "0d2e22e08e41b27aafd69b83a1220083ba2afffcb33d183b8893854a58447cfe",
+   "template_id": "T26-me-be-qua-tang",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "test",
+   "scenario_id": "GEN-T26-03",
+   "file": "datagen/out_nat/test/GEN-T26-03.json",
+   "sha256": "4f7b7b55813bc12eb0900001dedb44041f628f1a19cd5cbd17fa6968be8b3c97",
+   "template_id": "T26-me-be-qua-tang",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-003",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-003.json",
+   "sha256": "c1389387d40678f265446b6feb62ac215937f77a659efb4d13f7e72dd74b4c27",
+   "template_id": "BTCN-area_budget-holdout",
+   "hard_case": "hai_slot_mot_luot"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-004",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-004.json",
+   "sha256": "2c3921862137eb33a29ba744dc092f1a10c7674cc32d8007bfc96d3aa3d8af3d",
+   "template_id": "BTCN-area_budget-holdout",
+   "hard_case": "hai_slot_mot_luot"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-005",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-005.json",
+   "sha256": "af5a6e1dcb68da8c5d167ca92917d4f8e30982ff35d5cbe0b25f09834ab12f68",
+   "template_id": "BTCN-area_budget-holdout",
+   "hard_case": "hai_slot_mot_luot"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-008",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-008.json",
+   "sha256": "57d3e4afe5842fac2fff8702b68ab44c9d3508afaabaeee334033c417ba40f44",
+   "template_id": "BTCN-promo_recheck-holdout",
+   "hard_case": "hoi_lai_khuyen_mai"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-009",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-009.json",
+   "sha256": "4136e6cfb81b65b81ec0068c96be2036a40fb8c26bd222638425065ed541ccba",
+   "template_id": "BTCN-promo_recheck-holdout",
+   "hard_case": "hoi_lai_khuyen_mai"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-010",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-010.json",
+   "sha256": "f3e4f516f241a6d48efdbf1513c1234eeb91c3ff2df982f9ae57d8e9836c76ba",
+   "template_id": "BTCN-promo_recheck-holdout",
+   "hard_case": "hoi_lai_khuyen_mai"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-013",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-013.json",
+   "sha256": "21d0a634d9e86ee3c27cd7154e4d370ef161ccb3d445a603d047c85b983f6e39",
+   "template_id": "BTCN-stock_day-holdout",
+   "hard_case": "ton_kho_theo_ngay"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-014",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-014.json",
+   "sha256": "1847b438ed2f34ba0fc605c07347e584eac947f6260119320fc1bdb15172b1d2",
+   "template_id": "BTCN-stock_day-holdout",
+   "hard_case": "ton_kho_theo_ngay"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-015",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-015.json",
+   "sha256": "4610200f35478eba2a59d885339f389510a0b400d63e2dfae8117ee12ee6ebb2",
+   "template_id": "BTCN-stock_day-holdout",
+   "hard_case": "ton_kho_theo_ngay"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-018",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-018.json",
+   "sha256": "077b1cb41803310bcdfd235a901dbbcf68eb140bfc95a73f45c02ed686825fe4",
+   "template_id": "BTCN-delivery_address-holdout",
+   "hard_case": "dia_chi_giao_hang_nhieu_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-019",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-019.json",
+   "sha256": "48f39aa24fe4b46df018da5d947f0d6474642886f8620f52d49d04e7fc051e32",
+   "template_id": "BTCN-delivery_address-holdout",
+   "hard_case": "dia_chi_giao_hang_nhieu_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-020",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-020.json",
+   "sha256": "3875a82a072b9974602c1539b49dc762d821e0f12db00fda71724fe50987d433",
+   "template_id": "BTCN-delivery_address-holdout",
+   "hard_case": "dia_chi_giao_hang_nhieu_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-023",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-023.json",
+   "sha256": "5dc417c70d03c0e65c98d5f599c90eede4f92f92408c99364c373dfe5b5852a8",
+   "template_id": "BTCN-two_items-holdout",
+   "hard_case": "so_sanh_nhieu_san_pham"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-024",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-024.json",
+   "sha256": "3ff0a563dbc3e0ce08e3e7844eeef46422039e5ffafd6d22762d49dea80375cf",
+   "template_id": "BTCN-two_items-holdout",
+   "hard_case": "so_sanh_nhieu_san_pham"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-025",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-025.json",
+   "sha256": "8702d6a8db2ccf74914d3488b27e1ef746a9840a0e64b0244612ebf94147b486",
+   "template_id": "BTCN-two_items-holdout",
+   "hard_case": "so_sanh_nhieu_san_pham"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-028",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-028.json",
+   "sha256": "1b66312352e82c74c78566a6edead31af4d6f645ea01f73e0c36df223515fe76",
+   "template_id": "BTCN-change_mind-holdout",
+   "hard_case": "doi_y_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-029",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-029.json",
+   "sha256": "64ededbbe509756d54303dec5c14a989e49cbdc80183c0a56d081775f7de561e",
+   "template_id": "BTCN-change_mind-holdout",
+   "hard_case": "doi_y_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-030",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-030.json",
+   "sha256": "cfb07b19c7d506ebc31c32df187ecd132aa17cec5b7a4c882cf5309ad506f17f",
+   "template_id": "BTCN-change_mind-holdout",
+   "hard_case": "doi_y_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-033",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-033.json",
+   "sha256": "1b618e32487bf006ad4b2ba33e0906bd9508ddfccb1fca7e2a9f3bf2d10b417d",
+   "template_id": "BTCN-asr_context-holdout",
+   "hard_case": "asr_khong_dau_ngu_canh"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-034",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-034.json",
+   "sha256": "56c1081e534c4850a69ed703f2847f3cec973816a99fa2c8b272a1d5468a3b6c",
+   "template_id": "BTCN-asr_context-holdout",
+   "hard_case": "asr_khong_dau_ngu_canh"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-035",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-035.json",
+   "sha256": "3b7599877f5e04b7eb25f99417a327b890d2210fbedc01836b1c831d8304403e",
+   "template_id": "BTCN-asr_context-holdout",
+   "hard_case": "asr_khong_dau_ngu_canh"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-038",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-038.json",
+   "sha256": "cf9be2638ddd79b1a0b655b8038dd4685f36f4c8e914fa3b19818ded643df960",
+   "template_id": "BTCN-chat_short-holdout",
+   "hard_case": "teencode_cau_ngan"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-039",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-039.json",
+   "sha256": "005239d027716cce2bda31b7d62a7ef410c9223b8bec41bfcd51a18002f9da57",
+   "template_id": "BTCN-chat_short-holdout",
+   "hard_case": "teencode_cau_ngan"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-040",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-040.json",
+   "sha256": "5066cd4b233c0313d1a4eb9685a17f0ddc39fcc61b8c123ceec1734353afea09",
+   "template_id": "BTCN-chat_short-holdout",
+   "hard_case": "teencode_cau_ngan"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-043",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-043.json",
+   "sha256": "e914cef63b79d946dc58126c183e75b417ca02f876bf851f34636c8219f5ceda",
+   "template_id": "BTCN-unknown_policy-holdout",
+   "hard_case": "chinh_sach_ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-044",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-044.json",
+   "sha256": "4444116792d56c75d26d189efa489d7dc805214828b19d730df61608b17c7c6c",
+   "template_id": "BTCN-unknown_policy-holdout",
+   "hard_case": "chinh_sach_ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-045",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-045.json",
+   "sha256": "abe4fdeeae17f49d6d101a0fbb3eeae710dd967cd5fb867a59dc29c24a5ca74b",
+   "template_id": "BTCN-unknown_policy-holdout",
+   "hard_case": "chinh_sach_ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-048",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-048.json",
+   "sha256": "9b8f120a93cec9504a4cbf1f73e0d612f3a25051a3d58da6721b0e4aafed8dba",
+   "template_id": "BTCN-order_followup-holdout",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-049",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-049.json",
+   "sha256": "b0ea7d4b31b4e8404b0403b3f6cc188d01706ea6c8919e1b95adc0aeabb1e14e",
+   "template_id": "BTCN-order_followup-holdout",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-050",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-050.json",
+   "sha256": "5f09ff14ef11ae5e04fe3b319d84d73839a77cc819e70f665fdbfddc5606e49d",
+   "template_id": "BTCN-order_followup-holdout",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-053",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-053.json",
+   "sha256": "fd91110ae61af0a4ce132f304c8cbbbbff504e143c490f6ab357183b64b66ce7",
+   "template_id": "BTCN-promo_expired-holdout",
+   "hard_case": "khuyen_mai_het_han_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-054",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-054.json",
+   "sha256": "d7de7ed8c3bfa2cf9d37291d41feea9ebfe20dbbfdf15927231ac0d8d557ce3c",
+   "template_id": "BTCN-promo_expired-holdout",
+   "hard_case": "khuyen_mai_het_han_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-055",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-055.json",
+   "sha256": "1a2ac63dd4f4f0265c8f78d6d58a2d75af787d558eafcce8ee11d8ec45edf5a4",
+   "template_id": "BTCN-promo_expired-holdout",
+   "hard_case": "khuyen_mai_het_han_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-058",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-058.json",
+   "sha256": "7f882447242261e2a13636583bd7cfcf89011fda5cef317fd2eb6bb5069b6963",
+   "template_id": "BTCN-stock_changed-holdout",
+   "hard_case": "het_hang_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-059",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-059.json",
+   "sha256": "6348f49d4357adad71e540729badf760aab2a3c90144cf12dc4f7dd3fe772915",
+   "template_id": "BTCN-stock_changed-holdout",
+   "hard_case": "het_hang_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-060",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-060.json",
+   "sha256": "0f74f816e85f429dce280cecfabfa54a40dbff31bf0f50305a5385dee5c938ea",
+   "template_id": "BTCN-stock_changed-holdout",
+   "hard_case": "het_hang_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-063",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-063.json",
+   "sha256": "59e2a9f342c54ee6f8e5b2f2f65a39fe9d56fe8c3c0f0b9a0d114912be60141d",
+   "template_id": "BTCN-pii_other_customer-holdout",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-064",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-064.json",
+   "sha256": "40cde6d40ea97cad5186075363bcd709616f7ef71368b06beec407ea586aff6d",
+   "template_id": "BTCN-pii_other_customer-holdout",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-065",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-065.json",
+   "sha256": "fe89189d29002fa2ce187c66695ad339146935572ec3508810ddedd6f5cc3779",
+   "template_id": "BTCN-pii_other_customer-holdout",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v2_1",
+   "part": "holdout",
+   "scenario_id": "BTCL-068",
+   "file": "datagen/out_btc_like_final_v2_1/final/holdout/BTCL-068.json",
+   "sha256": "2f45be828335ac628dcabf0f6b61518a1380d259b7dcddfbea637649f5ee23a4",
+   "template_id": "BTCN-shared_number-holdout",
+   "hard_case": "hai_nguoi_dung_chung_sdt"
+  }
+ ]
+}

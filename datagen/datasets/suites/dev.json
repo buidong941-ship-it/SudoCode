@@ -1,0 +1,20 @@
+{
+  "suite": "dev",
+  "description": "Tập phát triển chuẩn: lấy đại diện theo template từ các bộ dev đã dùng (không lấy test/holdout). Chọn tất định: sắp scenario_id, lấy n kịch bản đầu mỗi template. Danh sách đã giải được ghi ở suites/resolved/dev.json.",
+  "guarded": false,
+  "members": [
+    {"dataset": "gen", "version": "nat-v1", "part": "dev", "select": {"per": "template_id", "n": 1}},
+    {"dataset": "btcl", "version": "v1_1", "part": "dev", "select": {"per": "template_id", "n": 1}},
+    {"dataset": "btcl_d7", "version": "v1", "part": "dev", "select": {"per": "template_id", "n": 1}},
+    {"dataset": "v3", "version": "v1", "part": "dev", "select": {"per": "template_id", "n": 1}},
+    {"dataset": "redteam", "version": "1c", "part": "dev", "select": {"all": true}},
+    {"dataset": "jev1108", "version": "new", "part": "dev", "select": {"all": true}},
+    {"dataset": "jev1108", "version": "identity", "part": "dev", "select": {"all": true}}
+  ],
+  "excluded": {
+    "btcl@v2_1/dev": "cùng 28 kịch bản với btcl@v1_1/dev, chỉ khác lời; dùng riêng khi đo độ bền",
+    "gen@out-v1": "bản câu mẫu của gen@nat-v1",
+    "function_probe": "probe không có đáp án TSR, xem component_checks"
+  },
+  "target_size": "60-100"
+}

@@ -1,0 +1,6 @@
+{
+  "suite": "holdout_h13",
+  "description": "Holdout mới H13 (21 họ template, 84 kịch bản). Đóng băng sau khi validate sạch. Chỉ materialize/chạy khi người dùng duyệt đo; mọi lần mở phải ghi exposure vào registry.json.",
+  "guarded": true,
+  "members": [{"dataset": "h13", "version": "r1", "part": "holdout", "select": {"all": true}}]
+}

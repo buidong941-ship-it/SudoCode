@@ -1,0 +1,16 @@
+{
+  "suite": "regression",
+  "description": "Bộ hồi quy chạy nhanh, là TẬP CON của dev (không tính là mẫu độc lập): toàn bộ red-team guardrail, mỗi loại ca khó một ca từ BTC-like/D7/V3 dev, cộng vài ca thường làm đối chứng dương.",
+  "guarded": false,
+  "subset_of": "dev",
+  "members": [
+    {"from_suite": "dev", "dataset": "redteam", "version": "1c", "select": {"all": true}},
+    {"from_suite": "dev", "dataset": "btcl", "version": "v1_1", "select": {"per": "hard_case", "n": 1}},
+    {"from_suite": "dev", "dataset": "btcl_d7", "version": "v1", "select": {"per": "hard_case", "n": 1}},
+    {"from_suite": "dev", "dataset": "v3", "version": "v1", "select": {"per": "hard_case", "n": 1, "hard_only": true}},
+    {"from_suite": "dev", "dataset": "v3", "version": "v1", "select": {"normal_only": true, "n": 2}},
+    {"from_suite": "dev", "dataset": "gen", "version": "nat-v1", "select": {"normal_only": true, "n": 2}},
+    {"from_suite": "dev", "dataset": "jev1108", "version": "identity", "select": {"all": true}}
+  ],
+  "target_size": "30-50"
+}

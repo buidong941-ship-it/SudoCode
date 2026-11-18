@@ -1,0 +1,499 @@
+{
+  "errors": 0,
+  "warnings": 0,
+  "scenarios": [
+    {
+      "scenario_id": "H13-001",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-001.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-002",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-002.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-003",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-003.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-004",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-004.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-005",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-005.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-006",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-006.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-007",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-007.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-008",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-008.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-009",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-009.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-010",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-010.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-011",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-011.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-012",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-012.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-013",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-013.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-014",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-014.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-015",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-015.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-016",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-016.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-017",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-017.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-018",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-018.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-019",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-019.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-020",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-020.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-021",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-021.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-022",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-022.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-023",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-023.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-024",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-024.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-025",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-025.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-026",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-026.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-027",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-027.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-028",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-028.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-029",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-029.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-030",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-030.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-031",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-031.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-032",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-032.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-033",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-033.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-034",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-034.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-035",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-035.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-036",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-036.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-037",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-037.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-038",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-038.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-039",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-039.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-040",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-040.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-041",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-041.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-042",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-042.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-043",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-043.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-044",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-044.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-045",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-045.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-046",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-046.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-047",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-047.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-048",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-048.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-049",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-049.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-050",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-050.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-051",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-051.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-052",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-052.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-053",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-053.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-054",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-054.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-055",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-055.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-056",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-056.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-057",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-057.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-058",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-058.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-059",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-059.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-060",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-060.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-061",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-061.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-062",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-062.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-063",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-063.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-064",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-064.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-065",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-065.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-066",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-066.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-067",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-067.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-068",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-068.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-069",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-069.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-070",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-070.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-071",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-071.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-072",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-072.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-073",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-073.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-074",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-074.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-075",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-075.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-076",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-076.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-077",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-077.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-078",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-078.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-079",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-079.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-080",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-080.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-081",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-081.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-082",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-082.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-083",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-083.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H13-084",
+      "file": "datagen/datasets/releases/h1113/raw/holdout/H13-084.json",
+      "issues": []
+    }
+  ],
+  "global": {
+    "errors": [],
+    "warnings": []
+  },
+  "coverage": {
+    "totals": {
+      "scenarios": 84,
+      "calls": 158,
+      "hard": 84,
+      "turns": 338,
+      "multi_channel_customers": 8
+    },
+    "hard_case": {
+      "h13_da_kenh": 8,
+      "h13_nhieu_y_cung_luot": 8,
+      "h13_hoi_yeu_cau": 12,
+      "h13_sua_rut_yeu_cau": 8,
+      "h13_gio_so_luong": 8,
+      "h13_nhieu_don": 8,
+      "h13_dieu_kien": 8,
+      "h13_nho_qua_phien": 8,
+      "h13_chinh_sach_nguon": 8,
+      "h13_kha_nang_tra_loi": 8
+    },
+    "persona": {
+      "khach_da_kenh_fb_hotline": 8,
+      "khach_do_du_hoi_nguoi_nha": 12,
+      "khach_hoi_nhieu_khong_mua": 12,
+      "khach_da_mua_doi_size": 8,
+      "khach_so_gia": 20,
+      "khach_mua_nhieu_mon": 12,
+      "khach_da_kenh_mau_thuan": 8,
+      "khach_hoi_ngoai_tai_lieu": 4
+    },
+    "level": {
+      "M2": 84
+    },
+    "split": {
+      "holdout": 84
+    },
+    "channel": {
+      "hotline": 150,
+      "chat_fanpage": 8
+    },
+    "input_mode": {
+      "text": 154,
+      "asr_transcript": 4
+    },
+    "outcome": {
+      "chot_don": 72,
+      "hen_goi_lai": 78,
+      "tu_choi": 8
+    },
+    "tool_called": {
+      "order.create": 72,
+      "order.status": 8,
+      "(không chấm)": 32,
+      "order.update": 6,
+      "None": 38,
+      "schedule.callback": 2
+    },
+    "category": {
+      "thoi-trang/ao-khoac": 12,
+      "thoi-trang/giay": 32,
+      "gia-dung/may-loc-nuoc": 16,
+      "gia-dung/noi-chien": 19,
+      "me-be": 14,
+      "gia-dung/quat": 11,
+      "gia-dung/may-loc-khong-khi": 16,
+      "thoi-trang/phu-kien": 4
+    }
+  },
+  "diff": []
+}

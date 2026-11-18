@@ -1,0 +1,6 @@
+{
+  "suite": "observed_v3",
+  "description": "V3 holdout cũ (77 kịch bản), giữ nguyên path/tên 'holdout' để đối chiếu lịch sử. Đã đo và đọc lỗi nhiều lần (06–12/11) → nhãn observed, không phải holdout độc lập cho các sửa từ nó.",
+  "guarded": false,
+  "members": [{"dataset": "v3", "version": "v1", "part": "holdout", "select": {"all": true}}]
+}

@@ -1,0 +1,17 @@
+{
+  "suite": "component_checks",
+  "description": "Bộ kiểm thành phần, giữ định dạng và script chuyên biệt; KHÔNG materialize thành kịch bản TSR.",
+  "guarded": false,
+  "materializable": false,
+  "groups": [
+    {"name": "extractor_claims_facts", "parts": ["extract_eval@1101/customer", "extract_eval@1101/agent", "extract_eval@1101/facts_used", "extract_eval@1101/real_ref"],
+     "how": "tests/*_check.py liên quan extractor; real_ref chủ yếu đo precision (CC BY-NC 4.0)"},
+    {"name": "slot_sentences", "parts": ["synth_slots@b1-b3/b1", "synth_slots@b1-b3/b2", "synth_slots@b1-b3/b3"],
+     "how": "datagen/synth_slots/manifest.json chia mine/eval theo prompt_id; scripts/label_crosscheck.py"},
+    {"name": "function_probe", "parts": ["function_probe@1107/scenarios", "function_probe@1107/items"],
+     "how": "datagen/function_probe/build_items.py; phần C dựng từ lượt trượt của V3 holdout"},
+    {"name": "asr_btc", "parts": ["btc_asr@btc-2026-10/ground_truth"], "how": "python eval/reference_eval.py --asr ... (theo asr/ground_truth.json normalization_rule)"},
+    {"name": "rag_btc", "parts": ["btc_rag@btc-2026-10/qa_labeled"], "how": "python eval/reference_eval.py --rag ..."},
+    {"name": "probes_in_scripts", "parts": [], "how": "scripts/*probe*.py (Jev/DeepSeek/audit/clarify): ca chẩn đoán, fixture trong scripts/ và output dưới runs/; dữ liệu dựng lại từ trace giữ nhãn reconstructed"}
+  ]
+}

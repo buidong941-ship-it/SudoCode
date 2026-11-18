@@ -1,0 +1,6 @@
+{
+  "suite": "btc_sample",
+  "description": "7 kịch bản mẫu của BTC, báo riêng, không trộn với dữ liệu nhóm.",
+  "guarded": false,
+  "members": [{"dataset": "btc_public_sample", "version": "btc-2026-10", "part": "sample", "select": {"all": true}}]
+}

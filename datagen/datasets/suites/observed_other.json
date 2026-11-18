@@ -1,0 +1,9 @@
+{
+  "suite": "observed_other",
+  "description": "Các bộ test/holdout cũ khác đã đo: gen@nat-v1/test (22) và btcl@v2_1/holdout (40). Chỉ đối chiếu lịch sử. Không cộng với btcl@v1_1/holdout (cùng 40 kịch bản).",
+  "guarded": false,
+  "members": [
+    {"dataset": "gen", "version": "nat-v1", "part": "test", "select": {"all": true}},
+    {"dataset": "btcl", "version": "v2_1", "part": "holdout", "select": {"all": true}}
+  ]
+}

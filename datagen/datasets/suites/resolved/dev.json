@@ -1,0 +1,938 @@
+{
+ "suite": "dev",
+ "guarded": false,
+ "subset_of": null,
+ "n": 92,
+ "scenario_id_collisions": [],
+ "by_dataset": {
+  "gen@nat-v1/dev": 26,
+  "btcl@v1_1/dev": 14,
+  "btcl_d7@v1/dev": 10,
+  "v3@v1/dev": 15,
+  "redteam@1c/dev": 14,
+  "jev1108@new/dev": 12,
+  "jev1108@identity/dev": 1
+ },
+ "members": [
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T01-01",
+   "file": "datagen/out_nat/dev/GEN-T01-01.json",
+   "sha256": "9ac477d8017d2259fb91850d0022bfe3e7d5cc92aeacd0d908f7390ac5202ea5",
+   "template_id": "T01-do-du-hoi-nguoi-nha",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T02-01",
+   "file": "datagen/out_nat/dev/GEN-T02-01.json",
+   "sha256": "64631ac84c224fd2bcbb64b2b08949d66d3edba32e5933d6b9b91436b69f2f3e",
+   "template_id": "T02-so-gia",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T03-01",
+   "file": "datagen/out_nat/dev/GEN-T03-01.json",
+   "sha256": "712c529f286e9a77bbb02d0578c2ea67b65dff41316df8743848962275f1cb2d",
+   "template_id": "T03-doi-size",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T04-01",
+   "file": "datagen/out_nat/dev/GEN-T04-01.json",
+   "sha256": "33ca4b1b4db1e3cc615d490d618e40e5dd27fb53bbe5b875e81ccfdbf37d012f",
+   "template_id": "T04-da-kenh-fb-hotline",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T05-01",
+   "file": "datagen/out_nat/dev/GEN-T05-01.json",
+   "sha256": "23c1271894132ae4aad239b30f07f29413845e1dae9f852b0e22f3532983e095",
+   "template_id": "T05-km-het-han",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T06-01",
+   "file": "datagen/out_nat/dev/GEN-T06-01.json",
+   "sha256": "686f5a64de368b2733e2695eeb1098f45ff467793e0e42239a3ab1baef64a8ff",
+   "template_id": "T06-asr-het-hang-ve-hang",
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T07-01",
+   "file": "datagen/out_nat/dev/GEN-T07-01.json",
+   "sha256": "7fc868dcaa8a1319fd6df1a7d879daf21e6feae9ff6b1dff858d6b9bc2997438",
+   "template_id": "T07-chinh-sach-cu",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T08-01",
+   "file": "datagen/out_nat/dev/GEN-T08-01.json",
+   "sha256": "e4693a904790616e5a77cbf4b09720bb3366dbc4af3c7fb3753ab88af39fa7cb",
+   "template_id": "T08-het-hang-luc-quyet",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T09-01",
+   "file": "datagen/out_nat/dev/GEN-T09-01.json",
+   "sha256": "b37fb4247357675a0471972643476ffba79a6f8768466424a2bee02f76e40979",
+   "template_id": "T09-km-loai-tru-size",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T10-01",
+   "file": "datagen/out_nat/dev/GEN-T10-01.json",
+   "sha256": "8196bd78981f2edd2eb013dc6ea6d8609e941ce699e48c71d1ddbb62791693a0",
+   "template_id": "T10-quay-lai-8-thang",
+   "hard_case": "quay_lai_sau_8_thang"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T11-01",
+   "file": "datagen/out_nat/dev/GEN-T11-01.json",
+   "sha256": "f8ee685465cc60d883865420055dd009435b1daefd1abdf9dc7e6dbfb5cd2c4d",
+   "template_id": "T11-chung-sdt",
+   "hard_case": "chung_sdt_memory_poisoning"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T12-01",
+   "file": "datagen/out_nat/dev/GEN-T12-01.json",
+   "sha256": "ebe835f2c3fc3d9528b8f7c0898fbd70ce3e4bae845638ad72239d8946ebd421",
+   "template_id": "T12-pii-hoan-tien",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T13-01",
+   "file": "datagen/out_nat/dev/GEN-T13-01.json",
+   "sha256": "ea418ea7cd6889ffa30f4c2ebcded9dbe72e0f57211e04fa5819c285c734b9b3",
+   "template_id": "T13-ep-gia-do-gia-nhap",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T14-01",
+   "file": "datagen/out_nat/dev/GEN-T14-01.json",
+   "sha256": "60a18c59878c9c213de4294486bf083e71c022e17f39e1af3c84832841586e8d",
+   "template_id": "T14-gia-doi-thu",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T15-01",
+   "file": "datagen/out_nat/dev/GEN-T15-01.json",
+   "sha256": "8796b2d84ece092ecb34ec0c191886f90034a9b0a456b17b228541e59a455499",
+   "template_id": "T15-hen-goi-lai-ngay-nghi",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T16-01",
+   "file": "datagen/out_nat/dev/GEN-T16-01.json",
+   "sha256": "ef5df5533a1ef119b378f313e53964ae3bcf3ca95aa61c802654db11c6ec16b4",
+   "template_id": "T16-nhieu-mon-vuot-cod",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T17-01",
+   "file": "datagen/out_nat/dev/GEN-T17-01.json",
+   "sha256": "03d2d941976839487ad680d736c3284d3b51efedf5f93efba76ef3396eb578aa",
+   "template_id": "T17-ai-hay-nguoi-xoa-du-lieu",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T18-01",
+   "file": "datagen/out_nat/dev/GEN-T18-01.json",
+   "sha256": "04d0091121f45de4f4c93d8a571442bf92f15f48d33eb9ef0874eb6c8c10b179",
+   "template_id": "T18-chuyen-may-y-te",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T19-01",
+   "file": "datagen/out_nat/dev/GEN-T19-01.json",
+   "sha256": "1e608726ab81d81926960d700e3d2fb383c8c27ad1ab34f201ab63b9ab6d0fff",
+   "template_id": "T19-trang-thai-don",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T20-01",
+   "file": "datagen/out_nat/dev/GEN-T20-01.json",
+   "sha256": "ce1a66a0ec1a4bab240b86e955b838e5f3a94b45114c31ac64632832339bbfa9",
+   "template_id": "T20-doi-san-pham-hoan-chenh-lech",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T21-01",
+   "file": "datagen/out_nat/dev/GEN-T21-01.json",
+   "sha256": "24fa07640f4bab2739e8d6ee7fc20ac1ef8f1fb1fe847be33746d0542fcbf997",
+   "template_id": "T21-3-phien-thay-doi-thong-tin",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T22-01",
+   "file": "datagen/out_nat/dev/GEN-T22-01.json",
+   "sha256": "71c9b654c8093568818ebc319cd1e4c121811c06e15e2ea8fb517de89be94682",
+   "template_id": "T22-goi-lan-3-het-kien-nhan",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T23-01",
+   "file": "datagen/out_nat/dev/GEN-T23-01.json",
+   "sha256": "7d3767d1a260989fea9ebb83648857c3a6984e3c986cf14cd8a188169cea8539",
+   "template_id": "T23-hoi-nhieu-khong-mua",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T24-01",
+   "file": "datagen/out_nat/dev/GEN-T24-01.json",
+   "sha256": "3a862c5ef70c522fa7676ed471f06f872714136fa7b11a5f6c4a6f9a3c4b0a04",
+   "template_id": "T24-ngoai-tai-lieu",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T25-01",
+   "file": "datagen/out_nat/dev/GEN-T25-01.json",
+   "sha256": "6050fb113b6c3ac0fd14df0e68acb5f134ea4f8e1ba6b27c26ef0d5a4702f812",
+   "template_id": "T25-3-kenh-bao-gia-lech",
+   "hard_case": "3_kenh_bao_gia_lech"
+  },
+  {
+   "dataset_id": "gen",
+   "version": "nat-v1",
+   "part": "dev",
+   "scenario_id": "GEN-T27-01",
+   "file": "datagen/out_nat/dev/GEN-T27-01.json",
+   "sha256": "fe5518efa5e1ad86b075c07ebb21289fad6c212c424ce3fe59afb1e37c6cac88",
+   "template_id": "T27-gia-dung-mien-nam",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-001",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-001.json",
+   "sha256": "1133f3a6f6cc6c63830b6c211ef64f7ca3528bf18aee50a7c76e59d709db46ec",
+   "template_id": "BTCN-area_budget-dev",
+   "hard_case": "hai_slot_mot_luot"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-006",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-006.json",
+   "sha256": "9a54052ecf07e9426a6de576d23aca85e5d7809ef7089dd7e0d780ce1c39fdcc",
+   "template_id": "BTCN-promo_recheck-dev",
+   "hard_case": "hoi_lai_khuyen_mai"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-011",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-011.json",
+   "sha256": "065ea02bbd7e75f69fb5c2d29b682437e2556751e216fbdd45408c1b6c45b435",
+   "template_id": "BTCN-stock_day-dev",
+   "hard_case": "ton_kho_theo_ngay"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-016",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-016.json",
+   "sha256": "6041c449a576c58d187af57c189e1a59adfa609a8a08bf445e75ed46f93c18d0",
+   "template_id": "BTCN-delivery_address-dev",
+   "hard_case": "dia_chi_giao_hang_nhieu_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-021",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-021.json",
+   "sha256": "601886c59ff1e06dbee0fba4c3ca65a5ec2644145102c5dc7c44561a747ff94e",
+   "template_id": "BTCN-two_items-dev",
+   "hard_case": "so_sanh_nhieu_san_pham"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-026",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-026.json",
+   "sha256": "73151b1bcbcce2ca5f3f654e48cf13be3e38e35f279ade0be2e71aedfd154d21",
+   "template_id": "BTCN-change_mind-dev",
+   "hard_case": "doi_y_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-031",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-031.json",
+   "sha256": "59c134ce13cd8370ab2829e54995edac06ab5e41cc9baff3df69712af1d35936",
+   "template_id": "BTCN-asr_context-dev",
+   "hard_case": "asr_khong_dau_ngu_canh"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-036",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-036.json",
+   "sha256": "20945a013c08004ac3880590673d53d630625408d8cb08f484495c0e08065dd1",
+   "template_id": "BTCN-chat_short-dev",
+   "hard_case": "teencode_cau_ngan"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-041",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-041.json",
+   "sha256": "8c849704944b0d633d15eff3de92186c781c9535710920108d296703baeb7e97",
+   "template_id": "BTCN-unknown_policy-dev",
+   "hard_case": "chinh_sach_ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-046",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-046.json",
+   "sha256": "d18e0665bc2c4a263a3cf9940acb70b3b524a1ad1bc9dffe7003d84ed2f79bc3",
+   "template_id": "BTCN-order_followup-dev",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-051",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-051.json",
+   "sha256": "bc183d057e6a86f89e6b5f6ea62e17dcb7aad0c099b8e825f695dd651ac5762c",
+   "template_id": "BTCN-promo_expired-dev",
+   "hard_case": "khuyen_mai_het_han_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-056",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-056.json",
+   "sha256": "733cabe60228b7d8ff2fbc0536a91ccedb1584dd91b05e5d8115a86458395388",
+   "template_id": "BTCN-stock_changed-dev",
+   "hard_case": "het_hang_giua_hai_phien"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-061",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-061.json",
+   "sha256": "7e1ebc4c431f18fde66b5fd1636bac635893d02077206fb43a53b15d0b566e3f",
+   "template_id": "BTCN-pii_other_customer-dev",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl",
+   "version": "v1_1",
+   "part": "dev",
+   "scenario_id": "BTCL-066",
+   "file": "datagen/out_btc_like_final_v1_1/final/dev/BTCL-066.json",
+   "sha256": "eb9266c8b7806fa4b9b9c41bba7dfed8891acad0626f21572408298edaa2035e",
+   "template_id": "BTCN-shared_number-dev",
+   "hard_case": "hai_nguoi_dung_chung_sdt"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-001",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-001.json",
+   "sha256": "7caf45d7dcb11e5e76727fee5642a508a35f50c4952b2bf2bba5d9e136d8d703",
+   "template_id": "BTCN-d7_context_ref_a-dev",
+   "hard_case": "tham_chieu_phien_truoc"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-004",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-004.json",
+   "sha256": "33b8ad03ed6afc4aefdfe14f74a0d14af34306e78e55d996ad101cf697be0a8f",
+   "template_id": "BTCN-d7_context_ref_b-dev",
+   "hard_case": "tham_chieu_phien_truoc"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-007",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-007.json",
+   "sha256": "e4ec27c4fea7aa1fcd8b71c1da1ccb059b3539c5f4f05cfc2613b147121de753",
+   "template_id": "BTCN-d7_gift_a-dev",
+   "hard_case": "hoi_qua_tang_kem"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-010",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-010.json",
+   "sha256": "6c9d36f2ea666c7cebff16e0f6faf4a085587b4d2eeda14950068bd5abef0685",
+   "template_id": "BTCN-d7_gift_b-dev",
+   "hard_case": "hoi_qua_tang_kem"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-013",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-013.json",
+   "sha256": "febbbe7e3e905ef65dd440c674e4c86ffc429eb4cb644a81a7bcc7b838bde535",
+   "template_id": "BTCN-d7_privacy_a-dev",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-016",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-016.json",
+   "sha256": "dbc81bd9316d932982ef5bb5406d250d7b3385fcd885445fc76b5868fee6643b",
+   "template_id": "BTCN-d7_privacy_b-dev",
+   "hard_case": "khong_lo_sdt_nguoi_khac"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-019",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-019.json",
+   "sha256": "06e77a8ddd0766656d28ef7eaa21bcabc07af2681b2f0d1719552350cf2f9dbc",
+   "template_id": "BTCN-d7_address_a-dev",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-022",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-022.json",
+   "sha256": "3ab275627da7d5a58ae1441b6d0eadd7b013ba90a7210dc9dfd4715c57b4734f",
+   "template_id": "BTCN-d7_address_b-dev",
+   "hard_case": "chot_don_sau_khi_hoi_gia"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-025",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-025.json",
+   "sha256": "1eb37432902eb90d68bd82b92ea7819bc47a6be92f15b38a58b4029f24148c03",
+   "template_id": "BTCN-d7_hypo_return_a-dev",
+   "hard_case": "hoi_gia_dinh_doi_tra"
+  },
+  {
+   "dataset_id": "btcl_d7",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "BTCD7-028",
+   "file": "datagen/out_btc_like_d7/final/dev/BTCD7-028.json",
+   "sha256": "30bd03d3d4f67b50b7cb65b643ac3142773311674a67af6351ad4471b5ffd95e",
+   "template_id": "BTCN-d7_hypo_return_b-dev",
+   "hard_case": "hoi_gia_dinh_doi_tra"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-010",
+   "file": "datagen/out_v3/final/dev/V3-010.json",
+   "sha256": "8a54a887be2de1a9563af19b40d1b1edb9ca44bf1a432891f9c7678177da676e",
+   "template_id": "V3-injection-chat-dev",
+   "hard_case": "prompt_injection"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-013",
+   "file": "datagen/out_v3/final/dev/V3-013.json",
+   "sha256": "abc1dbdc582105418917b5ef44dee53e9f261d2b675029078200682d9f7594bd",
+   "template_id": "V3-zalo-roi-hotline-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-016",
+   "file": "datagen/out_v3/final/dev/V3-016.json",
+   "sha256": "2271b5f71bf2dce7635200ea9e2a01d1e5486f926c5b2c5f3cd53ac30dd204c6",
+   "template_id": "V3-hotline-roi-zalo-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-087",
+   "file": "datagen/out_v3/final/dev/V3-087.json",
+   "sha256": "13f20eb3e73fb7810f63cc535e43c77d7a4bde417e991d835473e673614bc384",
+   "template_id": "V3-injection-gia-dev",
+   "hard_case": "prompt_injection"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-093",
+   "file": "datagen/out_v3/final/dev/V3-093.json",
+   "sha256": "7886508d7a51c9e2750f2bb0944987bee053391c4184b34bf4d2bb6d35b09193",
+   "template_id": "V3-gia-danh-quan-ly-dev",
+   "hard_case": "gia_danh_noi_bo"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-099",
+   "file": "datagen/out_v3/final/dev/V3-099.json",
+   "sha256": "4abce5549a6b6e1e7f310ad8eaeed58c886a725b21a2877d282589902959c006",
+   "template_id": "V3-cccd-doc-bang-chu-dev",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-105",
+   "file": "datagen/out_v3/final/dev/V3-105.json",
+   "sha256": "9be4b5b83725a65374dd347f073031771250bde1c60c5d470b3545422d947b0f",
+   "template_id": "V3-asr-re-khong-ro-dev",
+   "hard_case": "asr_khong_ro"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-111",
+   "file": "datagen/out_v3/final/dev/V3-111.json",
+   "sha256": "65653ee3542bf2685dae9cd6f15d96d9068b656a1ffc2b217b4463eb412d8eac",
+   "template_id": "V3-tin-nhan-qua-dai-dev",
+   "hard_case": "cau_qua_dai"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-117",
+   "file": "datagen/out_v3/final/dev/V3-117.json",
+   "sha256": "7c636ca2387439c8a7a634110d402570838dbb3f246cb92e23f01bb0f659b9b6",
+   "template_id": "V3-bot-giua-luc-mua-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-123",
+   "file": "datagen/out_v3/final/dev/V3-123.json",
+   "sha256": "8d820b107b485345298a6f5d1cbabda41ebbd7496a587ebfc12fe9f0cbdf0b82",
+   "template_id": "V3-doc-so-hotline-dev",
+   "hard_case": "doc_so_tien_sdt"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-129",
+   "file": "datagen/out_v3/final/dev/V3-129.json",
+   "sha256": "424646854fc548b30113de1b97686f4c840da831d89799ac36dcebfc439b8f8b",
+   "template_id": "V3-hang-ve-chua-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-135",
+   "file": "datagen/out_v3/final/dev/V3-135.json",
+   "sha256": "afb930cfb95cb6583825a29a8b27dac1cb427678de38036bb39d77324d46efa9",
+   "template_id": "V3-hoi-tien-hoan-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-141",
+   "file": "datagen/out_v3/final/dev/V3-141.json",
+   "sha256": "5f987a3167930deccc5854d643d4b089706ee3942598ff64ef19362b99b44511",
+   "template_id": "V3-me-be-tuoi-be-phan-doi-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-147",
+   "file": "datagen/out_v3/final/dev/V3-147.json",
+   "sha256": "c794f6f3cf46190c3e9270fc9e2a485c7f5fb2c492cec8b32bca214ee08d5f3d",
+   "template_id": "V3-me-be-combo-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "dev",
+   "scenario_id": "V3-153",
+   "file": "datagen/out_v3/final/dev/V3-153.json",
+   "sha256": "cd4a3e2e8fdb615e25d1d1c19363b2b3dffc5947e7edd7dba9b15c40e99b0378",
+   "template_id": "V3-so-ba-mau-hen-lai-dev",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-01",
+   "file": "datagen/out_redteam/dev/RT-01.json",
+   "sha256": "585cfad9a92329fd1f9f1bbdcfdb56c0ba0b739c4b8cb32b7a02daf64c119031",
+   "template_id": "RT-1c-j1",
+   "hard_case": "j1_bao_hanh_vien_dan_quan_ly"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-02",
+   "file": "datagen/out_redteam/dev/RT-02.json",
+   "sha256": "f97b2b8763288f5079335c57c153c38891c816b8955f4d0ee7db8e7518664300",
+   "template_id": "RT-1c-j1",
+   "hard_case": "j1_freeship_vien_dan_sep"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-03",
+   "file": "datagen/out_redteam/dev/RT-03.json",
+   "sha256": "d9da754edae9b79a8d155c67ee13185779991eb125d9ed5a165120629e596519",
+   "template_id": "RT-1c-j1",
+   "hard_case": "j1_qua_het_han_vien_dan_nhan_vien"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-04",
+   "file": "datagen/out_redteam/dev/RT-04.json",
+   "sha256": "88223d8c4c1efaf920c62873b426d74316f213db38de0001356c50d4230aa8f2",
+   "template_id": "RT-1c-j1",
+   "hard_case": "j1_gia_nhan_vien"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-05",
+   "file": "datagen/out_redteam/dev/RT-05.json",
+   "sha256": "fda36e367fb298220edc85141701c3d2ad98395fafa4e37836d8c6d8232f6e99",
+   "template_id": "RT-1c-j2",
+   "hard_case": "j2_xac_nhan_nguoi_that_kiem_thu"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-06",
+   "file": "datagen/out_redteam/dev/RT-06.json",
+   "sha256": "f44c18d13db1d9b6c2f7796e6586ce009d0ac95fc18fe9615dd32ddab3ee7e02",
+   "template_id": "RT-1c-j2",
+   "hard_case": "j2_xoa_du_lieu_nguoi_khac"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-07",
+   "file": "datagen/out_redteam/dev/RT-07.json",
+   "sha256": "d42bbeaf9342539c0dcc5a6a3cd29390469813072adfd09c3b4a35f6493c5fae",
+   "template_id": "RT-1c-j2",
+   "hard_case": "j2_chen_lenh_len_don"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-08",
+   "file": "datagen/out_redteam/dev/RT-08.json",
+   "sha256": "8484d5f3694013e15649280049613d143839af3db8ede087e4de839d25d14962",
+   "template_id": "RT-1c-j2",
+   "hard_case": "j2_doi_thu_gia_danh"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-09",
+   "file": "datagen/out_redteam/dev/RT-09.json",
+   "sha256": "4a8a8f0593af39b6c1d462eae83a149c872e04919b1c57b69c1488118d21cda1",
+   "template_id": "RT-1c-j3",
+   "hard_case": "j3_gia_da_chot_gia"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-10",
+   "file": "datagen/out_redteam/dev/RT-10.json",
+   "sha256": "72595adf300edfe5efffd0e28e238995cfb9ed9b2df48be542f96bc3064feae8",
+   "template_id": "RT-1c-j4",
+   "hard_case": "j4_chen_lenh_vao_bo_nho"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-11",
+   "file": "datagen/out_redteam/dev/RT-11.json",
+   "sha256": "010c8ac6df5143b71e6c1c3a049a3f2f36255d4fc1526bcd70e0db19d8ea9d66",
+   "template_id": "RT-1c-j4",
+   "hard_case": "j4_dan_gia_vao_bo_nho"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-12",
+   "file": "datagen/out_redteam/dev/RT-12.json",
+   "sha256": "693f3dadafae7d1a0c469ebfe3a66d70ed5162a2b6ba6c4cc09dae00c550a152",
+   "template_id": "RT-1c-j5",
+   "hard_case": "j5_bac_si_ep_khang_dinh_y_te"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-13",
+   "file": "datagen/out_redteam/dev/RT-13.json",
+   "sha256": "5d62f6119f344cd19b6446fa6ca310a873ec0964626150ee871923e4bdd1b736",
+   "template_id": "RT-1c-j5",
+   "hard_case": "j5_duoc_si_ep_cong_dung"
+  },
+  {
+   "dataset_id": "redteam",
+   "version": "1c",
+   "part": "dev",
+   "scenario_id": "RT-14",
+   "file": "datagen/out_redteam/dev/RT-14.json",
+   "sha256": "f969fdd24a97ae34f003c306fc9d6f9f6f1881dc7dfc67e1be597b5fbd008b7c",
+   "template_id": "RT-1c-j6",
+   "hard_case": "j6_nguoi_nha_xin_dia_chi"
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-001",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-001.json",
+   "sha256": "b45b624f81bdfd470cca962138f52534eee7923525063f21c26d205d90663468",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-002",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-002.json",
+   "sha256": "aa3ff053175e43c702924790ffc25845fd7c39c0a71c45be98579076a616923f",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-003",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-003.json",
+   "sha256": "ae957443d83f7b017293fb858eacd818b5cdcb2d40bfadbb34f3f7a3a83fc351",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-004",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-004.json",
+   "sha256": "51c91feac1ea57a8cad2050d818d3f2c0b0a21281fd87cbc9cfeebf47e3629fa",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-005",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-005.json",
+   "sha256": "5e831ed3c05c80b7ca686535a29ab5baa8abf94b2bfb713d1aba6569d95694ba",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-006",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-006.json",
+   "sha256": "6fff2cc90dee0461864a633cff5c071028a7cb07925632905257608a699467b5",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-007",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-007.json",
+   "sha256": "f371effd8e76ce4a48524b664755ce5e16d976b57e16480d051ea2dcd973cfbb",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-008",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-008.json",
+   "sha256": "7a17cb3412b7b662dd6946740b4cca61e86d3e9ef638a0025ae4bed2c801e56c",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-009",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-009.json",
+   "sha256": "a777474d7902aa400b54142277724642450da370fa9eb34ef26886ccac72e54f",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-010",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-010.json",
+   "sha256": "8ff6c1545c8e20867476920c08d82c3be68e55ac607d652aa8e23cf1a55904a3",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-011",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-011.json",
+   "sha256": "84b3faee532478f9c978b7ca448d44288874155199ba840cdd0b9340ea755679",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "new",
+   "part": "dev",
+   "scenario_id": "JEVNEW-012",
+   "file": "datagen/out_jev1108_new/dev/JEVNEW-012.json",
+   "sha256": "bd0ad64bbe2a317de4a2404ff8055837d70686251e9446db2eaa5765749dd0b5",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "jev1108",
+   "version": "identity",
+   "part": "dev",
+   "scenario_id": "JEV-ID-001",
+   "file": "datagen/out_jev1108_identity/dev/JEV-ID-001.json",
+   "sha256": "782f1990d414f87b117e0c3c34b5bc95929544ecb1444f390d219605612e7253",
+   "template_id": null,
+   "hard_case": null
+  }
+ ]
+}

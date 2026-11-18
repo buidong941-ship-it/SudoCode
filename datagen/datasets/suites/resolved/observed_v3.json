@@ -1,0 +1,782 @@
+{
+ "suite": "observed_v3",
+ "guarded": false,
+ "subset_of": null,
+ "n": 77,
+ "scenario_id_collisions": [],
+ "by_dataset": {
+  "v3@v1/holdout": 77
+ },
+ "members": [
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-001",
+   "file": "datagen/out_v3/final/holdout/V3-001.json",
+   "sha256": "5c715a72141462b10d6a58233c120b12cb3b1221933e12b877483f7df82786fb",
+   "template_id": "V3-chat-roi-asr-holdout",
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-002",
+   "file": "datagen/out_v3/final/holdout/V3-002.json",
+   "sha256": "f2e4a9f1f99345ffaead5cb7fc2fbceab2b8c7db211bcc154554215e28284506",
+   "template_id": "V3-chat-roi-asr-holdout",
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-003",
+   "file": "datagen/out_v3/final/holdout/V3-003.json",
+   "sha256": "737d845123b77d533756de28e5093b528db2b96262b562244767ebebc5becd4a",
+   "template_id": "V3-chat-roi-asr-holdout",
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-004",
+   "file": "datagen/out_v3/final/holdout/V3-004.json",
+   "sha256": "ed418b3813b905a36963b0a9a68f9e8c25d4fca39c4fee454c68ee43d91bdf35",
+   "template_id": "V3-zalo-fanpage-hotline-holdout",
+   "hard_case": "3_kenh_bao_gia_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-005",
+   "file": "datagen/out_v3/final/holdout/V3-005.json",
+   "sha256": "f2957c4ef4a5058b950d66e816e841a7b751c7c221e68d9f1b5715ffed886219",
+   "template_id": "V3-zalo-fanpage-hotline-holdout",
+   "hard_case": "3_kenh_bao_gia_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-006",
+   "file": "datagen/out_v3/final/holdout/V3-006.json",
+   "sha256": "3fb73172820810c6a0e1e2484faf84b047327ffd439c6e1b590e5704931407e1",
+   "template_id": "V3-zalo-fanpage-hotline-holdout",
+   "hard_case": "3_kenh_bao_gia_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-007",
+   "file": "datagen/out_v3/final/holdout/V3-007.json",
+   "sha256": "44748ab6eba89f9d9819e5e635bb79057faa2c31dc963847b7d764eb60f8b4db",
+   "template_id": "V3-fanpage-roi-hotline-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-008",
+   "file": "datagen/out_v3/final/holdout/V3-008.json",
+   "sha256": "b532a33f65f96329169a599e4483190a26ab90a8f6b57e037b593c278a48dcf8",
+   "template_id": "V3-fanpage-roi-hotline-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-009",
+   "file": "datagen/out_v3/final/holdout/V3-009.json",
+   "sha256": "3b552500fbde27b8163de0f3d03258347228bc381e91e2208ca52c86458bae1d",
+   "template_id": "V3-fanpage-roi-hotline-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-019",
+   "file": "datagen/out_v3/final/holdout/V3-019.json",
+   "sha256": "83602780e8c4366626ee6ab0c91ce5a95813a76d701b0af129c6724eb7fa0b72",
+   "template_id": "V3-km-giu-gia-holdout",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-020",
+   "file": "datagen/out_v3/final/holdout/V3-020.json",
+   "sha256": "f11456d621e1c671d779a0802e771784996f4feddeb9c60d5cee8a3809e442a5",
+   "template_id": "V3-km-giu-gia-holdout",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-021",
+   "file": "datagen/out_v3/final/holdout/V3-021.json",
+   "sha256": "b9b0cfbe9123337158c006025fbd9b344532b9ae96d3d8212ffb48c53c801bf4",
+   "template_id": "V3-km-giu-gia-holdout",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-022",
+   "file": "datagen/out_v3/final/holdout/V3-022.json",
+   "sha256": "57813108e825d46b0c27e325afa8326379b4504503909e5a35178565fa80803f",
+   "template_id": "V3-km-giu-gia-holdout",
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-023",
+   "file": "datagen/out_v3/final/holdout/V3-023.json",
+   "sha256": "ff54fc206a5e2e59c677582b2a08ab21c52f83e008e4482cc8db5faa0e4cb30d",
+   "template_id": "V3-don-cu-chinh-sach-cu-holdout",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-024",
+   "file": "datagen/out_v3/final/holdout/V3-024.json",
+   "sha256": "8da96f85cb42d1ceae5649a41a4bf09be66d3e8e987d5c304fb7f2b547d32473",
+   "template_id": "V3-don-cu-chinh-sach-cu-holdout",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-025",
+   "file": "datagen/out_v3/final/holdout/V3-025.json",
+   "sha256": "db8f24f435ee1d6f4286767b7deeb24884cd881cdbcae327ce93ebc65c67b886",
+   "template_id": "V3-don-cu-chinh-sach-cu-holdout",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-026",
+   "file": "datagen/out_v3/final/holdout/V3-026.json",
+   "sha256": "a27f37ba5a7f8b64354a6ce9244179e614842fe7b2a17de92e6d097782e1730f",
+   "template_id": "V3-don-cu-chinh-sach-cu-holdout",
+   "hard_case": "phien_ban_chinh_sach_cu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-027",
+   "file": "datagen/out_v3/final/holdout/V3-027.json",
+   "sha256": "a514713a00adaafa3a0eb80c3dfaf971cc2e12cc393c84de5516a2229f7b435b",
+   "template_id": "V3-het-hang-doi-mau-holdout",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-028",
+   "file": "datagen/out_v3/final/holdout/V3-028.json",
+   "sha256": "9958ac22bb1eeed876904961b2f35cb321b217f01ea298dcb9d4c91267f6aada",
+   "template_id": "V3-het-hang-doi-mau-holdout",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-029",
+   "file": "datagen/out_v3/final/holdout/V3-029.json",
+   "sha256": "3afaf207c463901037793277ab4bd824ba925279b6a11a0af3fc876f079b9250",
+   "template_id": "V3-het-hang-doi-mau-holdout",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-030",
+   "file": "datagen/out_v3/final/holdout/V3-030.json",
+   "sha256": "349291dee941ffadaf54a6103d454d803f7f0cb9baf075ebcf98381dd7512654",
+   "template_id": "V3-het-hang-doi-mau-holdout",
+   "hard_case": "het_hang_luc_khach_quyet"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-031",
+   "file": "datagen/out_v3/final/holdout/V3-031.json",
+   "sha256": "2c5691a4ebe4de7239e24a5f000251b175182ffe4a7452173b5798e12ada94d3",
+   "template_id": "V3-doi-sang-size-43-holdout",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-032",
+   "file": "datagen/out_v3/final/holdout/V3-032.json",
+   "sha256": "c6dc153d22ef3297114fda15ec6f7ce10a06591f1a01580cf09f5b4af54a95bd",
+   "template_id": "V3-doi-sang-size-43-holdout",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-033",
+   "file": "datagen/out_v3/final/holdout/V3-033.json",
+   "sha256": "7dc37fd7ebeff7c573727964508023bfeef4c35c233d58f5027f158245aef173",
+   "template_id": "V3-doi-sang-size-43-holdout",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-034",
+   "file": "datagen/out_v3/final/holdout/V3-034.json",
+   "sha256": "b57e5422c8b8c9d03c835b7f7b1963cb7c3febbab19b27cad69bb2b5f80f41e3",
+   "template_id": "V3-doi-sang-size-43-holdout",
+   "hard_case": "km_loai_tru_size"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-035",
+   "file": "datagen/out_v3/final/holdout/V3-035.json",
+   "sha256": "73781dbafb72a7cb38c51e6c3bc923c4c0a01d92c00e46bcfb5decc497e138d3",
+   "template_id": "V3-quay-lai-zalo-noi-chien-holdout",
+   "hard_case": "quay_lai_sau_8_thang"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-036",
+   "file": "datagen/out_v3/final/holdout/V3-036.json",
+   "sha256": "d85c0b13ecfb75773013b43c290abb8dfb79ad37575079d7e11393d9bb0ad008",
+   "template_id": "V3-quay-lai-zalo-noi-chien-holdout",
+   "hard_case": "quay_lai_sau_8_thang"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-037",
+   "file": "datagen/out_v3/final/holdout/V3-037.json",
+   "sha256": "e9a91e51c57a42cc6f7b639e103752e652c7bdac801957bc9ff17cae7a1395f9",
+   "template_id": "V3-chung-sdt-dao-thu-tu-holdout",
+   "hard_case": "chung_sdt_memory_poisoning"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-038",
+   "file": "datagen/out_v3/final/holdout/V3-038.json",
+   "sha256": "ae2210e01dec50977e1fb0938c9e29a14c3ac025c667e55c5960110f42642dfb",
+   "template_id": "V3-chung-sdt-dao-thu-tu-holdout",
+   "hard_case": "chung_sdt_memory_poisoning"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-039",
+   "file": "datagen/out_v3/final/holdout/V3-039.json",
+   "sha256": "68a68a1beb7217606500d3ed912eaad767568d2e7e872c9d32a5da5c1cd61f2e",
+   "template_id": "V3-pii-doc-cach-quang-holdout",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-040",
+   "file": "datagen/out_v3/final/holdout/V3-040.json",
+   "sha256": "6f0cc229ed2a6ed87bd464bed9c2fbc98a3fd817295776d3d81b5d974119c39c",
+   "template_id": "V3-pii-doc-cach-quang-holdout",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-041",
+   "file": "datagen/out_v3/final/holdout/V3-041.json",
+   "sha256": "56bf7d855b90f6d4e5a55aa67daab98dc4326dd8bdefbe175784356d3dbc44d4",
+   "template_id": "V3-pii-doc-cach-quang-holdout",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-042",
+   "file": "datagen/out_v3/final/holdout/V3-042.json",
+   "sha256": "07b6d9de4f123f2dc97b1ab6d820658b9f784e0dd1fe801c9291cc32db33f851",
+   "template_id": "V3-pii-doc-cach-quang-holdout",
+   "hard_case": "pii_cccd_stk"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-043",
+   "file": "datagen/out_v3/final/holdout/V3-043.json",
+   "sha256": "30603e1100b16d713facf27a8d344b26bee7c3aad0f99971ddfc5bf1181ba967",
+   "template_id": "V3-dai-ly-xin-gia-nhap-holdout",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-044",
+   "file": "datagen/out_v3/final/holdout/V3-044.json",
+   "sha256": "e3ef0a34782146064799f1a141ae930cf2f677688260367c59b8ffae5472fab9",
+   "template_id": "V3-dai-ly-xin-gia-nhap-holdout",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-045",
+   "file": "datagen/out_v3/final/holdout/V3-045.json",
+   "sha256": "197c6eed71af943937ff9bb32225554fe34ad4ff4f09bba272083a79dc5914a4",
+   "template_id": "V3-dai-ly-xin-gia-nhap-holdout",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-046",
+   "file": "datagen/out_v3/final/holdout/V3-046.json",
+   "sha256": "61f234097ec69c0f85ce5adc16c3c5c1f539e5f265f4c33c131617e37d25a26f",
+   "template_id": "V3-dai-ly-xin-gia-nhap-holdout",
+   "hard_case": "ep_gia_do_gia_nhap"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-047",
+   "file": "datagen/out_v3/final/holdout/V3-047.json",
+   "sha256": "7e37b2e6846af144bb32f1f4003caa960c42cdd8b7dfc1d1a6921465a609083a",
+   "template_id": "V3-doi-thu-xach-tay-holdout",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-048",
+   "file": "datagen/out_v3/final/holdout/V3-048.json",
+   "sha256": "458d448870ee9aa0141a20e747b630afc8148f8ae169d6e7d52d78aae6005374",
+   "template_id": "V3-doi-thu-xach-tay-holdout",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-049",
+   "file": "datagen/out_v3/final/holdout/V3-049.json",
+   "sha256": "ae769cc5223a9383a39a1773281e7a4fb7ae78507a29d73455efc0dd399c3a34",
+   "template_id": "V3-doi-thu-xach-tay-holdout",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-050",
+   "file": "datagen/out_v3/final/holdout/V3-050.json",
+   "sha256": "63b00183efa0e9316c8484be6db50850d304ed093acb26abb1b8c42d87906916",
+   "template_id": "V3-doi-thu-xach-tay-holdout",
+   "hard_case": "binh_luan_gia_doi_thu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-051",
+   "file": "datagen/out_v3/final/holdout/V3-051.json",
+   "sha256": "2021c28d53506efb9ad623334d82c0fe781f235a254c98e95253893ef5535129",
+   "template_id": "V3-hen-thu-hai-tuan-sau-holdout",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-052",
+   "file": "datagen/out_v3/final/holdout/V3-052.json",
+   "sha256": "94c41f3b54327f8cd1e6fe544ab018326556c030866a819e67a94d66e85c0d87",
+   "template_id": "V3-hen-thu-hai-tuan-sau-holdout",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-053",
+   "file": "datagen/out_v3/final/holdout/V3-053.json",
+   "sha256": "a8c654e56abf6928ec3746d1f492c41ff4294c219fbab29a8b531ffc1bb0576e",
+   "template_id": "V3-hen-thu-hai-tuan-sau-holdout",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-054",
+   "file": "datagen/out_v3/final/holdout/V3-054.json",
+   "sha256": "c1f5b9cb2394df2d69058a4709a71783fa0fa5d2ece77ffe740007496554f84b",
+   "template_id": "V3-hen-thu-hai-tuan-sau-holdout",
+   "hard_case": "hen_goi_lai_ngay_nghi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-055",
+   "file": "datagen/out_v3/final/holdout/V3-055.json",
+   "sha256": "871917ff59d79b73703479be81bd497d358c01bce15db51c085ed4a5e11c6035",
+   "template_id": "V3-bon-mon-nha-moi-holdout",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-056",
+   "file": "datagen/out_v3/final/holdout/V3-056.json",
+   "sha256": "14b4d42463bcdbda90cdbf1dc63bb0312390557ce8618d058f230247a64d112f",
+   "template_id": "V3-bon-mon-nha-moi-holdout",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-057",
+   "file": "datagen/out_v3/final/holdout/V3-057.json",
+   "sha256": "780c27004da7fe1f73562168f8cfc52269d8cf7f14c936dc9da97ea054299c58",
+   "template_id": "V3-bon-mon-nha-moi-holdout",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-058",
+   "file": "datagen/out_v3/final/holdout/V3-058.json",
+   "sha256": "718e2615e687127ae014da9ca55c78ec354d087a0ecd93c598b1f630036fd555",
+   "template_id": "V3-bon-mon-nha-moi-holdout",
+   "hard_case": "nhieu_mon_vuot_cod_ngan_sach"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-059",
+   "file": "datagen/out_v3/final/holdout/V3-059.json",
+   "sha256": "4ea58410dbf6cdbaa4ccde1bbc351fb27c2368f38bcace04d2789366eee8c367",
+   "template_id": "V3-ba-phien-doi-dia-chi-don-holdout",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-060",
+   "file": "datagen/out_v3/final/holdout/V3-060.json",
+   "sha256": "363c6cd4acc7ed8c99d1ab7c9d0c1cc248c4849487099f6fbfc81b9686072a72",
+   "template_id": "V3-ba-phien-doi-dia-chi-don-holdout",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-061",
+   "file": "datagen/out_v3/final/holdout/V3-061.json",
+   "sha256": "cf36c4d08a533ed4915a6594814324f4b2f7e99b8cab5ff8db92a9e20d98d8f6",
+   "template_id": "V3-ba-phien-doi-dia-chi-don-holdout",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-062",
+   "file": "datagen/out_v3/final/holdout/V3-062.json",
+   "sha256": "06e910b664f6c6fb7204b5d2001cd8aad441e67c1f0c51add5b909d5ae6fb6b4",
+   "template_id": "V3-ba-phien-doi-dia-chi-don-holdout",
+   "hard_case": "3_phien_thong_tin_thay_doi"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-063",
+   "file": "datagen/out_v3/final/holdout/V3-063.json",
+   "sha256": "08355ba1c0fc18b6854de31196fcccc40ef10930ebc361d22877e363f7cad9e0",
+   "template_id": "V3-xoa-du-lieu-giua-chung-holdout",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-064",
+   "file": "datagen/out_v3/final/holdout/V3-064.json",
+   "sha256": "783f42b06975d3ad8a97ad9b7da8d501aadb29e022e2d55135b98c8f474db3ca",
+   "template_id": "V3-xoa-du-lieu-giua-chung-holdout",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-065",
+   "file": "datagen/out_v3/final/holdout/V3-065.json",
+   "sha256": "7a40b58f3c5da35270c5769490a6dc39c8bbf2fca7c4103fe9788625d96597cf",
+   "template_id": "V3-xoa-du-lieu-giua-chung-holdout",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-066",
+   "file": "datagen/out_v3/final/holdout/V3-066.json",
+   "sha256": "80dc00c3be39ee9333efc6dff405ec388dff0a4ed98a57af985c806e9e287f2b",
+   "template_id": "V3-xoa-du-lieu-giua-chung-holdout",
+   "hard_case": "hoi_ai_hay_nguoi_xoa_du_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-067",
+   "file": "datagen/out_v3/final/holdout/V3-067.json",
+   "sha256": "de4137978f95063535d3b8529b0428d8a7a660f0153250d41ead4dd4e4fd4bf1",
+   "template_id": "V3-doi-giay-re-hon-holdout",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-068",
+   "file": "datagen/out_v3/final/holdout/V3-068.json",
+   "sha256": "a844f5d06da57267e1edcca9c8541fc0ed37d57c9b5390ce436f3c0997dbf2fc",
+   "template_id": "V3-doi-giay-re-hon-holdout",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-069",
+   "file": "datagen/out_v3/final/holdout/V3-069.json",
+   "sha256": "aa424a32a618e88faab6e1e4d83c6c6b9c8623fbfc9d5200753d2ea128f3cbf1",
+   "template_id": "V3-doi-giay-re-hon-holdout",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-070",
+   "file": "datagen/out_v3/final/holdout/V3-070.json",
+   "sha256": "0900ce3eb36ebf14ac11043afc210552ac4110cf95d421b59bfb7ac1c57f1b07",
+   "template_id": "V3-doi-giay-re-hon-holdout",
+   "hard_case": "doi_san_pham_hoan_chenh_lech"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-071",
+   "file": "datagen/out_v3/final/holdout/V3-071.json",
+   "sha256": "1ff84951904213651ead4b82cdb37d5b0f61de94c451a0552290fdec4821af2a",
+   "template_id": "V3-ngoai-tai-lieu-dich-vu-holdout",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-072",
+   "file": "datagen/out_v3/final/holdout/V3-072.json",
+   "sha256": "007b4585afb1255556ebf5da9bb4326fb4b72afc5d2c94d2d616af676de3de6c",
+   "template_id": "V3-ngoai-tai-lieu-dich-vu-holdout",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-073",
+   "file": "datagen/out_v3/final/holdout/V3-073.json",
+   "sha256": "ef40a2c73d7d7ab5fed1b06712c9aff83c2a2ded45a1bc9696c724adf2bba6bd",
+   "template_id": "V3-ngoai-tai-lieu-dich-vu-holdout",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-074",
+   "file": "datagen/out_v3/final/holdout/V3-074.json",
+   "sha256": "3307748b0c133fc06f4213ba18c498b47f9658dbce4efe5d118ece820f0d8c6e",
+   "template_id": "V3-ngoai-tai-lieu-dich-vu-holdout",
+   "hard_case": "ngoai_tai_lieu"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-075",
+   "file": "datagen/out_v3/final/holdout/V3-075.json",
+   "sha256": "140b03fd833a2d381b0c602ce78f5ea5eed7a61fe0720d2252e05a3e2b7b613e",
+   "template_id": "V3-y-te-loc-khi-loc-nuoc-holdout",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-076",
+   "file": "datagen/out_v3/final/holdout/V3-076.json",
+   "sha256": "5d483a1e5e1a53508ddd9660f382af5ccf970dd46a7bd85d39280048faeb4e5c",
+   "template_id": "V3-y-te-loc-khi-loc-nuoc-holdout",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-077",
+   "file": "datagen/out_v3/final/holdout/V3-077.json",
+   "sha256": "cbdff7f68686b3bdd4f9e95fc9b173323cc6b0ee16c8eee9a625788bac5c20b3",
+   "template_id": "V3-y-te-loc-khi-loc-nuoc-holdout",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-078",
+   "file": "datagen/out_v3/final/holdout/V3-078.json",
+   "sha256": "0f0bd3d4af9f536c707ac9e978aac299db7a89f08083e9f26275c58261805dcb",
+   "template_id": "V3-y-te-loc-khi-loc-nuoc-holdout",
+   "hard_case": "ngoai_pham_vi_y_te"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-079",
+   "file": "datagen/out_v3/final/holdout/V3-079.json",
+   "sha256": "3d9d17cae2b34e8359d7f47ed1bbdff661778811b6a34346e5bbe070ff74326a",
+   "template_id": "V3-lan-ba-thoi-trang-holdout",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-080",
+   "file": "datagen/out_v3/final/holdout/V3-080.json",
+   "sha256": "c9a5a02913cb92138a03539d2728d1a2bf26c2ac31ff46b8f0e0cd6f85605f5b",
+   "template_id": "V3-lan-ba-thoi-trang-holdout",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-081",
+   "file": "datagen/out_v3/final/holdout/V3-081.json",
+   "sha256": "30f1801156e6c7af3d7a247a9c9a075d43bc1c6672ffa924a389d486a030ee41",
+   "template_id": "V3-lan-ba-thoi-trang-holdout",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-082",
+   "file": "datagen/out_v3/final/holdout/V3-082.json",
+   "sha256": "5c46f268bb4050a20deda7dc9995f7a2fd8476f0c008805a4501b05c9d5efba3",
+   "template_id": "V3-lan-ba-thoi-trang-holdout",
+   "hard_case": "goi_lan_3_het_kien_nhan"
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-083",
+   "file": "datagen/out_v3/final/holdout/V3-083.json",
+   "sha256": "35708ebe1ce3d8d061e65a544ec1e909033ce28252d496951ba40a77c174eeea",
+   "template_id": "V3-doi-size-mien-phi-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-084",
+   "file": "datagen/out_v3/final/holdout/V3-084.json",
+   "sha256": "738f6991451fb9bf874a0ec39e846b68711c8c0d113ad2ca3c894f5f1da01d2c",
+   "template_id": "V3-doi-size-mien-phi-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-085",
+   "file": "datagen/out_v3/final/holdout/V3-085.json",
+   "sha256": "ccde2335907a5f31965dc0e0484a5c0835dea207c8e207296d73c0ae17c13957",
+   "template_id": "V3-doi-size-mien-phi-holdout",
+   "hard_case": null
+  },
+  {
+   "dataset_id": "v3",
+   "version": "v1",
+   "part": "holdout",
+   "scenario_id": "V3-086",
+   "file": "datagen/out_v3/final/holdout/V3-086.json",
+   "sha256": "b6e29ab3fce2eb32fe7b6fbe67e7b864f2ea4bb2be6c52ec0ad4dc7527475853",
+   "template_id": "V3-doi-size-mien-phi-holdout",
+   "hard_case": null
+  }
+ ]
+}

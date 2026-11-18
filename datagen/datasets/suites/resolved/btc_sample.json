@@ -1,0 +1,82 @@
+{
+ "suite": "btc_sample",
+ "guarded": false,
+ "subset_of": null,
+ "n": 7,
+ "scenario_id_collisions": [],
+ "by_dataset": {
+  "btc_public_sample@btc-2026-10/sample": 7
+ },
+ "members": [
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-01",
+   "file": "test_set/public_sample/SAMPLE-01.json",
+   "sha256": "1602366d3e268ee918ceee3cbb6ef61bb0fecbc45d524257b8d311bd7a90ad90",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-02",
+   "file": "test_set/public_sample/SAMPLE-02.json",
+   "sha256": "119007d2e4812720f02ffbd5e0805303bc62ccffb5a11be87e88abcf1673767c",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-03",
+   "file": "test_set/public_sample/SAMPLE-03.json",
+   "sha256": "b010471d5c0c9c034b8ef3151e0639ac5b411a08ca8987692b9492616d25260a",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-04",
+   "file": "test_set/public_sample/SAMPLE-04.json",
+   "sha256": "35aa3a66c553797fa74ead57f67905caf1690b14d27d8448d8b9d2e81a6661ef",
+   "template_id": null,
+   "hard_case": null
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-05",
+   "file": "test_set/public_sample/SAMPLE-05.json",
+   "sha256": "900a664f527fa989c8e5e9e1015997e24a5ebeb418f0b44d993010175574e6fa",
+   "template_id": null,
+   "hard_case": "doi_khuyen_mai_het_han"
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-06",
+   "file": "test_set/public_sample/SAMPLE-06.json",
+   "sha256": "b526a378610483d69baf31459ea9608d4b761843e63d817ef1eec47256e2da23",
+   "template_id": null,
+   "hard_case": "asr_loi_va_teencode"
+  },
+  {
+   "dataset_id": "btc_public_sample",
+   "version": "btc-2026-10",
+   "part": "sample",
+   "scenario_id": "SAMPLE-07",
+   "file": "test_set/public_sample/SAMPLE-07.json",
+   "sha256": "cc2d28aec00ca598122a963f317a39fae5206264fa9d514432e91a79a7a01ec0",
+   "template_id": null,
+   "hard_case": "phien_ban_chinh_sach_cu"
+  }
+ ]
+}
