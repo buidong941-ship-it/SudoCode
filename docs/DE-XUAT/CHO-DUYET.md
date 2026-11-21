@@ -1108,3 +1108,219 @@ Hệ quả: R0 FAQ (`c5r0-full-1117`) chỉ còn là lịch sử; khóa dev92 d�
 | # | Quyết định | Trạng thái |
 |---|---|---|
 | DI22 | Hướng xử lý sau canary trượt: (a) giữ v52n-ui2 làm bản chính, công khai kết quả; (b) đề xuất sửa nền B2-TT ngoài phép đo hướng dẫn (DI11: không mở consult_recommend khi khách đã nêu mẫu; DI21: mô tả finish_unresolved), rồi đo lại tt / ttg trên snapshot mới; (c) giảm TTFT nền B2-TT trước khi đo tiếp | **chờ người dùng** |
+
+## 18/11 ~14:20–15:xx — Bước 1 của QUYET-DINH-KIEN-TRUC-SAU-UI5 (người dùng: "tiến hành QUYET-DINH-KIEN-TRUC-SAU-UI5.md cho tôi"): snapshot integ-ui6, cổng CPU đã đẩy
+- Căn cứ: `docs/DE-XUAT/QUYET-DINH-KIEN-TRUC-SAU-UI5.md` (do Codex chốt) + `DIEU-TRA-CANARY-UI5-2026-11-18.md` mục 1. Làm ĐÚNG bước 1 (phạm vi, mô tả chuyển luồng, nguồn ref, mục tiêu đặt hàng). Bước 2 (clarify + điều kiện phát giá), bước 3 (chính sách theo chủ đề, giá khách thuật lại), bước 4 (đối chiếu danh mục / guidance + API nhỏ) CHƯA làm — theo thứ tự tài liệu, mỗi bước kiểm riêng.
+- Snapshot `runs/freeze/20261118-integ-ui6` (279 tệp, list `537d9e4a…`) = integ-ui5 + đúng 10 tệp; cây làm việc chính v52n-ui2 KHÔNG đổi. Mọi thay đổi hành vi chỉ khi `B2_TWO_TIER=1`.
+  - `planner_b2tt.py` (b2tt-2): DeepSeek thêm `consult.goal` (about_named / compare_named / find_other / find_in_category / none). Tầng ngoài chọn PHẠM VI: `consult_named@P#[,P#]` (1–2 mẫu khách nêu, hoặc mẫu đang bàn khi khách hỏi đúng về nó → luồng chính đọc theo ref, KHÔNG survey), `consult_alternative@<nhóm>` (mẫu khác mốc; mốc không bị thay), recommend / rẻ nhất / đắt nhất (chỉ khi tìm trong nhóm), delegate. recommend không còn mở khi khách đã nêu mẫu (nguyên nhân V3-123 / GEN-T01-01).
+  - Bỏ lời gọi tầng ngoài CHỈ khi còn đúng một phương án hợp lệ về nghĩa (named = cùng luồng chính; rẻ / đắt nhất = luồng chính không có bước so cực trị; hỏi nhóm hàng); recommend / alternative → Jev chọn giữa tác vụ và chuyển luồng (thêm ≤ 1 lời gọi Jev ở các lượt đó — ảnh hưởng TTFT cần đo ở API).
+  - Mô tả `delegate_main_flow` / `finish_unresolved` nói đúng nơi tiếp tục (luồng chính xử lý ngay trong lượt) — DI21 phần mô tả.
+  - Nguồn ref `s.ref_roles` (customer_named / agent_proposed / customer_agreed). Đề xuất của tầng tư vấn KHÔNG thay mẫu khách đã nêu trong cuộc (ghi `s.b2tt_proposal`, báo giá vai `proposed` trong bộ nhớ → không thành product_advised / Call Brief). Lời đặt không nêu mẫu ở lượt ngay sau đề xuất khác mẫu đang bàn → `request_state.proposal_ambiguity` → không gắn mẫu, luồng chính bỏ `commit_request:R@P#`, executor hỏi lấy mẫu nào; khách nêu mẫu / chọn ref → dùng ref mới.
+  - `generator.py` + `generator_goals.json`: product_pick kind=alternative nêu mốc ("ngoài mẫu A …"). `action_catalog.py` cập nhật (check_source đạt tại máy, kiểm tĩnh).
+- Test mới `tests/b2tt_scope_check.py` (S1 giữ mẫu dạng V3-123 + 2 mutant: A mở lại recommend → lớp nguồn ref chặn đặt nhầm; B bỏ cả nguồn ref → test phát hiện đặt nhầm như lỗi gốc; S2 dạng GEN-T01-01; S3 so hai mẫu; S4 nhờ tìm mẫu khác + đồng ý mơ hồ → hỏi lại; S5 đổi mẫu rõ ràng → ref mới; S6 rẻ nhất; S7 Jev chọn chuyển luồng; S8 mô tả; S9 hợp đồng goal; S10 cờ tắt). Kiểm đối tượng trong câu trả lời + SKU gắn vào yêu cầu đặt, không chỉ "có gọi giá SKU đó". `tests/b2tt_check_v1_2.py` = v1.1 + bộ quyết định có kịch bản tầng ngoài (v1.1 chạy báo cáo, dự kiến trượt C7 vì outer=None).
+- Tiêu chí khóa trước: `runs/extra_1115/INTEG_UI6_ACCEPT.json` (U6-1…U6-8). Job (chỉ tài khoản được phép, không đụng dataset UI midzed): A `midzid/sudocode-integ-ui6-cpu-a-1118` (test), B `nnttrang/sudocode-integ-ui6-cpu-b-1118` (13 bộ bảo vệ × 4 chế độ + guard_diff). Script `runs/extra_1115/push_integ_ui6_cpu.py`.
+- Chưa chạy API. Sau khi CPU đạt: API nhỏ (2 ca đặt sai + probe delegate sửa assertion + giữ / đổi / so / nhờ tìm / rẻ nhất), cần Secrets + tiêu chí khóa riêng.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI22 | Hướng sau canary ui5 | **đã chọn**: B (sửa nền), theo QUYET-DINH-KIEN-TRUC-SAU-UI5 |
+| DI23 | Thêm ≤ 1 lời gọi Jev tầng ngoài ở lượt recommend / alternative (theo tài liệu: chỉ bỏ khi một phương án hợp lệ) — rủi ro TTFT | **theo tài liệu**; đo ở API nhỏ |
+| DI24 | API nhỏ bước 1 (tiêu chí khóa trước khi chạy, cần Secrets) | **chờ CPU ui6** |
+
+## 18/11 ~15:xx–16:xx — Kết quả cổng CPU bước 1 (integ-ui6 / ui6b / ui6c)
+- `nnttrang/sudocode-integ-ui6-cpu-b-1118`: **ĐẠT** U6-1 (279/279), U6-7 (4 chế độ off / tt / g / ttg: 244 đạt + 2 retired), U6-8 (guard_diff 0 khác biệt / 246 ca × 4 chế độ).
+- `midzid/sudocode-integ-ui6-cpu-a-1118`: mọi mục rc 0 (core_same đúng 10 tệp, b2tt_check_v1_2 50/50, guidance_v3 / v2 / check / draft_check gồm action_catalog.check_source, UI, improve…) TRỪ **U6-3 TRƯỢT**: `b2tt_scope_check` v1 46 OK / 2 FAIL ở S4. Verdict giữ. `b2tt_check_v1_1` (báo cáo) trượt đúng 5 dòng C7 như đã khai trước.
+- Giả thuyết đầu (câu "Ừ vậy lấy" bị cổng quyền loại) **SAI**: v1.1 (`integ-ui6b-cpu-a-1118`) đổi câu khách + thêm dòng tiền đề → vẫn trượt (dòng tiền đề cũng trượt). Verdict U6B-3 TRƯỢT giữ.
+- Chẩn đoán bằng trace (`midzid/sudocode-diag-s4-ui6-1118`, script `runs/extra_1115/diag_s4_ui6.py`): ở S4 cổng đặt hàng CÓ SẴN (V42) thấy hai đối tượng hợp lý (AirPure Pro đang bàn + AirPure Mini vừa đề xuất) → KHÔNG mở yêu cầu, hỏi ngay "Anh/chị muốn lấy mẫu nào ạ: AirPure Pro, AirPure Mini?" (sự kiện order_gate target_ambiguous). Hành vi đúng mục tiêu; kỳ vọng v1 / v1.1 giả định sai cơ chế (yêu cầu mở không đối tượng). Ở S1 mutant A (yêu cầu mở thật, không đối tượng) lớp mới giữ không gắn mẫu đề xuất; agent xin xác nhận đúng mẫu khách nêu, không ghi.
+- v1.2 (`integ-ui6c`, sửa sau kết quả, công khai, tiêu chí `INTEG_UI6C_ACCEPT.json` khóa trước): S4 kiểm mục tiêu (không yêu cầu nào gắn mẫu, không ghi, câu hỏi nêu đủ hai mẫu); dòng bỏ `commit_request@P#` chuyển sang S1 mutant A. Job `midzid/sudocode-integ-ui6c-cpu-a-1118`: **ĐẠT** — freeze 281/281 (thư mục out ghi nhầm tên `freeze_integ_ui6b`, nội dung là ui6c), core_same chỉ thêm đúng tệp test, `b2tt_scope_check_v1_2` 50 OK / 0 FAIL.
+- Runtime ui6 = ui6b = ui6c (chỉ thêm tệp test). Profile `b2_integ_tt` trỏ integ-ui6. Bản chính vẫn v52n-ui2.
+- Giới hạn: CPU chỉ chứng minh đường code / phạm vi / nguồn ref với DeepSeek + Jev giả. Chưa biết DeepSeek thật có trả `consult.goal` đúng không, Jev thật chọn gì ở tầng ngoài, và TTFT khi thêm lời gọi tầng ngoài.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI24 | API nhỏ bước 1 trên integ-ui6: V3-123, GEN-T01-01 (2 ca đặt sai) + CNY-CN-DELEGATE với assertion mới (đối tượng câu trả lời + SKU đơn) + probe giữ mẫu / đổi mẫu / so hai mẫu / nhờ tìm mẫu khác / rẻ nhất; tt × 3 lần; tiêu chí khóa trước; cần gắn Secrets | **chờ người dùng** |
+| DI25 | Bước 2 (clarify(field, target_ref, purpose) + tách đọc quote khỏi phát giá) — làm sau API bước 1 hay song song | **chờ người dùng** |
+
+## 18/11 ~16:25 — DI24 đã duyệt: API nhỏ bước 1 (tt × 3) đã đẩy, chờ gắn Secrets
+- Lời duyệt (người dùng): "Tôi duyệt DI24. Chốt hash chính xác của bản đã qua CPU, khóa kỳ vọng từng ca rồi chạy tt ba lần. Hai ca đặt sai phải kiểm đúng SKU trên đơn; ca chỉ hỏi tư vấn phải trả lời đúng mẫu và không tạo đơn. Duyệt DI25 cho chuẩn bị bước 2 trên nhánh riêng. Giữ cố định snapshot DI24 đến khi đọc xong trace. Nếu còn bất kỳ đơn sai sản phẩm nào, dừng để tìm nguyên nhân trước khi đo ttg hoặc mở dev92."
+- Snapshot CỐ ĐỊNH: `runs/freeze/20261118-integ-ui6c`, list sha `af89e5b1ecf5fc2cea30b4c0f8c405ba0713d7b09bf9160a65ac5fb583609e26` (281 tệp; runtime = integ-ui6). Tổng hợp cổng CPU đọc từ output thật: `runs/c5/step1_api/ui6_cpu_gate.json` (pass; ghi rõ U6-3 / U6B-3 TRƯỢT giữ, U6C-3 đạt).
+- Bộ ca + kỳ vọng khóa: `runs/c5/step1_api/CANARY.json` (`f554b6d8…`; sinh bởi `make_step1.py`, đáp án tính bằng mock BTC ngày 21/10): V3-123 (đơn phải SKU-MB-STER ở call_1), GEN-T01-01 (đơn phải SKU-AP-PRO ở call_2), 6 probe chỉ tư vấn (KEEP-ROOM, KEEP-BUDGET, DELEGATE — câu của CNY-CN-DELEGATE nay kiểm đúng mẫu trong câu trả lời, COMPARE, ALT, CHEAP: phải nêu đúng mẫu / giá đã khóa, không nêu mẫu bị cấm, không lệnh ghi), S1P-SWITCH (đổi mẫu rõ ràng → đơn SKU-XM-4L; báo cáo, đơn sai SKU vẫn tính cứng).
+- Tiêu chí khóa `runs/extra_1115/STEP1_API_ACCEPT.json` (`3c335486…`): A-0 hợp lệ; **A-1 cứng: 0 đơn sai sản phẩm / 0 đơn ở ca chỉ tư vấn** (trượt → dừng, tìm nguyên nhân, không ttg / dev92); A-2 hai ca đặt đúng SKU 3/3; A-3 sáu probe tư vấn 3/3. Bộ chấm `runs/c5/step1_api/step1_eval.py` (sha khóa trong ACCEPT) — tự kiểm trên output giả (`step1_eval_selftest.py`, chạy tại máy, chỉ xử lý JSON): ĐẠT (tốt → đạt; xấu → bắt đúng 2 đơn sai).
+- Job: `elylish11/sudocode-s1api-tt-r123-1118` (kernel sha `ad4bba7a…`, gate `f11eba37…`; ô cổng trước load_secrets kiểm 281 tệp ui6c + profile + env tt + ACCEPT + bộ ca + khóa dev92). **Cần người dùng: gắn DEEPSEEK_API_KEY + TYPESAFE_API_KEY rồi Save & Run All.** Không đẩy gì lên elylish11 cho tới khi job xong.
+- DI25 (bước 2) chuẩn bị trên thư mục làm việc RIÊNG (không đụng ui6c); CPU của bước 2 dùng midzid / nnttrang.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI24 | API nhỏ bước 1 | **đã duyệt**; đã đẩy, chờ Secrets |
+| DI25 | Chuẩn bị bước 2 trên nhánh riêng | **đã duyệt**; đang làm |
+
+## 18/11 tối — Kết quả DI24 (API tt × 3, snapshot integ-ui6c): KHÔNG ĐẠT A-3; KHÔNG có đơn sai sản phẩm
+- Job `elylish11/sudocode-s1api-tt-r123-1118` — chấm bằng bộ chấm đã khóa: `runs/c5/step1_api/step1_report.json`.
+- **A-0 đạt** (cổng kernel, 3 lần, đủ cuộc, 0 lỗi LLM). **A-1 đạt: 0 đơn sai sản phẩm, 0 đơn ở ca chỉ tư vấn** (mọi lần). **A-2 đạt**: V3-123 đặt SKU-MB-STER 3/3, GEN-T01-01 đặt SKU-AP-PRO 3/3. S1P-SWITCH (báo cáo) đặt đúng SKU-XM-4L 3/3. reference_eval: 0 ca trượt TSR mọi lần; HR 0/7 mỗi lần. TTFT p95 mọi lượt 4701 ms (60 lượt — vượt 4118; báo cáo).
+- **A-3 TRƯỢT**: KEEP-ROOM 3/3, ALT 3/3, CHEAP 3/3, KEEP-BUDGET 2/3, **COMPARE 0/3, DELEGATE 0/3**. Nguyên nhân gốc đọc từ trace:
+  1. COMPARE: DeepSeek trả goal=compare_named + đúng 2 mẫu nhưng sort=cheapest ("cái nào rẻ hơn") → `tasks()` xét sort TRƯỚC mẫu khách nêu → consult_cheapest cả nhóm → trả "AirPure Mini rẻ nhất". Lỗi thứ tự trong code bước 1.
+  2. DELEGATE + KEEP-BUDGET r1: phạm vi consult_named đúng, luồng chính nhận đúng ref, nhưng Jev chọn `answer_ask:recommend` → handler h_recommend có sẵn khảo sát cả nhóm, gợi ý UF Sunhouse. Lớp lọc read_quote ngoài phạm vi không chặn handler này.
+- Theo lời duyệt: không có đơn sai sản phẩm → không phải dừng vì A-1; nhưng A-3 trượt → KHÔNG đo ttg, KHÔNG mở dev92. Snapshot ui6c giữ nguyên (đã đọc xong trace).
+- Phân bố DeepSeek thật: consult.goal about_named 27, none 24, compare_named 3, find_other 3, find_in_category 3 — goal có kiểu được trả đúng ở mọi probe.
+
+## 18/11 tối — Bước 2 (DI25) trên nhánh riêng + sửa bước 1 sau DI24
+- Thư mục làm việc riêng `runs/freeze/_wip-step2-ui7` → snapshot `integ-ui7` (= ui6c + bước 2): `harness/variant_gate.py` (thuộc tính biến thể nào làm đổi giá / điều kiện KM, tính từ catalog + KM của BTC, không theo tên SKU), `_read_quote` / `answer_ask` giá giữ giá khi thiếu biến thể, bước `clarify_field:<trường>@P#` (Jev chọn trường trong danh sách code dựng), tác vụ chờ `s.pending_clarify` (lượt sau gắn câu trả lời → mở lại câu hỏi giá; đổi mẫu / từ chối → bỏ; giá trị không có → `variant_unavailable`; không trả lời hai lần → bỏ), báo giá biến thể đại diện khi nhóm còn lại cùng giá (không nêu màu tùy chọn, không nhớ như lựa chọn).
+- Cổng ui7 (`INTEG_UI7_ACCEPT.json`): B `nnttrang/…ui7-cpu-b` **ĐẠT** (4 chế độ 244 + 2, guard_diff 0). A `midzid/…ui7-cpu-a` **TRƯỢT U7-3** (b2_variant_clarify_check 32 OK / 2 FAIL ở V7). Chẩn đoán trace `diag-v7-ui7-1118`: lượt khách không hỏi giá, Jev đọc giá → bị giữ → clarify_field được mời lại → hỏi size lặp + tries đặt lại 0 → tác vụ chờ không bao giờ bỏ. Lỗi code thật; kỳ vọng V7 đúng, giữ nguyên.
+- Snapshot mới (tiêu chí khóa trước):
+  - `integ-ui6d` (list `0ae08ad9…`) = ui6c + sửa bước 1: mẫu khách nêu (1–2, không xin tìm nhóm / mẫu khác) đứng TRƯỚC tiêu chí sắp xếp; trong phạm vi consult_named `answer_ask:recommend` đánh giá đúng mẫu khách nêu (`_evaluate_named`: giá / kho theo ref, so ngân sách, không khảo sát nhóm, không gợi ý mẫu khác). Test `b2tt_scope_check_v1_3` (+ S11, S12, mutant tái hiện lỗi DI24). Tiêu chí `INTEG_UI6D_ACCEPT.json`. Job A `elylish11/…ui6d-cpu-a`, B `nnttrang/…ui6d-cpu-b`. Đây là ứng viên cho lần chạy API bước 1 lại.
+  - `integ-ui7b` (list `4e2f272c…`) = ui7 + cùng sửa bước 1 + sửa V7 (không mời lại clarify_field cho trường đã hỏi mà khách chưa trả lời khi khách không hỏi giá lại; hỏi lại cùng trường giữ số lần). Tiêu chí `INTEG_UI7B_ACCEPT.json`. Job A `midzid/…ui7b-cpu-a`, B `nnttrang/…ui7b-cpu-b`.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI24 | API nhỏ bước 1 (ui6c) | **đã chạy**: A-0/A-1/A-2 đạt, A-3 TRƯỢT (verdict giữ) |
+| DI26 | Chạy lại API nhỏ bước 1 trên integ-ui6d (CÙNG bộ ca + kỳ vọng + bộ chấm đã khóa ở DI24, chỉ đổi snapshot), tt × 3, sau khi CPU ui6d đạt; cần Secrets | **chờ người dùng** |
+| DI25 | Bước 2 | đang kiểm CPU ui7b; API bước 2 chỉ sau khi bước 1 đạt API |
+
+## 18/11 ~17:50 — Cổng CPU: integ-ui6d ĐẠT; ui7b TRƯỢT → ui7c ĐẠT; DI26 chuẩn bị xong (chưa đẩy)
+- **integ-ui6d** (`INTEG_UI6D_ACCEPT.json`): A `elylish11/…ui6d-cpu-a` rc 0 tất cả (b2tt_scope_check_v1_3 60/60 gồm S11, S12 + mutant tái hiện lỗi DI24 bị phát hiện; core_same đúng 5 tệp; freeze 282/282); B `nnttrang/…ui6d-cpu-b` 4 chế độ 244 + 2, guard_diff 0. Tổng hợp `runs/c5/step1_api/ui6d_cpu_gate.json` pass.
+- **integ-ui7b**: B ĐẠT; A TRƯỢT T-4 (V7 "không hỏi size lặp lại" — verdict giữ). Trace `diag-v7-ui7b-1118`: lượt sau khi tác vụ chờ đã bỏ, planner tự đọc giá (khách không hỏi giá) → giữ giá → clarify_field được mời → hỏi size lại.
+- **integ-ui7c** (= ui7b + chỉ mời clarify_field khi lượt còn câu hỏi giá / KM phải trả lời; `INTEG_UI7C_ACCEPT.json`, list `36e08ca3…`): A `midzid/…ui7c-cpu-a` rc 0 tất cả (b2_variant_clarify_check 34/34, v1.3 60/60, core_same đúng 2 tệp, freeze 284/284); B `nnttrang/…ui7c-cpu-b` 4 chế độ 244 + 2, guard_diff 0. **ĐẠT.** Đây là nhánh bước 2 (chưa đo API).
+- **DI26 chuẩn bị, CHƯA đẩy**: `runs/c5/step1_api/push_step1_ui6d.py` (job `elylish11/sudocode-s1api2-tt-r123-1118`, build OK, kernel sha `05174bc7…`), tiêu chí `runs/extra_1115/STEP1_API_ACCEPT_v2_ui6d.json` = CÙNG bộ ca `f554b6d8…`, kỳ vọng, A-0…A-3, bộ chấm như DI24; chỉ đổi snapshot sang integ-ui6d (`0ae08ad9…`). Gate `step1_gate_ui6d.json`.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI26 | Chạy lại API bước 1 trên integ-ui6d, tt × 3 (cùng bộ ca / kỳ vọng / bộ chấm) | **chờ người dùng duyệt + gắn Secrets** |
+| DI27 | Sau DI26 đạt: API nhỏ bước 2 trên integ-ui7c (GEN-T09-01, CNY-VP-EXCL, probe biến thể: thiếu size / đã nói size / trả lời ngắn / đổi ý / size không có) — kỳ vọng khóa trước | **đề xuất** |
+
+## 18/11 ~19:55 — DI26 đã duyệt và đã đẩy (chờ gắn Secrets)
+- Lời duyệt: "Đẩy job DI26 lên đi …" + lời giao `docs/DE-XUAT/PROMPT-CLAUDE-DI26-VA-KIEN-TRUC-SAU-UI5.md` (đọc câu trả lời thực tế, tìm bước sai đầu tiên nếu trượt; đạt thì đối chiếu ui7c rồi DI27; patch offered_steps để freeze kế tiếp, không áp vào ui6d).
+- Kiểm trước khi đẩy: chưa có kernel `s1api2` nào (không chạy trùng); gate tạo lại `step1_gate_ui6d.json` (gate sha `8bd2ed9f…`, freeze `0ae08ad9…`, ACCEPT v2, bộ ca `f554b6d8…`, bộ chấm khóa). Kernel `elylish11/sudocode-s1api2-tt-r123-1118` (source sha `507b95d4…` — khác bản build thử 17:43 chỉ vì gate ghi lại thời điểm `made_at`).
+- Cần người dùng: gắn `DEEPSEEK_API_KEY` + `TYPESAFE_API_KEY` rồi Save & Run All.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI26 | API bước 1 trên integ-ui6d | **đã duyệt**; đã đẩy, chờ Secrets + Run |
+
+## 18/11 ~20:40 — Kết quả DI26 (API tt × 3, integ-ui6d): A-0/A-1/A-2 ĐẠT, A-3 TRƯỢT (chỉ COMPARE, do so khớp chuỗi của bộ chấm đã khóa)
+- Job `elylish11/sudocode-s1api2-tt-r123-1118`, cổng kernel đạt ("CỔNG STEP1 đạt" trong log), báo cáo `runs/c5/step1_api/step1_report_ui6d.json` (bộ chấm khóa, không đổi).
+
+| Ca | DI24 (ui6c) | DI26 (ui6d) |
+|---|---|---|
+| V3-123 (đơn SKU-MB-STER) | 3/3 | 3/3 |
+| GEN-T01-01 (đơn SKU-AP-PRO) | 3/3 | 3/3 |
+| S1P-KEEP-ROOM | 3/3 | 3/3 |
+| S1P-KEEP-BUDGET | 2/3 | **3/3** |
+| S1P-DELEGATE | 0/3 | **3/3** |
+| S1P-COMPARE | 0/3 | 0/3 |
+| S1P-ALT | 3/3 | 3/3 |
+| S1P-CHEAP | 3/3 | 3/3 |
+| S1P-SWITCH (báo cáo) | 3/3 | 3/3 |
+- A-1: 0 đơn sai sản phẩm, 0 đơn ở ca chỉ tư vấn (mọi lần). reference_eval: 0 ca trượt; HR 0. TTFT p95 mọi lượt 5191 ms (DI24: 4701) — báo cáo, xu hướng xấu đi.
+- **COMPARE — bước sai đầu tiên: KHÔNG nằm ở agent.** Trace cả 3 lần: DeepSeek asks [compare, price] + compare_named; tầng ngoài `consult_named@P1,P2` (direct, named_runs_on_main_flow); Jev read_quote P2, P1 → answer_ask price/compare → finish; tool chỉ SKU-XM-4L và SKU-AP-Y; câu phát nêu đủ hai tên + 5.200.000 / 2.990.000. Bộ chấm báo forbidden_said "AirPure X" vì **tên KM của catalog** "Tặng 1 màng lọc khi mua AirPure X/Y" chứa chuỗi "AirPure X". Theo luật không nới bộ chấm sau kết quả → verdict A-3 TRƯỢT giữ.
+- Nhận xét nghiệp vụ (tách khỏi verdict):
+  - COMPARE: hai giá đúng nhưng mẫu thứ hai được trình bày như gợi ý thêm ("Ngoài ra bên em có mẫu AirPure Y…", khối alternative_quote) và không nói rõ mẫu nào rẻ hơn.
+  - DELEGATE: đúng mẫu + giá, nhưng KHÔNG trả lời "nhà bốn người dùng có hợp không" (catalog không có dữ liệu công suất / số người) và nói "RO Kangaroo 10 lõi có 0 cấp lọc" — catalog BTC ghi `stages: 0` cho SKU-WF-RO10; câu có nguồn nhưng vô lý với tên mẫu. Nên báo phần thiếu thay vì đọc giá trị 0.
+  - KEEP-ROOM: nói "phù hợp phòng khoảng 25 m²" khi khách nói 20 m² — ngầm hợp, chưa so rõ.
+  - ALT: khách xin "mẫu khác rẻ hơn" → trả mẫu rẻ nhất nhóm (AirPure Mini) — giữ được việc khách chủ động tìm mẫu khác.
+- Theo lời giao: DI26 còn trượt → KHÔNG mở DI27 / ttg / dev92. ui7c đã đối chiếu: chứa đủ sửa của ui6d (planner_b2tt + test v1.3 giống hệt; mọi dòng thêm của ui6d có trong ui7c). DI27 đã chuẩn bị sẵn (`runs/c5/step2_api/`: 7 probe + GEN-T09-01 + CNY-VP-EXCL, kỳ vọng theo lượt, bộ chấm tự kiểm đạt, `STEP2_API_ACCEPT.json`, `push_step2.py` build OK) — CHƯA đẩy.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI26 | API bước 1 ui6d | **đã chạy**: A-3 TRƯỢT (COMPARE, so khớp chuỗi trong tên KM) — verdict giữ |
+| DI28 | (a) Bổ sung quyết định SAU kết quả, công khai (như N-TXN): COMPARE là dương tính giả của bộ chấm (bằng chứng trace), verdict A-3 giữ TRƯỢT nhưng cho đi tiếp DI27; hoặc (b) bộ chấm v2 (che tên KM khi kiểm mẫu bị cấm) chỉ áp cho lần chạy MỚI, chạy lại DI26 | **chờ người dùng** |
+| DI29 | Đề xuất chung: khối so sánh cho compare_named (nêu rõ mẫu rẻ hơn, không trình bày mẫu thứ hai như gợi ý thêm); thuộc tính số = 0 / mâu thuẫn tên → báo thiếu dữ liệu; câu "có hợp không" mà catalog không có dữ liệu → nói rõ phần thiếu | **đề xuất** (freeze kế tiếp, cùng patch offered_steps) |
+
+## 18/11 ~22:25 — DI28 (ngoại lệ, chỉ mở DI27) + DI27 đã đẩy chia 3 tài khoản + DI29 duyệt
+- Lời người dùng: "Mình đề xuất cho chạy riêng DI27 trên ui7c theo bộ ca đã khóa. Duyệt DI29 trên freeze kế tiếp theo ba yêu cầu trên. Ngoại lệ DI28 chỉ mở DI27; việc mở ttg, dev92 và merge vẫn theo cổng riêng. giữ nguyên verdict DI26 và ghi rõ lý do ngoại lệ" + "nếu chạy kiểm thử api lâu quá thì chia acc ra chạy song song cho tôi".
+- DI28: `docs/DE-XUAT/QUYET-DINH-NGOAI-LE-DI28-2026-11-18.md` + `runs/extra_1115/STEP1_API_ADDENDUM_DI28.json`. **Verdict DI26 giữ KHÔNG ĐẠT (A-3).** Ngoại lệ chỉ mở DI27; ttg / dev92 / merge theo cổng riêng.
+- DI27 (snapshot integ-ui7c `36e08ca3…`, tiêu chí `STEP2_API_ACCEPT.json` không đổi, bộ ca `29722e0a…`): chia mỗi lần chạy một tài khoản (DI26 mất ~45–60 phút một job): r1 `midzid/sudocode-s2api-tt-r1-1118`, r2 `nnttrang/sudocode-s2api-tt-r2-1118`, r3 `elylish11/sudocode-s2api-tt-r3-1118`. Trường "job" trong ACCEPT ghi một job midzid — thay bằng 3 job này (chỉ đổi nơi chạy; bộ ca / kỳ vọng / bộ chấm / snapshot không đổi; bộ chấm gom canary_r1..r3 từ 3 thư mục). Cần gắn Secrets cho cả 3.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI28 | Ngoại lệ COMPARE | **người dùng quyết**: chỉ mở DI27, verdict DI26 giữ |
+| DI27 | API bước 2 | **đã đẩy** 3 job, chờ Secrets |
+| DI29 | 3 yêu cầu nghiệp vụ trên freeze kế tiếp | **đã duyệt**; làm sau khi đẩy DI27 |
+
+## 18/11 khuya — Kết quả DI27 (API tt, 3 job chia tài khoản, integ-ui7c): C-0, C-2 ĐẠT; C-1, C-3 TRƯỢT do LỖI TIÊU CHÍ của trợ lý (GEN-T09-01)
+- Job r1 `midzid/sudocode-s2api-tt-r1-1118`, r2 `nnttrang/…-r2-1118`, r3 `elylish11/…-r3-1118`: cả 3 "CỔNG STEP2 đạt", nạp đủ 2 khóa, 0 lỗi LLM. Báo cáo `runs/c5/step2_api/step2_report.json` (bộ chấm khóa).
+- **C-2 ĐẠT**: 7 probe theo lượt đều 3/3 — MISSING-SHORT / MISSING-LONG (hỏi size, không phát giá, trả lời ngắn → đúng giá biến thể 1.340.000 / 730.000), KNOWN (890.000, không hỏi), NOVAR (4.890.000, không hỏi), SWITCH (bỏ tác vụ giày, báo giá áo M 690.000), DECLINE (không giá, không hỏi lại), NOREPEAT (không hỏi lặp). CNY-VP-EXCL 3/3 (reference_eval đạt, không nêu 1.161.000).
+- **C-1 / C-3 TRƯỢT — chỉ GEN-T09-01, do tiêu chí sai**: tiêu chí trợ lý khóa ghi "0 order.create ở mọi ca (đều là ca chỉ hỏi giá)", nhưng GEN-T09-01 (dev92) là ca ĐẶT HÀNG: success_if = order.create SKU-SN-RUN1-43-XAM giá 1.340.000, cấm 1.161.000 / 1.206.000. Trace 3/3: t1 hỏi size (không phát giá — lỗi gốc ui5 đã hết), t2–t3 báo 1.340.000 + KM không áp cho size 43, t4 order.create đúng SKU-SN-RUN1-43-XAM, reference_eval đạt 3/3. Không có đơn sai sản phẩm. Verdict theo tiêu chí đã khóa giữ TRƯỢT (không nới sau kết quả); lỗi thuộc về tiêu chí trợ lý viết, không phải agent.
+- Báo cáo thêm: TTFT p95 mọi lượt 5002 ms; Jev chọn clarify_field:size 21 lần; reference_eval 0 ca trượt.
+- Nhận xét nghiệp vụ: câu báo giá biến thể in mã màu thô "màu xam" (mã catalog `xam`, không dấu) — nên hiển thị tên màu có dấu.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI27 | API bước 2 ui7c | **đã chạy**: C-2 đạt; C-1 / C-3 TRƯỢT (tiêu chí sai ở GEN-T09-01) — verdict giữ |
+| DI30 | Ghi nhận công khai lỗi tiêu chí C-1 (GEN-T09-01 là ca đặt hàng, đơn đúng SKU kỳ vọng 3/3) — như DI28: verdict giữ, coi bước 2 đã có bằng chứng API cho 8/9 ca + GEN-T09-01 đúng theo reference_eval; hoặc khóa tiêu chí v2 (ca đặt hàng kiểm đúng SKU) và chạy lại | **chờ người dùng** |
+
+## 18/11 ~23:45 — DI30(a) chốt; thí nghiệm R0/R1 vòng feedback trên ui7c: R0 đã đẩy (3 shard), chờ Secrets
+- DI30(a) (người dùng): verdict DI27 GIỮ TRƯỢT; lỗi tiêu chí C-1 ở GEN-T09-01 ghi công khai `runs/extra_1115/STEP2_API_ADDENDUM_DI30.json`; dùng integ-ui7c cho thí nghiệm guidance; vòng feedback ưu tiên trước DI29 (DI29 làm ở freeze riêng).
+- Thiết kế khóa trước `runs/extra_1115/R0R1_UI7C_ACCEPT.json` (`fcfe6762…`): R0 = tt (kho guidance rỗng) dev92 đủ 92 ca Full; danh sách 62 feedback / 30 chỉ chấm `runs/c5/guidance_review/dev92_feedback_split_ui7c.csv` (sha từng ca khớp khóa dev92 92/92); feedback do Claude viết (vai telesale, chỉ 62 ca, chỉ nhận xét vấn đề quan sát được, gắn (cuộc, lượt), không chẩn đoán); DeepSeek thật soạn nháp (lưu nguyên văn + kết luận thiếu dữ liệu / năng lực); Claude duyệt theo ủy quyền (ghi người duyệt, quyết định + lý do; loại hết → dừng trước R1); R1 = R0 + chỉ gói guidance + cấu hình truy hồi DI14; báo riêng nhóm 62 / 30, ca đổi kết quả, hồi quy, đơn sai SKU, TTFT p95. Không phải cổng merge.
+- R0 (runner `runs/c5/r0r1_ui7c/push_rx.py`, gate `rx_gate_r0.json`): `midzid/sudocode-r0u7-s1-1118`, `nnttrang/sudocode-r0u7-s2-1118`, `elylish11/sudocode-r0u7-s3-1118`. Cần gắn Secrets cả 3.
+
+## 19/11 — R0 xong (ui7c, tt, dev92 đủ 92) + feedback 62 ca + job DeepSeek soạn nháp đã đẩy (chờ Secret)
+- R0: `midzid/…r0u7-s1`, `nnttrang/…r0u7-s2`, `elylish11/…r0u7-s3` — cả 3 "CỔNG RX đạt (r0)", nạp 2 khóa, 387 lượt / 92 kịch bản, 0 lỗi LLM. Chấm theo nhóm bằng reference_eval BTC (`runs/c5/r0r1_ui7c/group_eval.py` → `eval/groups_r0.json`):
+
+| Nhóm | TSR | RQR | CCR | HR giá & KM | guardrail |
+|---|---|---|---|---|---|
+| feedback (62) | 90,3 % (56/62) | 3,4 % | 76,5 % | 4,7 % | 2 |
+| evaluation_only (30) | 100 % (30/30) | 0 % | 75,0 % | 5,6 % | 0 |
+| all (92) | 93,5 % (86/92) | 3,0 % | 76,3 % | 4,9 % | 2 |
+  - Ca trượt (đều thuộc nhóm 62): BTCD7-025, BTCL-016, BTCL-066, GEN-T13-01, GEN-T16-01, JEVNEW-011. **0 đơn sai SKU.** 6 order.create ở cuộc không có kỳ vọng đơn (V3-099, GEN-T12-01, JEVNEW-005, V3-135, GEN-T03-01, GEN-T20-01) — đọc tay khi so R1. TTFT p95 mọi lượt 3944 ms.
+- Feedback (Claude vai telesale, chỉ 62 ca): `runs/c5/r0r1_ui7c/feedback_r0.jsonl` (97 nhận xét trên 48/62 ca; 14 ca không thấy vấn đề), sinh bởi `make_feedback_r0.py`. Trace đầu vào chỉ 62 ca `trace62_r0.jsonl` (thêm session_id = <kịch bản>:<cuộc>). 30 ca evaluation_only không đọc, không đưa vào DeepSeek.
+- Job soạn nháp: `midzid/sudocode-gdraft-r0u7-1119` (CPU, chạy `scripts/guidance_draft.py` của ui7c qua `draft_wrap.py` ghi nguyên văn mọi prompt + phản hồi DeepSeek). **Cần gắn DEEPSEEK_API_KEY rồi Run.**
+- 19/11: job soạn nháp lần 1 (deepseek-v4-flash) DỪNG ở mục đầu — DeepSeek trả JSON bị cắt (max_tokens 900 của guidance_draft) và guidance_draft không bắt lỗi theo mục; output lưu `runs/c5/r0r1_ui7c/draft_v1_failed/`. Sửa CHỈ wrapper (`draft_wrap.py`): trần token cao hơn, thử lại 1 lần, lỗi → invalid_output và chạy tiếp; ghi nguyên văn mọi lần gọi.
+- 19/11 (người dùng: "đổi model sang dùng deepseek-v4-pro bật suy luận để phân tích feedback và soạn guidance cho Jev" … "chỉ đổi khúc đó thôi"): CHỈ job soạn nháp dùng `DEEPSEEK_MODEL=deepseek-v4-pro`, `DEEPSEEK_THINKING=enabled` (trần token 8000 vì token suy luận tính vào trần). Runtime agent R0 / R1, profile và code ui7c KHÔNG đổi. Đã đẩy dataset midzid (job config xác nhận v4-pro + enabled); người dùng cập nhật input + chạy lại notebook.
+- 19/11: lần soạn nháp v4-pro (thinking) thứ nhất `midzid/…gdraft-r0u7-1119`: HẾT GIỜ (60 phút / bước) sau 61/97 mục. Phân loại DeepSeek: guidance_fixable 24, capability_blocked 22, data_missing 3, evaluation_issue 1, output lỗi 11. **Cả 24 đề xuất bị bộ kiểm code loại** — có hệ thống: audience ngoài {outer, inner, both}, requires_capabilities ghi tên bước thay vì năng lực hợp lệ, vài bản > 1600 ký tự / yêu cầu commit_request. Nguyên nhân: prompt của guidance_draft (ui7c) không nêu các giá trị bộ kiểm chấp nhận. Lưu nguyên văn: `runs/c5/r0r1_ui7c/draft_v2_partial_timeout/`.
+- Sửa ở wrapper (không đổi code ui7c / bộ kiểm): bổ sung vào prompt + schema đúng các ràng buộc sẵn có của improve/store.py + check_proposal (audience, danh sách năng lực, nhãn hỏi, độ dài, cấm số tiền / mã / commit_request). Chạy lại ĐỦ 97 mục cùng hợp đồng, chia 3 phần song song (33/32/32): `midzid/sudocode-gdraft2-p1-1119`, `nnttrang/sudocode-gdraft2-p2-1119`, `elylish11/sudocode-gdraft2-p3-1119`. Cần gắn DEEPSEEK_API_KEY cho cả 3.
+- 19/11 (kiểm job): p1 `midzid/…gdraft2-p1-1119` **COMPLETE** (1945 s, v4-pro + thinking): 33 mục → drafted_pending 7, triaged_no_draft 18, invalid_output 7, proposal_rejected 1 (3 lần gọi lỗi, 3 lần thử lại). Output `runs/kaggle/gdraft2-p1-1119/out/gdraft2-p1-1119/draft/`. p2 `nnttrang/…-p2-1119`, p3 `elylish11/…-p3-1119` **ERROR**: bản tự chạy lúc đẩy (02:09) không có Secrets ("secrets đã nạp: không có"); runner đòi CẢ `DEEPSEEK_API_KEY` và `TYPESAFE_API_KEY`. Gắn Secrets không tự chạy lại → cần Save Version → Save & Run All cho p2, p3. Chưa duyệt nháp p1 (đợi đủ 3 phần).
+- 19/11 ~07:35 (người dùng: "chuyển lại model của 2 notebook đó về lại flash đi vì bản pro tốn tiền quá" + "đẩy lại job đi"): p2 / p3 đang chạy bằng v4-pro (từ 07:28) → đẩy lại dataset-only (giữ Secrets) với `DEEPSEEK_MODEL=deepseek-v4-flash`, `DEEPSEEK_THINKING=disabled` (tham số `flash` của `push_draft.py`; gói p3 đã kiểm). Prompt / hợp đồng / trần token wrapper không đổi. **Lưu ý so sánh:** p1 soạn bằng v4-pro + suy luận, p2 / p3 bằng v4-flash — ghi rõ khi duyệt / báo cáo. Người dùng cần hủy bản v4-pro đang chạy rồi chạy lại p2, p3.
+- 19/11 08:17 — gdraft2 xong cả 3 phần (bản p2 / p3 tự chạy không Secrets lúc 02:09 giữ ở `runs/kaggle/gdraft2-p{2,3}-1119.prerun_nosecret/`). Xác nhận model bằng `draft_meta.json`:
+
+| Phần | Model | Mục | drafted_pending | proposal_rejected | triaged_no_draft | invalid_output | Lỗi gọi |
+|---|---|---|---|---|---|---|---|
+| p1 `midzid` | v4-pro + suy luận | 33 | 7 | 1 | 18 | 7 | 3 (đã thử lại) |
+| p2 `nnttrang` | v4-flash, tắt suy luận | 32 | 25 | 7 | 0 | 0 | 0 |
+| p3 `elylish11` | v4-flash, tắt suy luận | 32 | 25 | 6 | 1 | 0 | 0 |
+  - Tổng 57 nháp chờ duyệt. Flash gần như mục nào cũng soạn nháp (pro xếp 18/33 vào không soạn) → rủi ro nháp che lỗi capability_blocked / data_missing bằng hướng dẫn; duyệt phải lọc theo tiêu chí R0R1_UI7C_ACCEPT. Chưa duyệt.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI31 | Ba phần soạn nháp lệch model (p1 pro, p2 / p3 flash): (a) duyệt luôn 57 nháp, ghi rõ model từng nháp; (b) chạy lại p1 bằng flash (~6 phút, rẻ) để cả 97 mục cùng model rồi mới duyệt | **chờ người dùng** |
+
+## 19/11 ~08:30–09:55 — DI31(b): p1 chạy lại bằng Flash, so sánh mù Pro / Flash, duyệt nháp Flash, đóng gói R1, đẩy R1
+- Lời người dùng: "Chốt DI31(b). Chạy lại p1 bằng đúng cấu hình Flash của p2/p3, giữ nguyên 33 đầu vào và lưu riêng kết quả Pro. Dùng nháp Flash từ cả ba phần làm nguồn cho gói R1. Trợ lý duyệt theo ủy quyền, gộp các nháp trùng nguyên nhân và lưu bản gốc cùng quyết định duyệt. Riêng p1, đối chiếu Pro và Flash theo từng feedback, ẩn tên model khi duyệt … Sau khi khóa gói, chạy R1 theo kế hoạch."
+- p1 Flash `midzid/…gdraft2-p1-1119` (09:27–09:35): xác nhận v4-flash ở draft_meta + 33/33 lần gọi + trần 3000 + gói 09:10; cùng feedback_sha256 `ab02af6a…`. Pro giữ ở `runs/kaggle/gdraft2-p1-1119.pro/`. (Lúc ~09:15 trợ lý báo nhầm "p1 flash đã xong" dựa trên trạng thái COMPLETE của lần Pro cũ — đã đính chính, bản tải nhầm trùng Pro và đã xóa.)
+- **So sánh mù p1** (`runs/c5/r0r1_ui7c/review_r1/`: make_blind_p1.py → blind_pairs_p1.json; điểm ghi TRƯỚC khi mở khóa blind_scores_p1.json sha `41f6ccd8…`; blind_result_p1.json). Kết luận người chấm về loại lỗi 33 feedback: renderer 10, bộ hiểu / phạm vi 5, giao dịch 4, **sửa được bằng guidance 4**, code 3, chính sách lệch chủ đề 2, DI29 2, chưa đủ bằng chứng 2, thiếu dữ liệu 1.
+
+| | Pro + suy luận | Flash |
+|---|---|---|
+| Điểm nguyên nhân (tối đa 33) | **22** | 15 |
+| Quyết định soạn / không soạn đúng | **20/33** | 4/33 |
+| Không soạn (đúng / tổng) | 18/18 | 0/0 |
+| Soạn nháp cho lỗi không sửa được bằng guidance | 6 | 29 |
+| Nháp đề xuất bước Jev làm được + dùng nguyên văn | 2 (#12, #30) | 2 (#24, #30) |
+| Bỏ sót ca guidance-fixable | 2 (#24, #31 — đúng 2 ca đầu ra rỗng) | 0 |
+| Đầu ra không hợp lệ | 7 | 0 |
+  - Giới hạn: "mù" không trọn vẹn (Pro có đầu ra rỗng / hay không soạn → đoán được); một người chấm; 33 mục.
+  - 7 lỗi Pro: 5 phản hồi rỗng (`core/llm/deepseek.py:125` đổi content rỗng thành `{}`) + 2 JSON bị cắt (JSONDecodeError unterminated string) — khớp giả thuyết token suy luận ăn hết trần 8000; CHƯA chứng minh (log không ghi finish_reason / reasoning tokens).
+- **Duyệt nháp Flash 97 mục** (`REVIEW_R1.json`, bản gốc `review_r1/originals/p{1,2,3}/`, script `make_review_r1.py`): approve_verbatim 2, edit_approve 4, merged 2, **reject 89** (renderer 27, giao dịch 19, bộ hiểu 14, code 9, chính sách lệch chủ đề 8, chưa đủ bằng chứng 4, DI29 3, lộ nội bộ 3, thiếu dữ liệu 2). Gộp thành **5 hướng dẫn** (`drafts_r1.json` sha `b5dd0dc0…`): G-R1-NAMED-READ-FIRST (both), G-R1-STOCK-WHEN-PRICE-HELD (both), G-R1-NO-EXTRA-CLARIFY (both), G-R1-POLICY-OTHER-READ (both), G-R1-SWITCH-TO-NAMED (outer). Mọi bản qua validate + danh mục bước ui7c.
+- **Gói** `r1-ui7c-1119` (job CPU `nnttrang/sudocode-pkgr1-ui7c-1119`): approved_hash `3331b5ddc7a0e8b4`, 5 hướng dẫn khớp drafts_r1 từng trường, regress truy hồi 11/11 ở 3.0 / K=2 / 800 / 15.
+- **R1 đã đẩy** (gate `rx_gate_r1.json` sha `234cac2b…`, chỉ thêm PLANNER_GUIDANCE_DIR + cấu hình DI14 so với R0): `midzid/sudocode-r1u7-s1-1118`, `nnttrang/sudocode-r1u7-s2-1118`, `elylish11/sudocode-r1u7-s3-1118`. **Cần gắn DEEPSEEK_API_KEY + TYPESAFE_API_KEY cả 3 rồi Save & Run All.**
+- Phát hiện ngoài gói (đề xuất code, chưa làm): lộ nội bộ qua renderer chính sách (tên tệp promotions.json, mã SKU / mã mục, câu hướng dẫn nội bộ "khách hỏi trả góp → …") — guardrail; GEN-T23-01: sort=cheapest đứng trước anchor khi goal=find_other → tầng ngoài không có consult_alternative; renderer đọc dòng bảng / changelog thô.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI31 | (b) p1 chạy lại Flash; gói R1 từ nháp Flash | **đã làm**; R1 chờ Secrets + Run |
+| DI32 | Thí nghiệm Jev vs DeepSeek chọn hành động (lời giao 19/11): trace R0/R1 KHÔNG đủ để replay — planner chính 598 quyết định (nhóm 62) chỉ ghi bước đã chọn + `removed`, không có menu đầy đủ (offered_steps) lẫn payload trạng thái; tầng trong / ngoài có `options` nhưng không có payload, và rất ít lời gọi Jev (outer 2, inner 6 trên 281 lượt). Đề xuất: freeze riêng = ui7c + patch offered_steps + ghi payload đầy đủ mỗi lần chọn + DeepSeek chọn "bóng" trên cùng payload (không thực thi), chạy 30 ca evaluation_only ở cấu hình R1; khóa danh sách lượt + gán nhãn trên file chỉ có trạng thái + menu trước khi mở lựa chọn | **chờ người dùng** (sau R1) |
+
+## 19/11 ~10:07–10:45 — Kết quả R1 (integ-ui7c + gói r1-ui7c-1119, dev92, chỉ Full)
+- Job `midzid/…r1u7-s1-1118` (1307 s), `nnttrang/…-s2` (1777 s), `elylish11/…-s3` (1422 s): cả 3 "CỔNG RX đạt (r1)", nạp đủ 2 khóa, PLANNER_GUIDANCE_DIR = gói, 0 lỗi LLM. Chấm theo nhóm → `runs/c5/r0r1_ui7c/eval_r1/`. (group_eval ghi `report_{nhóm}.json` không kèm nhãn → lần chấm R1 ghi đè báo cáo chi tiết R0; đã chấm lại R0 từ merged_r0.jsonl vào `eval_r0/`, khớp groups_r0 gốc hoàn toàn.)
+- Nhóm 62: TSR 56 → 57/62 (sửa BTCL-016, BTCL-066 nhờ NAMED-READ-FIRST; hồi quy GEN-T25-01 ở lượt KHÔNG có guidance — giá thuật lại stance_reported); HR giá & KM 4,7 → 2,7; RQR 3,4 → 7,7 (thêm đúng 1 câu thừa GEN-T21-01 c3t2, lượt không có guidance). Nhóm 30: không đổi (30/30). Đơn sai SKU 0 / 0. TTFT p95 3944 → 4210 ms. no_progress 4 → 8 (3 lượt mới read_quote → answer_ask:recommend ×3).
+- Báo cáo đầy đủ (Pro / Flash + R0 / R1 + tác động từng hướng dẫn): `docs/DE-XUAT/BAO-CAO-R0R1-UI7C-2026-11-19.md`.
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DI32 | Thí nghiệm Jev vs DeepSeek chọn hành động — freeze ghi menu + payload, DeepSeek chọn bóng trên 30 ca evaluation_only (trace hiện có không đủ để replay) | **chờ người dùng** |
+| DI33 | (Nếu đi tiếp guidance) thu hẹp asks_any NAMED-READ-FIRST / STOCK-WHEN-PRICE-HELD, xem lại NO-EXTRA-CLARIFY, sửa vòng lặp answer_ask:recommend sau read_quote; chạy lặp R0/R1 để đo dao động | **đề xuất** |
+
+## 20/11 — Chốt Flash cho cơ chế cải tiến
+- Dùng DeepSeek Flash để đọc feedback và soạn nháp guidance; người rà soát, sửa và duyệt từng đề xuất trước khi thử nghiệm.
+- Giữ R0 làm mốc luồng agent sau phép đo D6. Quyết định này không tự bật gói guidance R1 và không đổi model phục vụ khách.
+- Cơ sở: R1 từ nháp Flash đã duyệt đạt 87/92 so với R0 86/92, nhưng hỏi lặp và guardrail tăng. Pro chẩn đoán nguyên nhân tốt hơn ở mẫu so sánh mù 33 feedback; Flash nhanh hơn, song nhiều nháp bị loại. Vì vậy nháp Flash không được áp dụng tự động.
+- Xem `BAO-CAO-R0R1-UI7C-2026-11-19.md` và `BAO-CAO-PRO-UI7C-2026-11-19.md`.

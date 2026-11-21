@@ -1,0 +1,16 @@
+# Bốn ca cùng trượt ở R0 và D1 (dev92)
+
+Ngày đối chiếu: 2026-11-20. Nguồn điểm: `runs/c5/r0r1_ui7c/eval_r0/report_all.json` (R0: 86/92) và `runs/d1/results/report_all.json` (D1: 87/92). Giao của hai danh sách trượt có đúng bốn ca dưới đây. Bằng chứng lượt nằm trong `merged_r0.jsonl` và `merged_d1.jsonl` cùng thư mục kết quả. Đây là chẩn đoán từ trace đã lưu, chưa phải kết quả của bản sửa.
+
+| Ca | Điều bộ chấm báo thiếu | Bằng chứng trong cả hai trace | Chỗ cần sửa và điều kiện an toàn |
+|---|---|---|---|
+| `BTCD7-025` `call_2` | Không có `order.create` khớp AirPure Y, 5.200.000đ, COD và địa chỉ khách cho. | t1 khách nói “quyết lấy”; t2 cho địa chỉ và COD. Hệ thống hỏi xác nhận lại, không tạo đơn. Cổng ghi `intent_only` rồi `accept_delivery_only`; hai lượt không được nối thành quyền đặt hàng. Ở `call_1` t1 còn trả nhầm chính sách thu máy cũ cho câu hỏi trả hàng, dù đây không phải lý do trượt TSR. | Trọng tâm: trạng thái yêu cầu và cổng xác nhận qua nhiều lượt. Chỉ tạo đơn khi đúng món, giá, kho, địa chỉ, thanh toán và sự đồng ý đã rõ; kiểm yêu cầu đọc lại đơn trong playbook. Không nới `accept_delivery_only` đại trà. Sửa chọn chính sách trả hàng là việc riêng trong cùng ca. |
+| `GEN-T13-01` `call_1` | Không nói giá 1.521.000đ. | Hệ thống nhận ra câu hỏi giá nhưng chỉ hỏi size, không gọi báo giá. Tool BTC trả 1.521.000đ cho SKU gốc ngày 24/10; size 43 là 1.740.000đ và không được RUN-10. | Trọng tâm: luồng báo giá và dựng câu. Báo giá mẫu gốc kèm điều kiện size/ưu đãi, rồi hỏi size để xác nhận giá cuối. Không khẳng định 1.521.000đ áp dụng cho size 43 hoặc mọi khách. |
+| `GEN-T16-01` `call_1` | Không có `order.create` khớp ba món, chuyển khoản, tổng 11.125.000đ. | Khách chọn AirPure Pro và hỏi AirPure X, thêm màng lọc, sau đó nói “vẫn lấy đủ”. `pricing.quote_order` t5/t6/t9 chỉ có màng lọc 990.000đ. Hệ thống nói COD được; ở t8/t12 cổng báo `target_ambiguous` với cả AirPure Mini vốn chỉ được gợi ý. | Trọng tâm: phân biệt món khách chọn với món gợi ý, giữ giỏ qua nhiều lượt, xác nhận “lấy đủ” theo ngữ cảnh, tính lại ưu đãi cho cả giỏ và kiểm giới hạn COD trên tổng. Trước khi ghi đơn phải báo đúng ba món/tổng và có xác nhận chuyển khoản, địa chỉ; không tự tạo đơn theo một giỏ suy đoán. |
+| `JEVNEW-011` `call_1` | Không nói “12 tháng” hoặc “chưa có thông tin”. | Khách chỉ thuật lời nhân viên cũ hứa 36 tháng, không nêu SKU/đơn. Renderer lấy câu 36 tháng của máy lọc nước Karofi/Kangaroo từ `BH-01` và trả như chính sách cho khách này. | Trọng tâm: kiểm độ liên quan của bằng chứng trước khi dựng câu. Khi chưa biết sản phẩm/đơn, nói chưa có thông tin xác nhận cam kết 36 tháng và hỏi mã cần kiểm. Không ghi hay xác nhận lời hứa chỉ từ lời khách. |
+
+## Phạm vi sửa
+
+D1 chỉ thay bộ chọn hành động Jev của R0 bằng DeepSeek; bộ hiểu lời khách `deepseek_unified`, executor, trạng thái, renderer, guardrail và dữ liệu vẫn dùng chung theo `runs/d1/results/FINAL_REPORT.md`. Vì vậy sửa prompt bộ chọn riêng của D1 hoặc R0 không tự sửa cấu hình kia. Sửa logic dùng chung *có thể* giúp cả hai ứng viên mới, nhưng không làm thay đổi snapshot/điểm R0 và D1 đã đo. `GEN-T16-01` có cả phần hiểu ngữ cảnh “lấy đủ” và phần giỏ hàng; ba ca còn lại chủ yếu cần sửa xử lý sau bước hiểu.
+
+Không sửa các file gốc BTC, không chỉnh snapshot R0/D1 và không suy điểm mới từ trace cũ.
