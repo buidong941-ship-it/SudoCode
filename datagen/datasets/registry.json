@@ -219,7 +219,9 @@
                       {"status": "reviewed-for-data-quality", "date": "2026-11-13", "by": "Claude (cùng phiên viết)",
                        "note": "đọc validate_raw.json, audit.json và 4 kịch bản mẫu H13-015/051/067/074; job Kaggle midzid/sudocode-ds-h1113 v2; chưa chạy agent nào trên bộ này"},
                       {"status": "generated", "date": "2026-11-13", "by": "Claude (cùng phiên viết)",
-                       "note": "naturalize: viết lại 146 cuộc hotline (chat Fanpage và cuộc có ASR giữ nguyên); người dùng duyệt naturalize ngày 13/11"}]}
+                       "note": "naturalize: viết lại 146 cuộc hotline (chat Fanpage và cuộc có ASR giữ nguyên); người dùng duyệt naturalize ngày 13/11"},
+                      {"status": "evaluated", "date": "2026-11-20", "by": "R0/D1 H13 final comparison",
+                       "note": "Đã khóa runs/h13_final/LOCK.json trước materialize; H13 là bộ chọn cấu hình cuối, không còn là holdout độc lập cho bản được chọn."}]}
       ],
       "notes": "Holdout mới. Bộ chạy là final/holdout (đã naturalize); raw/holdout là bản trước naturalize, cùng 84 kịch bản (không cộng). Chỉ materialize khi người dùng duyệt đo (--allow-guarded)."
     }
