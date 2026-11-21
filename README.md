@@ -38,6 +38,15 @@ Chi tiết: [docs/CHAY-KAGGLE-SERVER.md](docs/CHAY-KAGGLE-SERVER.md).
 
 ## 2A. Cấu hình chính hiện hành: B2-v52n (chốt 17/11/2026)
 
+**R0 `integ-ui7c` đã có trong cây mã Git:** dùng `profiles/b2_integ_tt.json` để chạy đúng chế độ B2 hai tầng đã đo; profile mặc định vẫn là B2-v52n để không tự đổi hành vi khi nâng cấp. R0 để `PLANNER_GUIDANCE_DIR` và `IMPROVE_DIR` rỗng. Đường feedback → nháp DeepSeek Flash → người duyệt → gói guidance → đo R1 có trong `scripts/guidance_*.py`, `harness/guidance.py`, `improve/guidance_edit.py` và `ui/app_v2.py`; gói R1 chỉ nạp khi được chọn rõ, không tự kích hoạt.
+
+```bash
+python scripts/with_profile.py profiles/b2_integ_tt.json -- python run_eval.py --scenarios test_set/public_sample --config full --router rules --generator qwen --extractor hybrid --out runs/r0-integ/full.jsonl
+UI_PROFILE=b2_integ_tt streamlit run ui/app_v2.py
+```
+
+Nguồn là snapshot `runs/freeze/20261118-integ-ui7c`; kiểm tra SHA-256 trong snapshot khớp 284/284 file lúc ghép. `runs/` không lên Git, nên bản clone cần bộ kịch bản/dữ liệu đánh giá riêng để tái lập số dev92. R0 là bản tham chiếu tương đối: H13 còn các ca tạo đơn trái ý khách.
+
 **Cấu hình chính** là B2-v52n. Kiến trúc và env giống hệt B2-v51-A:
 - `ARCH=target`, `PLANNER_VARIANT=b2_jev`;
 - DeepSeek `deepseek-v4-flash` hiểu lời khách (tắt thinking);

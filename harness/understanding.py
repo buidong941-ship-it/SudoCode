@@ -170,7 +170,79 @@ def _schema():
                            "safety": {"type": "array", "items": {"type": "string", "enum": SAFETY}},
                            "asks_question": {"type": "boolean"},
                            "ambiguity": {"type": "object", "required": ["level"], "properties": {
-                               "level": {"type": "string", "enum": ["none", "needs_clarification"]}, "reason": {"type": "string"}}}}}
+                               "level": {"type": "string", "enum": ["none", "needs_clarification"]}, "reason": {"type": "string"}}},
+                           **({"consult": _consult_schema()} if settings.b2_two_tier else {})}}
+
+
+# ------------------------------------------------------------------ B2-TT (17/11): tiêu chí tư vấn có kiểu
+SORTS = ["cheapest", "most_expensive", "none"]
+SCOPES = ["category", "mentioned", "discussed", "none"]
+GOALS = ["about_named", "compare_named", "find_other", "find_in_category", "none"]
+CONSULT_PROMPT = """
+12) consult: TIÊU CHÍ tư vấn sản phẩm khách nêu trong câu hiện tại (chỉ đọc, không phải yêu cầu đặt hàng):
+   {"sort","scope","goal","category_span","budget_span","area_span"}.
+   - sort: cheapest = khách hỏi mẫu RẺ NHẤT / giá thấp nhất / mẫu nào rẻ; most_expensive = mẫu đắt / cao cấp nhất; none.
+   - scope: category = hỏi trong cả một NHÓM HÀNG ("máy lọc không khí", "quạt", "giày"); mentioned = các mẫu khách nêu tên trong
+     câu; discussed = nhóm / mẫu đang bàn trước đó mà câu không nêu lại ("cái nào rẻ nhất"); none = không hỏi tư vấn sản phẩm.
+   - goal: khách muốn gì với SẢN PHẨM: about_named = hỏi / nhờ đánh giá ĐÚNG mẫu khách nêu hoặc mẫu đang bàn (giá, KM, kho, có hợp
+     ngân sách / diện tích / nhu cầu không) — kể cả khi kèm "tư vấn giúp"; compare_named = so sánh các mẫu khách nêu với nhau;
+     find_other = muốn mẫu KHÁC mẫu khách nêu / đang xem ("gợi ý mẫu khác", "có mẫu nào rẻ hơn không", "ngoài mẫu đó còn gì");
+     find_in_category = tìm / chọn mẫu trong một nhóm hàng khi chưa nhắm mẫu cụ thể; none = không hỏi về sản phẩm.
+     Khách nêu tên mẫu mà không xin mẫu khác thì KHÔNG phải find_other / find_in_category.
+   - category_span: cụm NGUYÊN VĂN tên nhóm hàng trong câu khách (null nếu không nêu). budget_span: cụm nguyên văn mức tiền tối
+     đa khách muốn ("dưới 3 triệu"), null nếu không. area_span: cụm nguyên văn diện tích phòng ("phòng 20 mét"), null nếu không.
+   - Không đoán nhóm hàng khi khách không nêu; không đặt tiêu chí khi khách chỉ trả lời câu hỏi của nhân viên."""
+
+
+def _consult_schema():
+    nul = {"type": ["string", "null"]}
+    return {"type": "object", "properties": {"sort": {"type": "string", "enum": SORTS}, "scope": {"type": "string", "enum": SCOPES},
+                                             "goal": {"type": "string", "enum": GOALS},
+                                             "category_span": nul, "budget_span": nul, "area_span": nul}}
+
+
+def _accept_consult(d, text, red, meta):
+    """Tiêu chí tư vấn có kiểu. Span phải có nguyên văn trong câu; nhóm hàng do CODE tra từ span qua bộ từ nhóm hàng có sẵn
+    (agent.CATEGORY_WORDS); ngân sách / diện tích do parser số tiền / số. Sai → bỏ trường đó (ghi lý do), không đoán."""
+    import re
+    c = d.get("consult") if isinstance(d.get("consult"), dict) else {}
+    out = {"sort": c.get("sort") if c.get("sort") in SORTS else "none",
+           "scope": c.get("scope") if c.get("scope") in SCOPES else "none",
+           "goal": c.get("goal") if c.get("goal") in GOALS else "none",
+           "category": None, "category_span": None, "budget_max_vnd": None, "room_area_m2": None}
+
+    def span(k):
+        v = red.restore(str(c.get(k) or "")).strip()
+        if v and not _ok_span(v, text):
+            meta["dropped"].append({"consult": k, "why": "span_not_in_text", "raw": _raw(c.get(k))})
+            return None
+        return v or None
+    cs = span("category_span")
+    if cs:
+        from harness.agent import CATEGORY_WORDS
+        from harness.textnorm import fold
+        f = fold(cs)
+        cats = list(dict.fromkeys(cat for w, cat in CATEGORY_WORDS if w in f))
+        if len(cats) == 1:
+            out["category"], out["category_span"] = cats[0], cs
+        else:
+            meta["dropped"].append({"consult": "category_span", "why": f"categories:{len(cats)}", "raw": _raw(cs)})
+    bs = span("budget_span")
+    if bs:
+        from harness.textnorm import find_money
+        m = find_money(bs)
+        if len(m) == 1:
+            out["budget_max_vnd"] = m[0][2]
+        else:
+            meta["dropped"].append({"consult": "budget_span", "why": f"money:{len(m)}"})
+    a = span("area_span")
+    if a:
+        n = re.findall(r"\d{1,3}", a)
+        if len(n) == 1:
+            out["room_area_m2"] = int(n[0])
+        else:
+            meta["dropped"].append({"consult": "area_span", "why": f"numbers:{len(n)}"})
+    return out
 
 
 _STATIC = None
@@ -257,7 +329,7 @@ def _type_hold(dropped):
     return out
 
 
-def _accept_observation(it, text, red, today, meta):
+def _accept_observation(it, text, red, today, meta, asked=None):
     """Code kiểm một observation: slot hợp lệ, span có trong câu, stance/subject cho phép, giá trị do code chuẩn hóa."""
     from harness.llm_extract import CUSTOMER_SLOTS, _slot_value, _span_ok
     if not isinstance(it, dict) or it.get("slot") not in {**CUSTOMER_SLOTS, **EXTRA_SLOTS}:
@@ -270,7 +342,8 @@ def _accept_observation(it, text, red, today, meta):
     if not _span_ok(span, text):                     # K02/K03: dẫn chứng phải có nguyên văn trong câu khách
         meta["dropped"].append({"slot": slot, "why": "span_not_in_text", "raw": _raw(it.get("span"))})
         return None
-    if stance in ("negated", "reported"):
+    neg_kids = settings.b2_two_tier and slot == "has_children" and stance == "negated" and it.get("label") == "khong"
+    if stance in ("negated", "reported") and not neg_kids:
         return drop(f"stance_{stance}")
     if slot in CHOICE_SLOTS and stance not in ("chosen", "stated"):
         return drop(f"not_a_choice:{stance}")       # hỏi COD / size nào hợp không phải lựa chọn
@@ -282,6 +355,13 @@ def _accept_observation(it, text, red, today, meta):
         v = _slot_value(slot, span, it.get("label"), text, today)
     if v is None:
         return drop("no_value")
+    if settings.b2_two_tier and slot == "has_children" and v is False:
+        # B2-TT (17/11): "không" chỉ là has_children=False khi span có từ chỉ trẻ nhỏ HOẶC nhân viên vừa hỏi đúng slot này;
+        # không suy mọi câu "không" (từ chối mua / rút lựa chọn) thành không có con. Căn cứ: span + asked (code cấp).
+        from harness.extractor import KIDS_RX
+        from harness.textnorm import fold
+        if not (KIDS_RX.search(fold(span)) or asked == "has_children"):
+            return drop("has_children_negation_without_basis")
     return {"slot": slot, "span": span, "value": v, "stance": stance, "subject": subject}
 
 
@@ -426,7 +506,7 @@ def understand(text, today, recent, summary="", asked=None, state_ctx=None):
         _STATIC = _static_prompt()
     red = Redactor()                                     # API ngoài: che SĐT / địa chỉ, khôi phục span sau khi trả về
     safe = red.redact({"text": text, "recent": recent[-6:], "summary": summary or "", "state": state_ctx or {}})
-    prompt = (_STATIC + f"\n\nHôm nay: {today}\nTóm tắt phiên trước: {safe['summary'] or '(không có)'}\n"
+    prompt = (_STATIC + (CONSULT_PROMPT if settings.b2_two_tier else "") + f"\n\nHôm nay: {today}\nTóm tắt phiên trước: {safe['summary'] or '(không có)'}\n"
               + _context_block(state_ctx, safe["state"])
               + f"Hội thoại gần đây: {json.dumps(safe['recent'], ensure_ascii=False)}\n"
               + (f"Nhân viên vừa hỏi về: {asked}\n" if asked else "") + f"Câu khách hiện tại: {safe['text']}")
@@ -450,7 +530,7 @@ def understand(text, today, recent, summary="", asked=None, state_ctx=None):
     flags = {k: (1.0 if k in on else 0.0) for k in flag_names}
     slots, obs = {}, []
     for it in d.get("observations") or []:
-        o = _accept_observation(it, text, red, today, meta)
+        o = _accept_observation(it, text, red, today, meta, asked=asked)
         if o is None:
             continue
         obs.append(o)
@@ -488,13 +568,16 @@ def understand(text, today, recent, summary="", asked=None, state_ctx=None):
     requests = sorted({r["kind"] for r in items})
     ev = {r["kind"]: r["evidence"] for r in items}
     asks_q = bool(d.get("asks_question"))
+    consult = _accept_consult(d, text, red, meta) if settings.b2_two_tier else None
     route = {"intent": intent, "confidence": 1.0, "probabilities": {}, "flags": flags,
              "understanding": {"requests": requests, "asks_question": asks_q, "safety": safety, "asks": asks,
-                               "response": act, "refs": refs, "ambiguity": amb, "withdrawn": [w["kind"] for w in withdrawn]}}
+                               "response": act, "refs": refs, "ambiguity": amb, "withdrawn": [w["kind"] for w in withdrawn],
+                               **({"consult": consult} if consult is not None else {})}}
     return {"route": route, "slots": slots, "observations": obs, "requests": requests, "request_items": items,
             "request_evidence": ev, "withdrawn": withdrawn, "response": {"act": act, "evidence": rev}, "asks": asks,
             "refs": refs, "safety": safety, "asks_question": asks_q,
-            "ambiguity": {"level": amb, "reason": str((d.get("ambiguity") or {}).get("reason") or "")[:160]}, "meta": meta}
+            "ambiguity": {"level": amb, "reason": str((d.get("ambiguity") or {}).get("reason") or "")[:160]}, "meta": meta,
+            **({"consult": consult} if consult is not None else {})}
 
 
 # ------------------------------------------------------------------------------------------- tóm tắt CRM (nhập phiên cũ)

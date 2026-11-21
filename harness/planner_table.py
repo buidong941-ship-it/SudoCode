@@ -657,6 +657,13 @@ def h_quote(c, row):                                                            
     A, s, facts, goals, text = _A(), c.s, c.facts, c.goals, c.text
     ask_size_after = False
     target = (c.alt or c.mentioned[-1]) if c.compare else s.focus
+    vg = None
+    if settings.b2_two_tier and target and not c.compare:
+        # bước 2 (18/11): biến thể đủ để xác định giá (khách đã nêu size; nhóm còn lại cùng giá + điều kiện) → báo giá biến thể đó
+        from harness import variant_gate as VG
+        vg = VG.analyze(s, target, text)
+        if vg["state"] in ("resolved", "uniform") and vg.get("sku") and vg["sku"] != target:
+            target = vg["sku"]
     if target and not c.compare and s._price_depends_on_size(target, text):
         if not s.size_asked:
             s.size_asked = True
@@ -675,6 +682,9 @@ def h_quote(c, row):                                                            
             if not c.compare:
                 s.focus = q["successor_sku"]
             q = s._quote(s._resolve_variant(q["successor_sku"], text), "advised")
+        if vg is not None:
+            from harness import variant_gate as VG
+            VG.present(q, vg)
         if c.compare:
             facts["alternative"] = q; goals.append("alternative_quote")
         else:

@@ -13,11 +13,13 @@ Giá trị mới của khách chỉ đến từ bộ hiểu DeepSeek đã kiểm
 """
 import time
 
+from core.config import settings  # bước 2 (18/11): cờ B2_TWO_TIER cho clarify_field / giữ giá theo biến thể
+
 from harness import planner_table as T
 from harness.request_state import ACTIVE, _parent
 
 ACTIONS = ("read_quote", "read_stock", "read_order", "check_window", "read_policy", "answer_ask", "commit_request", "clarify",
-           "report_cart", "finish")
+           "report_cart", "finish", "clarify_field")     # clarify_field: bước 2 (18/11), chỉ được đưa vào danh mục khi B2_TWO_TIER
 ORDER_OP_KINDS = ("change_order_address", "exchange", "return")
 OP_ACTION_VI = {"change_order_address": "đổi địa chỉ giao", "exchange": "đổi hàng", "return": "trả hàng"}   # V45: hỏi đơn nào cho thao tác gì
 # Phạm vi kỹ thuật công khai của từng hành động (tool có thể gọi bên trong). Ghi vào trace; fixture kiểm không vượt phạm vi.
@@ -277,7 +279,21 @@ def _read_quote(t, req_ref, ref):
     s, c = t.s, t.c
     sku = _variant(t, p["skus"][0])
     for_commit = _parent(sku) in t.order_target_parents()
+    if settings.b2_two_tier and not for_commit:
+        # bước 2 (18/11): ĐỌC ≠ CÔNG BỐ. Giá / KM phụ thuộc thuộc tính biến thể khách chưa nói → không phát giá mẫu gốc; ghi lý do +
+        # trường còn thiếu cho planner (chọn clarify_field). Mọi biến thể liên quan như nhau → báo giá ngay bằng SKU đại diện.
+        from harness import variant_gate as VG
+        a = VG.analyze(s, sku, c.text)
+        if a["state"] in ("needs", "unavailable"):
+            t.withheld = {**(getattr(t, "withheld", None) or {}), a["target"]: a}
+            return {"status": "ok", "goals": [], "result": {"sku": a["target"], "price_withheld": True,
+                                                            "why": "price_depends_on_variant" if a["state"] == "needs" else "variant_unavailable",
+                                                            "missing_fields": a.get("fields"), "options": a.get("options")}}
+        if a["state"] == "uniform":
+            sku = a["sku"]
     q = s._quote(sku, "chosen" if for_commit else "advised")
+    if settings.b2_two_tier and not for_commit and a["state"] == "uniform":
+        VG.present(q, a)
     t.quotes[sku] = q
     t.stock[sku] = {"in_stock": q.get("in_stock"), "qty": q.get("stock_qty"), "restock_expected": q.get("restock_expected")}
     if for_commit and not any(a in t.asks() for a in ("price", "promo", "stock")):
@@ -301,6 +317,83 @@ def _read_quote(t, req_ref, ref):
     c.goals += [g for g in goals if g not in c.goals]
     return {"status": "ok", "goals": goals, "result": {"sku": sku, "final_price_vnd": q.get("final_price_vnd"),
                                                       "in_stock": q.get("in_stock"), "stock_qty": q.get("stock_qty")}}
+
+
+def _variant_withhold(t):
+    """Bước 2: đối tượng câu hỏi giá của lượt (như h_quote: mẫu so sánh / mẫu đang bàn; khách nêu đúng một mẫu thì mẫu đó) có phải
+    giữ giá không → analysis | None."""
+    from harness import variant_gate as VG
+    c, s = t.c, t.s
+    men = list(dict.fromkeys(_parent(x) for x in (getattr(s, "turn_mentioned", None) or []) if x))
+    target = men[0] if len(men) == 1 else ((c.alt or (c.mentioned[-1] if c.mentioned else None)) if c.compare else s.focus)
+    return VG.withhold(s, target, c.text) if target else None
+
+
+def _clarify_field(t, req_ref, ref):
+    """Bước 2 (18/11): hỏi khách ĐÚNG MỘT thuộc tính biến thể còn thiếu cho tác vụ báo giá rồi kết thúc lượt. ref = "<field>@<P#>".
+    Code đã kiểm trường có ảnh hưởng + còn thiếu (danh mục chỉ dựng từ variant_gate). Lưu tác vụ đang chờ (đối tượng, trường, lý do,
+    các câu hỏi giá của lượt) vào s.pending_clarify để lượt sau gắn câu trả lời rồi tiếp tục. Không tool, không ghi."""
+    from harness import variant_gate as VG
+    field, _, pref = str(ref or "").partition("@")
+    p = t.product_ref(pref)
+    if p is None or field not in VG.FIELDS:
+        return {"status": "blocked", "missing": ["valid_clarify_target"]}
+    s, c = t.s, t.c
+    a = VG.analyze(s, p["skus"][0], c.text)
+    if a["state"] != "needs" or field not in (a.get("fields") or []):
+        return {"status": "blocked", "missing": ["field_not_needed"], "result": {"state": a["state"]}}
+    asks = [x for x in t.pending_asks() if x in PRICE_ASKS] or [x for x in t.asks() if x in PRICE_ASKS] or ["price"]
+    prev = getattr(s, "pending_clarify", None) or {}
+    same = prev.get("target") == a["target"] and prev.get("field") == field
+    s.pending_clarify = {"task": "quote", "target": a["target"], "field": field, "purpose": "price_depends_on_variant",
+                         "basis": a.get("basis"), "asks": asks, "turn": s.turn_no,
+                         "tries": int(prev.get("tries") or 0) if same else 0}          # hỏi lại cùng trường: không đặt lại số lần
+    c.facts["clarify_field"] = {"field": field, "field_vi": VG.FIELD_VI.get(field, field), "product": a["name"],
+                                "options": (a.get("options") or {}).get(field) or []}
+    goal = "ask_size_for_price" if field == "size" else "ask_variant"
+    if goal not in c.goals:
+        c.goals.append(goal)
+    for x in asks:
+        t.ask_outcome[x] = {"outcome": "needs_customer", "reason": f"clarify_field:{field}", "evidence": []}
+    return {"status": "ok", "terminal": True, "goals": [goal], "result": {"asked": field, "product": a["name"]}}
+
+
+def resume_pending_clarify(t):
+    """Bước 2: đầu lượt — gắn câu trả lời của khách với tác vụ đang chờ. Khách nêu mẫu KHÁC / rút / từ chối → bỏ tác vụ. Thuộc tính đã
+    đủ (biến thể rõ hoặc nhóm còn lại cùng giá-điều kiện) → mở lại đúng các câu hỏi giá đã chờ (planner phải trả lời). Khách nêu giá trị
+    không có → báo phần thiếu (variant_unavailable). Vẫn thiếu → giữ thêm MỘT lượt rồi bỏ (không hỏi vòng lặp). → trace dict | None."""
+    from harness import variant_gate as VG
+    s, c = t.s, t.c
+    pc = getattr(s, "pending_clarify", None)
+    if not settings.b2_two_tier or not pc:
+        return None
+    u = c.u if isinstance(c.u, dict) else None
+    full = s.u_turn or {}
+    men = {_parent(x) for x in (getattr(s, "turn_mentioned", None) or []) if x}
+    out = {"pending": {k: pc.get(k) for k in ("target", "field", "purpose", "asks", "turn")}}
+    if men and pc["target"] not in men:
+        s.pending_clarify = None
+        return {**out, "action": "dropped", "why": "target_changed"}
+    if (full.get("response") or {}).get("act") in ("decline", "defer") or full.get("withdrawn"):
+        s.pending_clarify = None
+        return {**out, "action": "dropped", "why": "declined_or_withdrawn"}
+    a = VG.analyze(s, pc["target"], c.text)
+    if a["state"] in ("resolved", "uniform", "no_variants"):
+        if u is not None:
+            u["asks"] = list(dict.fromkeys(list(u.get("asks") or []) + list(pc["asks"])))
+        s.pending_clarify = None
+        return {**out, "action": "resumed", "state": a["state"], "sku": a.get("sku")}
+    if a["state"] == "unavailable":
+        c.facts["variant_unavailable"] = {"product": a["name"], "said": a.get("known"), "fields": a.get("fields"), "options": a.get("options")}
+        if "variant_unavailable" not in c.goals:
+            c.goals.append("variant_unavailable")
+        s.pending_clarify = {**pc, "turn": s.turn_no}
+        return {**out, "action": "told_unavailable"}
+    pc["tries"] = int(pc.get("tries") or 0) + 1
+    if pc["tries"] > 1:
+        s.pending_clarify = None
+        return {**out, "action": "dropped", "why": "unanswered_twice"}
+    return {**out, "action": "kept", "missing": a.get("fields")}
 
 
 def _read_stock(t, req_ref, ref):
@@ -512,6 +605,26 @@ def ask_which_attribute(c, par):
     opts = [ATTR_LABELS[k] for k in ATTR_LABELS if k in attrs and ATTR_PHRASE.get(k) and ATTR_PHRASE[k](attrs[k])]
     c.facts["attribute_ask"] = {"product": par["name"], "options": opts[:4]}
     c.goals += [g for g in ["ask_which_attribute"] if g not in c.goals]
+
+
+def _evaluate_named(t):
+    """Sửa sau DI24 (18/11, chỉ khi B2_TWO_TIER + phạm vi consult_named): câu "tư vấn / có hợp không" về ĐÚNG mẫu khách nêu → đọc giá +
+    kho từng mẫu theo ref (cùng bước read_quote, kể cả điều kiện phát giá theo biến thể nếu có), một mẫu + khách nêu ngân sách → so ngân
+    sách (không đề xuất mẫu thay thế). Không khảo sát nhóm, không gợi ý mẫu khác."""
+    c, s = t.c, t.s
+    sc = t.consult_scope or {}
+    done = []
+    for ref in sc.get("refs") or []:
+        obs = _read_quote(t, None, ref)
+        done.append({"ref": ref, "status": obs.get("status"), "withheld": bool((obs.get("result") or {}).get("price_withheld"))})
+    b = (c.slots or {}).get("budget_vnd") or (sc.get("constraints") or {}).get("budget_max_vnd")
+    q = c.facts.get("quote") if isinstance(c.facts.get("quote"), dict) else None
+    if b and len(sc.get("refs") or []) == 1 and q and q.get("final_price_vnd"):
+        c.facts["budget_fit"] = {"budget_vnd": b, "final_price_vnd": q["final_price_vnd"], "within_budget": q["final_price_vnd"] <= b,
+                                 "product": q.get("name"), "no_alternative_offered": True}
+        if "budget_fit" not in c.goals:
+            c.goals.append("budget_fit")
+    return {"reason": "named_scope_evaluate", "refs": done}
 
 
 def _recommend_customer_product(t):
@@ -739,12 +852,22 @@ def _answer_ask(t, req_ref, ref):
     c, s, n = t.c, t.s, len(t.c.goals)
     if topic == "other":
         return _answer_other(t)
+    if settings.b2_two_tier and topic in PRICE_ASKS:
+        wh = _variant_withhold(t)
+        if wh:
+            # bước 2: không chạy handler báo giá (h_quote phát giá mẫu gốc / câu phụ thu) khi biến thể còn thiếu; planner chọn
+            # clarify_field (hỏi đúng trường) hoặc báo phần thiếu
+            t.withheld = {**(getattr(t, "withheld", None) or {}), wh["target"]: wh}
+            t.ask_outcome[topic] = {"outcome": "blocked", "reason": "price_depends_on_variant", "evidence": []}
+            return {"status": "blocked", "missing": [f"variant_field:{f}" for f in wh.get("fields") or []] or ["variant_unavailable"],
+                    "result": {"price_withheld": True, "product": wh["name"], "options": wh.get("options")}}
     n_log = len(s.tools.log)
     facts_before = dict(c.facts)
     extra = {}
-    sw = _category_switch(t) if (topic in _QUOTE_TOPICS or topic == "recommend") else None
+    named_eval = settings.b2_two_tier and topic == "recommend" and bool(getattr(t, "consult_scope", None))
+    sw = None if named_eval else (_category_switch(t) if (topic in _QUOTE_TOPICS or topic == "recommend") else None)
     try:
-        for h in (() if sw else ASK_HANDLERS[topic]):
+        for h in (() if (sw or named_eval) else ASK_HANDLERS[topic]):
             if h == "attr_check":
                 extra = _answer_attribute(t)            # adapter B2 (thay h_attr_check cho B2; B1/B3 giữ dòng R15)
                 continue
@@ -765,7 +888,9 @@ def _answer_ask(t, req_ref, ref):
                 T.h_recommend(c, None)
                 continue
             T.HANDLERS[h](c, None)
-        if sw:
+        if named_eval:
+            extra = _evaluate_named(t)                       # sửa sau DI24: phạm vi consult_named — đánh giá đúng mẫu khách nêu
+        elif sw:
             extra = _answer_category(t, sw)                  # V52-B: đối tượng = nhóm hàng khách nêu, không phải mẫu đang bàn
         elif topic == "recommend" and not c.goals[n:] and not c.facts.get("attribute_answer"):
             extra = _recommend_customer_product(t) or {}     # A1 (15/11): gợi ý không ra nội dung → giữ đúng mẫu của khách
@@ -1719,7 +1844,7 @@ def step_cost(t, action, rq, tg):
     """Số tool call TỐI ĐA bước này có thể gọi ở trạng thái hiện tại (cận trên, theo SCOPE + bằng chứng đã có trong lượt).
     Vòng B2 chỉ cho chạy bước khi tool_calls + chi phí ≤ trần → trần tool là cứng ở mức lượt (trước đây chỉ kiểm trước bước)."""
     s = t.s
-    if action in ("check_window", "read_policy", "finish"):
+    if action in ("check_window", "read_policy", "finish", "clarify_field"):
         return 0
     if action == "read_quote":
         return 2

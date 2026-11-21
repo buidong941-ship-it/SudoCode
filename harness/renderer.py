@@ -36,6 +36,10 @@ def _ref_check(goal, F, tool_log, call_log):
     if goal in ("quote", "recommend") and (F.get("quote") or {}).get("final_price_vnd"):
         q = F["quote"]
         return got("pricing.get_quote", lambda r, a: r.get("final_price_vnd") == q["final_price_vnd"] and a.get("sku") == q.get("sku"), call_log)
+    if goal == "product_pick" and (F.get("product_pick") or {}).get("pick"):
+        # B2-TT: giá mẫu được chọn phải khớp pricing.get_quote của ĐÚNG SKU trong lượt
+        p = F["product_pick"]["pick"]
+        return got("pricing.get_quote", lambda r, a: r.get("final_price_vnd") == p.get("final_price_vnd") and a.get("sku") == p.get("sku"))
     if goal == "alternative_quote" and F.get("alternative"):
         a0 = F["alternative"]
         return got("pricing.get_quote", lambda r, a: r.get("final_price_vnd") == a0.get("final_price_vnd") and a.get("sku") == a0.get("sku"), call_log)

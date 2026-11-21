@@ -172,7 +172,11 @@ def _slot_value(slot, span, label, text, today):
         m = re.search(r"\d{1,3}", span)
         return int(m.group()) if m else None
     if slot == "has_children":
-        return True if label == "co" else None
+        if label == "co":
+            return True
+        # Candidate B2-TT (17/11): định nghĩa slot cho phép label=khong ("khẳng định không có") — trước đây trả None nên phủ định
+        # bị bỏ và cổng ASK_NEED hỏi lại mãi. Chỉ khi bật cờ (mặc định giữ hành vi bản chính).
+        return False if (label == "khong" and settings.b2_two_tier) else None
     if slot in ("budget_vnd", "competitor_price_vnd", "claimed_price_vnd"):
         money = find_money(span)
         return money[0][2] if money else None

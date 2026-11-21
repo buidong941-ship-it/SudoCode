@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "planner_guidance/1",
+  "title": "Hướng dẫn điều phối cho planner Jev (candidate 17/11)",
+  "description": "Nội dung RUNTIME của một hướng dẫn: nguyên tắc khái quát, điều kiện áp dụng, ngoại lệ. Không giá / KM / SĐT / mã kịch bản / mã đơn / SKU, không lời cấp quyền (improve/store._validate_guidance kiểm bằng code). Nguồn / căn cứ nằm ở hồ sơ review local (source_refs), không gửi cho model.",
+  "type": "object",
+  "required": [
+    "title",
+    "audience",
+    "applies_when",
+    "guidance",
+    "examples"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "pattern": "^GUIDE-[A-Z0-9-]+$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 120
+    },
+    "audience": {
+      "enum": [
+        "outer",
+        "inner",
+        "both"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "applies_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "guidance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "avoid": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requires_capabilities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "price_read",
+          "stock_read",
+          "order_read",
+          "policy_read",
+          "catalog_search",
+          "price_compare",
+          "context_short_answer"
+        ]
+      }
+    },
+    "conflict_group": {
+      "type": "string"
+    },
+    "asks_any": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "attribute",
+          "cart_total",
+          "cod",
+          "compare",
+          "delivery_address",
+          "delivery_time",
+          "gift",
+          "order_status",
+          "other",
+          "payment_method",
+          "policy",
+          "price",
+          "promo",
+          "promo_end",
+          "quality",
+          "recommend",
+          "refund_amount",
+          "return_policy",
+          "stock",
+          "warranty"
+        ]
+      },
+      "description": "18/11 DI17: chỉ giữ hướng dẫn khi asks của lượt (bộ hiểu) giao với danh sách này; không khai = không lọc. Metadata của code, không đưa vào prompt."
+    }
+  }
+}

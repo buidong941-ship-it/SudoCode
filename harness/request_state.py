@@ -569,7 +569,9 @@ class RequestState:
         cands, self.refmap, self.truncated = [], {}, {}
         seen, cut = [], []
         mentioned = list(getattr(s, "turn_mentioned", None) or [])
+        prop = getattr(s, "b2tt_proposal", None) if settings.b2_two_tier else None
         roles = [(x, "mentioned") for x in mentioned] + ([(s.focus, "focus")] if s.focus else []) \
+            + ([(prop["sku"], "agent_proposed")] if prop and prop.get("sku") else []) \
             + [(x, "cart") for x in s.cart] + [(x, "discussed") for x in s.discussed]
         for sku, role in roles:
             par = _parent(sku)
@@ -1163,6 +1165,8 @@ class RequestState:
             return (men[0],) if len(men) == 1 else None
         if inherited and inherited.get("type") == "product" and inherited.get("skus"):
             return tuple(inherited["skus"])
+        if RequestState.proposal_ambiguity(s):
+            return None                      # b2tt-2: mơ hồ giữa mẫu đang bàn và mẫu agent vừa đề xuất → hỏi lại, không lấy focus
         cart = list(dict.fromkeys(_parent(x) for x in s.cart))
         focus = _parent(s.focus) if s.focus else None
         if focus and (not cart or cart == [focus]):
@@ -1170,6 +1174,20 @@ class RequestState:
         if not focus and len(cart) == 1:
             return (cart[0],)
         return None
+
+    @staticmethod
+    def proposal_ambiguity(s):
+        """b2tt-2 (18/11, QUYET-DINH-KIEN-TRUC-SAU-UI5): chỉ khi B2_TWO_TIER. Lượt NGAY SAU khi tầng tư vấn đề xuất một mẫu KHÁC mẫu
+        khách đang bàn (đề xuất không thay focus — s.b2tt_proposal) thì lời đặt không nêu mẫu là mơ hồ giữa hai mẫu.
+        → (sku cha đang bàn | None, sku cha đề xuất) | None. Khách nêu tên mẫu / chọn ref → không qua đây (dùng ref mới)."""
+        if not settings.b2_two_tier:
+            return None
+        p = getattr(s, "b2tt_proposal", None)
+        if not p or p.get("turn") is None or p.get("turn") != (getattr(s, "turn_no", 0) or 0) - 1:
+            return None
+        focus = _parent(s.focus) if s.focus else None
+        prop = _parent(p.get("sku"))
+        return (focus, prop) if prop and prop != focus else None
 
     def select(self, kind):
         """Yêu cầu sẽ thực thi cho loại này → (request | None, lý do). Nhiều yêu cầu cùng loại còn hiệu lực (khác đối tượng,

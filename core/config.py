@@ -156,6 +156,19 @@ class Settings:
     b2_max_tool_calls: int = field(default_factory=lambda: int(_env("PLANNER_B2_MAX_TOOL_CALLS", "13")))   # 13/11: người dùng duyệt nâng 12 → 13 (tư vấn danh mục 8 mẫu khi đang bàn một mẫu tốn tối đa 13)
     b2_deadline_s: float = field(default_factory=lambda: float(_env("PLANNER_B2_DEADLINE_S", "12")))
     b2_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_B2_MIN_CONF", "0")))
+    # Candidate B2-TT (17/11, docs/DE-XUAT/THIET-KE-CANDIDATE-B2TT-2026-11-17.md): tư vấn CHỈ ĐỌC hai tầng (Jev ngoài chọn tác vụ,
+    # Jev trong chọn thao tác) trên PLANNER_VARIANT=b2_jev; giao dịch giữ nguyên luồng B2. Mặc định TẮT = hành vi bản chính.
+    # Bật cờ cũng bật: has_children nhận label khong → False (định nghĩa slot đã có), và trường `consult` của bộ hiểu.
+    b2_two_tier: bool = field(default_factory=lambda: _env("B2_TWO_TIER", "0") == "1")
+    b2tt_max_tool_calls: int = field(default_factory=lambda: int(_env("B2TT_MAX_TOOL_CALLS", "18")))
+    b2tt_max_decisions: int = field(default_factory=lambda: int(_env("B2TT_MAX_DECISIONS", "4")))
+    # Candidate kho hướng dẫn điều phối cho Jev (17/11, docs/DE-XUAT/KIEN-TRUC-RAG-HUONG-DAN-JEV-2026-11-17.md). Rỗng = TẮT.
+    # Đường dẫn gói ĐÃ ĐÓNG (PACKAGE.json + approved/ chỉ loại planner_guidance), truyền tường minh; tách khỏi IMPROVE_DIR (FAQ).
+    planner_guidance_dir: str = field(default_factory=lambda: _env("PLANNER_GUIDANCE_DIR", ""))
+    guidance_fetch_k: int = field(default_factory=lambda: int(_env("GUIDANCE_FETCH_K", "15")))
+    guidance_context_k: int = field(default_factory=lambda: int(_env("GUIDANCE_CONTEXT_K", "3")))
+    guidance_min_score: float = field(default_factory=lambda: float(_env("GUIDANCE_MIN_SCORE", "1.0")))   # tạm, hiệu chỉnh trên dev trước freeze
+    guidance_max_tokens: int = field(default_factory=lambda: int(_env("GUIDANCE_MAX_TOKENS", "800")))
     # 13/11 (duyệt): câu cuối gửi ra backend/UI ngay sau guardrail (callback on_emit); audit hậu kỳ chạy nền trên đúng câu đã
     # gửi. AUDIT_ASYNC=0: vẫn emit thật nhưng turn() đợi audit xong mới trả về (chẩn đoán). Hết phiên / job đợi audit tối đa
     # AUDIT_DRAIN_TIMEOUT_S rồi ghi audit_status=timeout (không bỏ im lặng).
@@ -220,6 +233,10 @@ class Settings:
                 "planner_variant": self.planner_variant,
                 "planner_b2_budget": {"max_decisions": self.b2_max_decisions, "max_tool_calls": self.b2_max_tool_calls,
                                       "deadline_s": self.b2_deadline_s, "min_conf": self.b2_min_conf},
+                "b2_two_tier": {"on": self.b2_two_tier, "max_tool_calls": self.b2tt_max_tool_calls, "max_decisions": self.b2tt_max_decisions},
+                "planner_guidance": {"dir": self.planner_guidance_dir or None, "fetch_k": self.guidance_fetch_k,
+                                     "context_k": self.guidance_context_k, "min_score": self.guidance_min_score,
+                                     "max_tokens": self.guidance_max_tokens},
                 "planner_b3_max_steps": self.b3_max_steps,
                 "planner_skip_since": list(self.planner_skip_since), "product_lexicon": self.product_lexicon,
                 "parallel_router": self.parallel_router, "order_qty": self.order_qty, "qwen_extract_base_url": self.qwen_extract_base_url or None,
@@ -267,6 +284,14 @@ def check_variant(variant, s=None):
         raise ValueError(f"PLANNER_VARIANT={variant} mâu thuẫn với PLANNER_BACKEND={s.planner_backend} (planner LLM dự phòng cũ)")
     if variant == "b2_jev" and not (s.b2_max_decisions > 0 and s.b2_max_tool_calls > 0 and s.b2_deadline_s > 0):
         raise ValueError("PLANNER_VARIANT=b2_jev cần ngân sách hữu hạn > 0 (PLANNER_B2_MAX_DECISIONS/_MAX_TOOL_CALLS/_DEADLINE_S)")
+    if s.b2_two_tier and variant != "b2_jev":
+        raise ValueError("B2_TWO_TIER=1 chỉ chạy trên PLANNER_VARIANT=b2_jev (candidate B2-TT)")
+    if s.planner_guidance_dir and variant != "b2_jev":
+        raise ValueError("PLANNER_GUIDANCE_DIR chỉ dùng với PLANNER_VARIANT=b2_jev (hướng dẫn cho planner Jev)")
+    if s.planner_guidance_dir and not (0 < s.guidance_context_k <= 3 and 0 < s.guidance_fetch_k <= 15 and 0 < s.guidance_max_tokens <= 800):
+        raise ValueError("GUIDANCE_CONTEXT_K ≤ 3, GUIDANCE_FETCH_K ≤ 15, GUIDANCE_MAX_TOKENS ≤ 800 (thiết kế 17/11)")
+    if s.b2_two_tier and not (s.b2tt_max_tool_calls > 0 and s.b2tt_max_decisions > 0):
+        raise ValueError("B2_TWO_TIER=1 cần B2TT_MAX_TOOL_CALLS / B2TT_MAX_DECISIONS > 0")
     if variant == "b3_workflow" and s.b3_max_steps <= 0:
         raise ValueError("PLANNER_VARIANT=b3_workflow cần PLANNER_B3_MAX_STEPS > 0")
 

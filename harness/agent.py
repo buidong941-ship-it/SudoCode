@@ -322,7 +322,10 @@ class CallSession:
         t0 = time.perf_counter()
         if improve_hook.enabled():
             improve_hook.preflight()                 # C.5: gói sai phạm vi (target chỉ FAQ) → từ chối mở phiên
-        kind, val = ("fb_id", self.channel_identity) if self.channel == "chat_fanpage" else \
+        # 17/11 candidate: khóa gói hướng dẫn điều phối cho CẢ phiên (PLANNER_GUIDANCE_DIR rỗng → None); gói sai → từ chối mở phiên
+        from harness import guidance as _guidance
+        self.guidance_pin = _guidance.pin()
+        kind, val =("fb_id", self.channel_identity) if self.channel == "chat_fanpage" else \
                     ("zalo_id", self.channel_identity) if self.channel == "zalo_oa" else ("phone", self.phone)
         if not val:
             kind, val = "phone", self.phone
@@ -2288,7 +2291,8 @@ class CallSession:
             qs = (self.quote or {}).get("sku")
             qp = mt._parent(qs)[0] if qs else None
             fp = mt._parent(self.focus)[0]
-            if qs and qp and qs != qp["sku"] and fp and qp["sku"] in (self.focus, fp["sku"]) and not self.orders_created:
+            if qs and qp and qs != qp["sku"] and fp and qp["sku"] in (self.focus, fp["sku"]) and not self.orders_created \
+                    and not (self.quote or {}).get("representative"):     # bước 2: biến thể đại diện không phải khách chọn
                 self.known["variant_sku"] = qs
         for k in ("product_chosen", "order_id", "variant_sku", "estimated_delivery", "unresolved_order_sku"):
             if self.known.get(k):

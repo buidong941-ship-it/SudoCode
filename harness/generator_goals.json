@@ -829,5 +829,29 @@
     ],
     "question_slot": null,
     "legacy_description": null
+  },
+  "product_pick": {
+    "description": "B2-TT: trả lời tư vấn chỉ đọc từ product_pick (code so sánh trên dữ liệu tool): nêu tên mẫu và giá bán final_price_vnd; chỉ gọi là rẻ / đắt nhất khi complete=true; nêu mẫu rẻ hơn đang hết hàng nếu có; không có mẫu thì nói rõ chưa có mẫu phù hợp. kind=alternative: đây là gợi ý THÊM ngoài mẫu khách đang xem (anchor_names) — nêu mẫu khách đang xem như mốc, không nói thay hay bỏ mẫu đó.",
+    "required_facts": {
+      "product_pick": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "B2-TT: trả lời tư vấn chỉ đọc từ product_pick (code so sánh trên dữ liệu tool): nêu tên mẫu và giá bán final_price_vnd; chỉ gọi là rẻ / đắt nhất khi complete=true; nêu mẫu rẻ hơn đang hết hàng nếu có; không có mẫu thì nói rõ chưa có mẫu phù hợp. kind=alternative: đây là gợi ý THÊM ngoài mẫu khách đang xem (anchor_names) — nêu mẫu khách đang xem như mốc, không nói thay hay bỏ mẫu đó."
+    ],
+    "question_slot": null,
+    "legacy_description": "B2-TT: trả lời tư vấn chỉ đọc từ product_pick (code so sánh trên dữ liệu tool): nêu tên mẫu và giá bán final_price_vnd; chỉ gọi là rẻ / đắt nhất khi complete=true; nêu mẫu rẻ hơn đang hết hàng nếu có; không có mẫu thì nói rõ chưa có mẫu phù hợp. kind=alternative: đây là gợi ý THÊM ngoài mẫu khách đang xem (anchor_names) — nêu mẫu khách đang xem như mốc, không nói thay hay bỏ mẫu đó."
+  },
+  "variant_unavailable": {
+    "description": "Bước 2: khách nêu size / màu KHÔNG có trong các biến thể của mẫu (variant_unavailable.said): nói rõ mẫu không có lựa chọn đó, nêu các giá trị đang có (variant_unavailable.options) và hỏi khách chọn một (1 câu hỏi). Không báo giá, không đoán biến thể.",
+    "required_facts": {
+      "variant_unavailable": "object"
+    },
+    "optional_facts": {},
+    "response_requirements": [
+      "Bước 2: khách nêu size / màu KHÔNG có trong các biến thể của mẫu (variant_unavailable.said): nói rõ mẫu không có lựa chọn đó, nêu các giá trị đang có (variant_unavailable.options) và hỏi khách chọn một (1 câu hỏi). Không báo giá, không đoán biến thể."
+    ],
+    "question_slot": "size",
+    "legacy_description": "Bước 2: khách nêu size / màu KHÔNG có trong các biến thể của mẫu (variant_unavailable.said): nói rõ mẫu không có lựa chọn đó, nêu các giá trị đang có (variant_unavailable.options) và hỏi khách chọn một (1 câu hỏi). Không báo giá, không đoán biến thể."
   }
 }

@@ -33,7 +33,21 @@ KINDS = {
     "planner_rule": ("when", "do", "priority"),        # dòng bảng planner (origin=approved), chỉ handler an toàn
     "router_cue": ("target", "pattern"),               # target = intent:<tên> (router rules) | flag:<tên>
     "product_alias": ("brand", "forms"),               # cách đọc phiên âm thương hiệu cho tầng tra sản phẩm
+    # 17/11 candidate: hướng dẫn điều phối cho planner Jev (schemas/planner_guidance.schema.json). Không phải lời nói với khách.
+    "planner_guidance": ("title", "audience", "applies_when", "guidance"),
 }
+GUIDE_AUDIENCE = ("outer", "inner", "both")
+GUIDE_LISTS = ("tags", "applies_when", "exceptions", "guidance", "avoid", "examples", "counterexamples", "requires_capabilities", "asks_any")
+# 18/11 DI17: nhãn hỏi có kiểu của bộ hiểu (bản sao khóa của harness.understanding.ASKS — improve không import harness;
+# tests/guidance_v2_check.py kiểm hai danh sách trùng nhau)
+GUIDE_ASKS = {"price", "promo", "promo_end", "gift", "stock", "cod", "payment_method", "cart_total", "refund_amount", "return_policy",
+              "warranty", "attribute", "delivery_time", "delivery_address", "order_status", "compare", "quality", "recommend", "policy",
+              "other"}
+GUIDE_CAPABILITIES = {"price_read", "stock_read", "order_read", "policy_read", "catalog_search", "price_compare", "context_short_answer",
+                      "request_commit"}
+SCENARIO_ID_RX = re.compile(r"\b(?:[A-Z]{2,}\d*-)+[A-Z]?\d{2,}\b|\b[A-Z]\d-\d{2,}\b|\bOD\d{4,}\b|\bSKU-[A-Z0-9-]+\b")
+GRANT_RX = re.compile(r"bỏ qua (?:quyền|xác nhận|kiểm|cổng)|không cần (?:xác nhận|kiểm tra quyền)|tự (?:tạo|lên) đơn|"
+                      r"ignore (?:permission|validator)", re.I)
 # Loại kỹ thuật: duyệt xong chưa có hiệu lực ngay mà vào gated/, chỉ lên approved/ khi qua cổng hồi quy (python -m improve gate)
 GATED_KINDS = ("planner_rule", "router_cue", "product_alias")
 STATES = ("pending", "gated", "approved", "rejected")
@@ -125,6 +139,44 @@ def validate(prop):
             errs.append(f"payload.pattern không phải regex hợp lệ: {e}")
     if kind in GATED_KINDS:
         errs += _validate_technical(kind, pl)
+    if kind == "planner_guidance":
+        errs += _validate_guidance(pl)
+    return errs
+
+
+def _validate_guidance(pl):
+    """17/11: hướng dẫn điều phối là NGUYÊN TẮC khái quát — không giá / KM / SĐT / mã kịch bản / mã đơn / SKU, không lời cấp quyền;
+    kiểu và giới hạn độ dài để vừa ngân sách context."""
+    errs = []
+    if pl.get("audience") not in GUIDE_AUDIENCE:
+        errs.append(f"audience phải thuộc {GUIDE_AUDIENCE}")
+    for f in GUIDE_LISTS:
+        v = pl.get(f, [])
+        if not isinstance(v, list) or not all(isinstance(x, str) and x.strip() for x in v):
+            errs.append(f"payload.{f} phải là danh sách chuỗi khác rỗng")
+    for f in ("applies_when", "guidance", "examples"):
+        if not pl.get(f):
+            errs.append(f"payload.{f} phải có ít nhất 1 mục")
+    bad_cap = set(pl.get("requires_capabilities") or []) - GUIDE_CAPABILITIES
+    if bad_cap:
+        errs.append(f"requires_capabilities lạ {sorted(bad_cap)}")
+    bad_asks = set(pl.get("asks_any") or []) - GUIDE_ASKS
+    if bad_asks:
+        errs.append(f"asks_any lạ {sorted(bad_asks)} — chỉ dùng nhãn hỏi của bộ hiểu")
+    if "request_commit" in (pl.get("requires_capabilities") or []):
+        errs.append("hướng dẫn không được yêu cầu quyền ghi (request_commit) — quyền giao dịch do cổng code quyết định")
+    texts = [str(pl.get("title") or "")] + [x for f in GUIDE_LISTS if f not in ("requires_capabilities", "asks_any") for x in (pl.get(f) or []) if isinstance(x, str)]
+    for t in texts:
+        if MONEY_RX.search(t):
+            errs.append(f"chứa số tiền/KM '{MONEY_RX.search(t).group(0)}' — hướng dẫn không chứa giá cố định"); break
+    for t in texts:
+        if PHONE_RX.search(t) or SCENARIO_ID_RX.search(t):
+            errs.append(f"chứa SĐT / mã kịch bản / mã đơn / SKU: '{t[:60]}'"); break
+    for t in texts:
+        if GRANT_RX.search(t):
+            errs.append(f"chứa lời cấp / bỏ qua quyền: '{GRANT_RX.search(t).group(0)}'"); break
+    if sum(len(t) for t in texts) > 1600:
+        errs.append("hướng dẫn quá dài (> 1600 ký tự) — vượt ngân sách context")
     return errs
 
 

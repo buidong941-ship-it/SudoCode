@@ -295,6 +295,43 @@ def _promo_note(q, asked, covered=None):
     return " ".join(notes)
 
 
+def _render_product_pick(pp, h):
+    """B2-TT (17/11): câu trả lời tư vấn chỉ đọc. Mọi tên / giá lấy từ product_pick (code so sánh trên kết quả tool); chỉ nói
+    'rẻ / đắt nhất' khi complete (đã đọc đủ mọi mẫu của phạm vi); thiếu thì nói đúng giới hạn."""
+    lab = pp.get("category_label") or "nhóm này"
+    cons = pp.get("constraints") or {}
+    scope = lab + (f" trong mức {_vnd(cons['budget_max_vnd'])}" if cons.get("budget_max_vnd") else "") \
+        + (f" cho phòng từ {cons['room_area_m2']}m²" if cons.get("room_area_m2") else "")
+    p = pp.get("pick")
+    anc = ", ".join(pp.get("anchor_names") or []) if pp.get("kind") == "alternative" else ""
+    if not p and anc and not pp.get("errors"):
+        # b2tt-2: khách xin mẫu khác mẫu đang xem — mẫu đó giữ nguyên, chỉ báo chưa có mẫu khác phù hợp
+        return f"Dạ ngoài mẫu {anc}, hiện bên em chưa có mẫu {scope} nào khác còn hàng phù hợp ạ."
+    if not p:
+        if pp.get("errors"):
+            return f"Dạ em chưa kiểm tra được đủ giá và tồn kho của {scope} lúc này, em xin phép kiểm lại rồi báo {h} ạ."
+        oos = pp.get("excluded_out_of_stock") or []
+        return (f"Dạ hiện bên em chưa có mẫu {scope} nào còn hàng ạ." if oos or pp.get("n_compared") == 0 else
+                f"Dạ hiện bên em chưa có mẫu {scope} phù hợp ạ.")
+    promo = f", đang áp dụng {', '.join(p['promo_names'])}" if p.get("promo_names") else ""
+    var = " (giá có thể khác theo size / màu)" if p.get("has_variants") else ""
+    price = _vnd(p["final_price_vnd"])
+    kind = pp.get("kind")
+    if kind in ("cheapest", "most_expensive") and pp.get("complete"):
+        w = "thấp nhất" if kind == "cheapest" else "cao nhất"
+        s = f"Dạ trong các mẫu {scope} bên em đang bán và còn hàng, mẫu có giá {w} là {p['name']}, giá {price}{promo}{var} ạ."
+        if kind == "cheapest" and pp.get("cheaper_out_of_stock"):
+            s += f" Mẫu {', '.join(pp['cheaper_out_of_stock'])} giá thấp hơn nhưng hiện đang tạm hết hàng ạ."
+        return s
+    if kind in ("cheapest", "most_expensive"):
+        w = "thấp nhất" if kind == "cheapest" else "cao nhất"
+        return (f"Dạ trong {pp.get('n_compared')} mẫu {lab} em kiểm được lúc này, mẫu có giá {w} là {p['name']}, giá {price}{promo}{var} ạ; "
+                f"em chưa kiểm hết các mẫu nên chưa khẳng định được đây là mẫu {'rẻ' if kind == 'cheapest' else 'đắt'} nhất.")
+    if anc:
+        return f"Dạ ngoài mẫu {anc} {h} đang xem, em gợi ý thêm mẫu {p['name']}, giá {price}{promo}{var} ạ."
+    return f"Dạ với nhu cầu của {h}, em gợi ý mẫu {p['name']}, giá {price}{promo}{var} ạ."
+
+
 def render_offline(plan):
     h = plan.get("honorific") or "anh/chị"
     F = plan.get("facts", {})
@@ -396,6 +433,8 @@ def render_offline(plan):
             out.append(f"Dạ mua {gf['product']} hiện được tặng {gf['gift_name']}, chương trình áp dụng đến {gf['end_ddmm']} ạ." if gf["active"]
                        else f"Dạ chương trình tặng {gf['gift_name']} khi mua {gf['product']} đã kết thúc ngày {gf['end_ddmm']} rồi ạ, "
                             "hiện mẫu này không kèm quà tặng.")
+        elif g == "product_pick" and F.get("product_pick"):
+            out.append(_render_product_pick(F["product_pick"], h))
         elif g == "budget_fit" and F.get("budget_fit"):
             bf = F["budget_fit"]
             nm = f"mẫu {bf['product']} " if bf.get("product") else ""
@@ -427,6 +466,13 @@ def render_offline(plan):
                        else f"{h.capitalize()} xác nhận giúp em để em lên đơn luôn nhé?")
         elif g == "ask_size_for_price":
             out.append(f"Dạ giá mẫu này có thể khác nhau theo size, {h} đi size mấy để em báo đúng giá ạ?")
+        elif g == "variant_unavailable" and F.get("variant_unavailable"):
+            # bước 2 (18/11): khách nêu size / màu không có — nói rõ phần thiếu, nêu lựa chọn đang có, không báo giá
+            vu = F["variant_unavailable"]
+            said = ", ".join(f"{'màu' if k == 'color' else 'size'} {v}" for k, v in (vu.get("said") or {}).items())
+            opts = "; ".join(f"{'màu' if k == 'color' else 'size'}: {', '.join(map(str, v))}" for k, v in (vu.get("options") or {}).items())
+            out.append(f"Dạ mẫu {vu.get('product')} hiện không có {said or 'lựa chọn đó'} ạ" + (f", bên em đang có {opts}" if opts else "")
+                       + f". {h.capitalize()} chọn giúp em để em báo đúng giá nhé?")
         elif g == "order_exists":
             o = F["order"]; out.append(f"Dạ đơn {o['order_id']} của {h} em đã lên rồi"
                                        + (f", dự kiến giao ngày {_dm(o['estimated_delivery'])}" if o.get("estimated_delivery") else "") + " ạ.")

@@ -35,7 +35,7 @@ INSTRUCTIONS = ("Bạn là bộ lập kế hoạch của nhân viên bán hàng 
 _DISPLAY = {"read_quote": "read_tool_quote_and_stock", "read_stock": "read_tool_stock", "read_order": "read_tool_customer_orders",
             "check_window": "read_tool_return_window", "read_policy": "read_tool_policy_docs",
             "answer_ask": "answer_customer_question", "commit_request": "execute_request", "report_cart": "tell_customer_cart",
-            "finish": "finish_turn"}
+            "finish": "finish_turn", "clarify_field": "ask_customer_variant_field"}
 
 
 def display_of(step):
@@ -48,7 +48,7 @@ def display_of(step):
         return f"{name}:{str(tg)[4:]}"
     if a == "commit_request":
         return f"{name}:{rq}" + (f"@{tg}" if tg else "")
-    return f"{name}:{tg}" if tg else name
+    return f"{name}:{tg}" if tg else name         # clarify_field → ask_customer_variant_field:<trường>@<P#>
 
 
 # ---------------------------------------------------------------------- trạng thái nạp cho Jev
@@ -180,9 +180,27 @@ def state_for(t):
           "cart": cart,
           # V52 (16/11): đối tượng câu hỏi tư vấn của lượt + căn cứ — cùng hàm executor dùng (P.ask_object)
           "question_object": P.question_scope(t),
+          # b2tt-2 (18/11): tầng ngoài B2-TT đã chọn phạm vi "đúng mẫu khách nêu" → luồng chính chỉ đọc theo các ref này
+          **({"consult_scope": {"task": "answer_about_named_products", "refs": t.consult_scope["refs"],
+                                "products": [_pname(x) for x in t.consult_scope["skus"]],
+                                "constraints": t.consult_scope.get("constraints") or {}}}
+             if getattr(t, "consult_scope", None) else {}),
+          # bước 2 (18/11): giá bị giữ vì biến thể chưa đủ (trường còn thiếu + giá trị hợp lệ) và tác vụ chờ khách trả lời
+          **({"price_withheld": {_pname(k): {"missing_fields": v.get("fields"), "options": v.get("options"), "state": v.get("state")}
+                                 for k, v in (getattr(t, "withheld", None) or {}).items()}}
+             if settings.b2_two_tier and getattr(t, "withheld", None) else {}),
+          **({"pending_task": getattr(t, "clarify_resume", None)} if settings.b2_two_tier and getattr(t, "clarify_resume", None) else {}),
+          # b2tt-2: lời đồng ý không nêu mẫu ngay sau khi agent đề xuất mẫu khác mẫu đang bàn → phải hỏi khách lấy mẫu nào
+          **({"purchase_target_ambiguous": _ambiguity(t)} if settings.b2_two_tier and _ambiguity(t) else {}),
           "budget_left": {"decisions": settings.b2_max_decisions - len(t.decisions),
                           "tool_calls": settings.b2_max_tool_calls - t.tool_calls}}
+    from harness import guidance as G
+    gc = G.context(getattr(t, "guidance", None), "main")   # 18/11 DI17: planner chính không nhận hướng dẫn tầng trong (B2-TT)
+    if gc:
+        st["guidance_context"] = gc          # 17/11 candidate: hướng dẫn đã duyệt — tham khảo, không cấp quyền / không thêm bước
     out = Redactor().redact(st)
+    if gc:
+        t.guidance_supplied = getattr(t, "guidance_supplied", set()) | {g["id"] for g in (out.get("guidance_context") or {}).get("guides") or []}
     t.last_state = out                 # kiểm chứng: đúng dữ liệu đã gửi Jev (sau che PII)
     return out
 
@@ -192,7 +210,7 @@ def step_of(action, request_ref=None, target_ref=None):
     của bộ quyết định có kịch bản trong test sang cùng dạng."""
     rq = None if request_ref in (None, "none") else request_ref
     tg = None if target_ref in (None, "none") else target_ref
-    if action in ("read_quote", "read_stock", "check_window"):
+    if action in ("read_quote", "read_stock", "check_window", "clarify_field"):
         return f"{action}:{tg}"
     if action == "answer_ask":
         return f"answer_ask:{str(tg)[4:] if str(tg).startswith('ask:') else tg}"
@@ -257,7 +275,10 @@ def options(t):
                                       f"đã có ({common}); nếu câu cần chính sách thì dùng read_tool_policy_docs trước; không có gì "
                                       f"thì báo chưa có thông tin." if a == "other" else "")
                                    + (f" Lần trước: {last} (chưa trả lời được)." if last else "")
-                                   + (lambda o: f" Đối tượng: {o['object'] or 'chưa có'} ({o['basis']})." if a != "other" and o else "")(P.question_scope(t)))
+                                   + (lambda o: f" Đối tượng: {o['object'] or 'chưa có'} ({o['basis']})." if a != "other" and o else "")(P.question_scope(t))
+                                   + (" Phạm vi lượt này là ĐÚNG mẫu khách nêu: bước này đánh giá các mẫu đó (giá / kho theo ref, so "
+                                      "ngân sách nếu khách nói), KHÔNG khảo sát nhóm, KHÔNG gợi ý mẫu khác."
+                                      if a == "recommend" and getattr(t, "consult_scope", None) else ""))
     if s.cart:
         desc["report_cart"] = ("BÁO KHÁCH GIỎ HÀNG: các món đang có trong giỏ và tổng tiền theo pricing.quote_order (mẫu khách bảo "
                                "thêm mà đã có trong giỏ thì báo đã có, không tăng số lượng). BẮT BUỘC trước khi kết thúc khi khách "
@@ -347,6 +368,27 @@ def options(t):
             if p and P.outside_question_scope(t, p["skus"]):
                 removed[st] = "outside_question_scope"
                 del desc[st]
+    # b2tt-2 (18/11): phạm vi "đúng mẫu khách nêu" do tầng ngoài B2-TT chọn → chỉ đọc giá / kho các ref đó (chỉ có khi B2_TWO_TIER)
+    sc = getattr(t, "consult_scope", None)
+    if sc:
+        keep = {P._parent(x) for x in sc.get("skus") or []}
+        for st in list(desc):
+            a, rq, tg = parse_step(st)
+            if a in ("read_quote", "read_stock") and str(tg).startswith("P"):
+                p = t.product_ref(tg)
+                if p and not ({P._parent(x) for x in p["skus"]} & keep):
+                    removed[st] = "outside_named_scope"
+                    del desc[st]
+    if settings.b2_two_tier:
+        _variant_field_options(t, desc, removed)
+    # b2tt-2: lời đồng ý mơ hồ giữa mẫu đang bàn và mẫu agent vừa đề xuất → không cho Jev tự gắn mẫu vào yêu cầu đặt chưa có đối
+    # tượng (commit_request:R@P#); executor hỏi khách lấy mẫu nào (clarify:R)
+    if settings.b2_two_tier and _ambiguity(t):
+        for st in list(desc):
+            a, rq, tg = parse_step(st)
+            if a == "commit_request" and tg and str(tg).startswith("P"):
+                removed[st] = "purchase_target_ambiguous"
+                del desc[st]
     steps = list(desc)
     parsed = legacy
     return {"step": steps, "desc": desc, "display": {x: display_of(x) for x in steps}, "removed": removed,
@@ -354,6 +396,61 @@ def options(t):
             "action": list(dict.fromkeys(p[0] for p in parsed)),
             "request_ref": list(dict.fromkeys([p[1] for p in parsed if p[1]] + ["none"])),
             "target_ref": list(dict.fromkeys([p[2] for p in parsed if p[2]] + ["none"]))}
+
+
+def _variant_field_options(t, desc, removed):
+    """Bước 2 (18/11): clarify(field, target_ref, purpose) — code dựng lựa chọn TỪ điều kiện của tác vụ báo giá + bằng chứng: mẫu có giá
+    bị giữ trong lượt (read_quote / answer_ask đã chặn) hoặc mẫu là đối tượng câu hỏi giá còn chờ mà biến thể chưa đủ. Mỗi trường CÓ ảnh
+    hưởng và CÒN thiếu thành một bước; Jev chọn. read_quote của mẫu bị giữ không được mời lại (đọc lại không đổi kết quả)."""
+    from harness import variant_gate as VG
+    s = t.s
+    wh = dict(getattr(t, "withheld", None) or {})
+    price_q = bool(set(t.pending_asks()) & set(P.PRICE_ASKS))
+    if price_q:
+        a = P._variant_withhold(t)
+        if a:
+            wh.setdefault(a["target"], a)
+    inv = {v["skus"][0]: k for k, v in s.reqs.refmap.items() if k.startswith("P") and v.get("type") == "product" and v.get("skus")}
+    rs = getattr(t, "clarify_resume", None) or {}
+    outstanding = (rs.get("pending") or {}) if rs.get("action") == "kept" and not (set(t.asks()) & set(P.PRICE_ASKS)) else {}
+    for par, a in wh.items():
+        ref = inv.get(par)
+        if not ref:
+            continue
+        if par in (getattr(t, "withheld", None) or {}):
+            for st in (f"read_quote:{ref}",):
+                if st in desc:
+                    removed[st] = "price_withheld_need_variant"
+                    del desc[st]
+        if a.get("state") != "needs":
+            continue
+        if not price_q:
+            # sửa sau ui7b (diag-v7-ui7b-1118): chỉ hỏi thuộc tính khi lượt này CÒN câu hỏi giá / KM phải trả lời (kể cả câu hỏi mở lại
+            # từ tác vụ chờ). Planner tự đọc giá mà khách không hỏi giá → giữ giá, KHÔNG kéo theo câu hỏi size (không hỏi vòng lặp)
+            for f in a.get("fields") or []:
+                removed[f"clarify_field:{f}@{ref}"] = "no_price_question_this_turn"
+            continue
+        for f in a.get("fields") or []:
+            if outstanding.get("target") == par and outstanding.get("field") == f:
+                removed[f"clarify_field:{f}@{ref}"] = "already_asked_unanswered"      # không hỏi vòng lặp
+                continue
+            opts = ", ".join((a.get("options") or {}).get(f) or [])
+            desc[f"clarify_field:{f}@{ref}"] = (f"HỎI KHÁCH {VG.FIELD_VI.get(f, f)} của {a['name']} ({ref}) rồi KẾT THÚC lượt: giá / KM của mẫu "
+                                                f"này phụ thuộc {VG.FIELD_VI.get(f, f)} ({', '.join(a.get('basis') or [])}) mà khách chưa nói "
+                                                f"(giá trị có: {opts}). Code lưu tác vụ báo giá đang chờ; lượt sau khách trả lời thì báo "
+                                                f"đúng giá biến thể. Không gọi tool, không ghi.")
+
+
+def _ambiguity(t):
+    """b2tt-2: {"customer_product","agent_proposed"} khi có yêu cầu đặt CHƯA có đối tượng ở lượt NGAY SAU một đề xuất khác mẫu đang
+    bàn (lời đồng ý không nêu mẫu). Không có yêu cầu đặt như vậy → None."""
+    from harness.request_state import RequestState
+    if not any(r["kind"] == "place_order" and r.get("target") is None for r in t.active_requests()):
+        return None
+    amb = RequestState.proposal_ambiguity(t.s)
+    if not amb:
+        return None
+    return {"customer_product": _pname(amb[0]) if amb[0] else None, "agent_proposed": _pname(amb[1])}
 
 
 def validate(step, opts):
@@ -402,6 +499,31 @@ def run(c, decider=None):
     t = P.Turn(c)
     t.reuse_quotes = True              # patch cuối 13/11: dùng lại view báo giá đã đọc trong lượt; trần tool cứng; nghĩa vụ phản hồi giỏ
     t.decisions = []
+    # 17/11 candidate kho hướng dẫn: truy hồi MỘT lần cho lượt (sau bộ hiểu, trước mọi quyết định Jev); tắt → status disabled
+    from harness import guidance as G
+    t.guidance = G.for_turn(c)
+    t.guidance_supplied = set()
+    t.clarify_resume = P.resume_pending_clarify(t) if settings.b2_two_tier else None   # bước 2: gắn câu trả lời với tác vụ chờ
+    tt = None
+    if settings.b2_two_tier:
+        # Candidate B2-TT (17/11): tư vấn CHỈ ĐỌC hai tầng chạy trước; lượt giao dịch / việc khác → "delegate" về đúng vòng B2 dưới
+        # (request / binding / authorization / order gate không đổi). Lỗi của tầng tư vấn không ghi gì, chuyển về vòng B2.
+        from harness import planner_b2tt
+        try:
+            mode, tt = planner_b2tt.run(c, t)
+        except Exception as e:  # noqa: BLE001
+            mode, tt = "delegate", {"version": "b2tt-1", "outcome": "error_delegated", "error": f"{type(e).__name__}: {str(e)[:160]}"}
+        if mode == "stop":
+            asks = t.asks()
+            done = tt.get("outcome") in ("answered_sourced", "incomplete", "no_source", "needs_customer")
+            s.planner_loop = {"variant": "b2_jev", "encoding": "two_tier_consult", "stop": "b2tt:" + str(tt.get("outcome")),
+                              "decisions": [], "steps": [], "tool_calls": tt.get("tool_calls", 0), "ms": tt.get("ms"),
+                              "asks": asks, "answered": [a for a in asks if done and a in planner_b2tt.CONSULT_ASKS],
+                              "unanswered": {a: "outside_consult_task" for a in asks if not (done and a in planner_b2tt.CONSULT_ASKS)},
+                              "ask_outcome": {}, "common_before_planner": t.common, "two_tier": tt,
+                              "guidance": _guidance_trace(t)}
+            s._why("b2tt", f"task={tt.get('task')}, outcome={tt.get('outcome')}, jev={tt.get('jev_calls')}, tool={tt.get('tool_calls')}")
+            return "stop"
     stop, seen, result = None, set(), None
     while True:
         if len(t.decisions) >= settings.b2_max_decisions:
@@ -485,8 +607,22 @@ def run(c, decider=None):
                       "budget": {"tool_cap": "hard: step offered / run only if tool_calls + max_cost <= max_tool_calls",
                                  "max_decisions": settings.b2_max_decisions, "max_tool_calls": settings.b2_max_tool_calls,
                                  "deadline_s": settings.b2_deadline_s, "min_conf": settings.b2_min_conf}}
+    if tt is not None:
+        s.planner_loop["two_tier"] = tt                # B2-TT: lý do chuyển về vòng B2 (trace)
+    if settings.b2_two_tier:
+        s.planner_loop["variant_condition"] = {"resume": t.clarify_resume, "withheld": {k: {x: v.get(x) for x in ("state", "fields", "basis")}
+                                                                                       for k, v in (getattr(t, "withheld", None) or {}).items()},
+                                               "pending_after": getattr(s, "pending_clarify", None)}
+    s.planner_loop["guidance"] = _guidance_trace(t)
     s._why("b2_jev", f"stop={stop}, {len(t.decisions)} quyết định, {t.tool_calls} tool")
     return result
+
+
+def _guidance_trace(t):
+    """retrieved (đã chọn) tách supplied_to_planner (ID có thật trong state đã gửi bộ quyết định). Không suy ra 'đã dùng'."""
+    g = dict((getattr(t, "guidance", None) or {}).get("trace") or {"status": "disabled"})
+    g["supplied_to_planner"] = sorted(getattr(t, "guidance_supplied", set()) or [])
+    return g
 
 
 def _has_content(c):

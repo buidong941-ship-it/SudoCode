@@ -55,6 +55,45 @@ def preflight():
 
 def reset():
     _cache.update(dir=None, data=None)
+    _gcache.clear()
+
+
+# ------------------------------------------------------------------ 17/11 candidate: hướng dẫn điều phối (planner_guidance)
+_gcache = {}
+
+
+class GuidanceScopeError(ValueError):
+    """Gói hướng dẫn sai (thiếu PACKAGE.json / sai hash / có loại khác / mục bị loại khi nạp) → từ chối mở phiên."""
+
+
+def guidance_package(path):
+    """Nạp gói hướng dẫn ĐÃ ĐÓNG tại `path` (PLANNER_GUIDANCE_DIR). → {"hash", "schema", "guides": [DTO]} — bản sao bất biến cho
+    phiên khóa lại. Chỉ approved/ (pending / rejected không bao giờ tới agent); loại khác planner_guidance hoặc mục không hợp lệ
+    → GuidanceScopeError; approved_hash phải khớp PACKAGE.json (sửa tay sau khi đóng gói → từ chối)."""
+    import json as _json
+    import os as _os
+    if path in _gcache:
+        return _gcache[path]
+    pj = _os.path.join(path, "PACKAGE.json")
+    if not _os.path.exists(pj):
+        raise GuidanceScopeError(f"PLANNER_GUIDANCE_DIR={path!r} không có PACKAGE.json (chỉ nạp gói đã đóng)")
+    meta = _json.load(open(pj, encoding="utf-8"))
+    if meta.get("kind") != "planner_guidance":
+        raise GuidanceScopeError(f"PACKAGE.json kind={meta.get('kind')!r} ≠ planner_guidance")
+    from improve.loader import load_approved
+    data = load_approved(path)
+    bad = {k: len(v) for k, v in data["items"].items() if k != "planner_guidance" and v}
+    if bad or data["skipped"]:
+        raise GuidanceScopeError(f"gói hướng dẫn có loại khác {bad} hoặc mục không hợp lệ {[s[0] for s in data['skipped']]}")
+    if data["hash"] != meta.get("approved_hash"):
+        raise GuidanceScopeError(f"approved_hash {data['hash']} ≠ PACKAGE.json {meta.get('approved_hash')} (gói bị sửa sau khi đóng)")
+    keep = ("id", "guide_id", "version", "title", "audience", "tags", "applies_when", "exceptions", "guidance", "avoid", "examples",
+            "counterexamples", "requires_capabilities", "conflict_group", "asks_any")   # 18/11 DI17: asks_any = metadata lọc của code
+    guides = tuple(_json.loads(_json.dumps({k: g.get(k) for k in keep if g.get(k) is not None}, ensure_ascii=False))
+                   for g in data["items"]["planner_guidance"])
+    out = {"hash": data["hash"], "schema": meta.get("schema"), "name": meta.get("name"), "guides": guides}
+    _gcache[path] = out
+    return out
 
 
 def _toks(s):
