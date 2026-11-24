@@ -18,7 +18,7 @@ from core.config import settings  # bước 2 (18/11): cờ B2_TWO_TIER cho clar
 from harness import planner_table as T
 from harness.request_state import ACTIVE, _parent
 
-ACTIONS = ("read_quote", "read_stock", "read_order", "check_window", "read_policy", "answer_ask", "commit_request", "clarify",
+ACTIONS = ("read_quote", "read_stock", "read_condition", "read_order", "check_window", "read_policy", "answer_ask", "commit_request", "clarify",
            "report_cart", "finish", "clarify_field")     # clarify_field: bước 2 (18/11), chỉ được đưa vào danh mục khi B2_TWO_TIER
 ORDER_OP_KINDS = ("change_order_address", "exchange", "return")
 OP_ACTION_VI = {"change_order_address": "đổi địa chỉ giao", "exchange": "đổi hàng", "return": "trả hàng"}   # V45: hỏi đơn nào cho thao tác gì
@@ -26,6 +26,7 @@ OP_ACTION_VI = {"change_order_address": "đổi địa chỉ giao", "exchange": 
 SCOPE = {
     "read_quote": ("pricing.get_quote", "inventory.check"),     # view báo giá dùng chung (CallSession._quote) đọc kèm tồn kho
     "read_stock": ("inventory.check",),                         # P# sản phẩm, hoặc V# biến thể mới của yêu cầu đổi
+    "read_condition": ("catalog.search",),
     "read_order": ("order.status",),
     "check_window": (),                                         # tính hạn đổi trả từ đơn đã đọc + chính sách theo phiên bản
     "read_policy": (),                                          # knowledge.search (RAG chính sách, không phải tool MCP)
@@ -37,6 +38,7 @@ SCOPE = {
     "commit_request:callback": ("schedule.callback",),
     "commit_request:cancel": ("handoff.transfer",),
     "commit_request:complete_address": ("order.update",),
+    "commit_request:amend_lines": ("handoff.transfer",),          # v6p3: X_AMEND_ORDER — sửa món đơn vừa tạo → chuyển nhân viên
     "clarify": ("pricing.quote_order", "handoff.transfer"),     # hỏi rõ nhiều đơn hàng / chuyển nhân viên đơn nhiều dòng
     # 13/11 (bàn giao cải thiện B2): báo giỏ hiện có — CHỈ ĐỌC (giá từng món + quote_order), không sửa giỏ, không order.*.
     # Giỏ chỉ đổi ở _prepare_target (một chủ duy nhất, theo yêu cầu add_to_cart / place_order của bộ hiểu).
@@ -142,8 +144,15 @@ class Turn:
 
     def pending_asks(self):
         """Ask còn nghĩa vụ phản hồi: chưa answered / responded_no_source / needs_customer. noop / blocked / error vẫn còn."""
-        return [a for a in self.asks() if a not in self.answered and a not in self.deferred
-                and (self.ask_outcome.get(a) or {}).get("outcome") not in RESPONDED]
+        asks = self.asks()
+        out = [a for a in asks if a not in self.answered and a not in self.deferred
+               and (self.ask_outcome.get(a) or {}).get("outcome") not in RESPONDED]
+        scoped = {_parent(x) for x in (getattr(self, "consult_scope", None) or {}).get("skus") or []}
+        planned = {_parent(self.c.facts[key]["sku"]) for key, goal in (("quote", "quote"), ("alternative", "alternative_quote"))
+                   if goal in self.c.goals and isinstance(self.c.facts.get(key), dict) and self.c.facts[key].get("sku")}
+        if len(scoped) > 1 and not scoped <= planned:
+            out += [a for a in asks if a in ("price", "promo", "stock") and a not in out]
+        return out
 
     def product_ref(self, ref):
         t = self.s.reqs.refmap.get(ref) if ref else None
@@ -157,6 +166,21 @@ class Turn:
         for r in self.active_requests():
             if r["kind"] == "place_order" and (r.get("target") or {}).get("type") == "product":
                 out |= {_parent(x) for x in r["target"]["skus"]}
+            # v6p1 (23/11): tập so sánh của yêu cầu chọn theo tiêu chí (selection) cũng là đối tượng cần bằng chứng giá để ghi
+            if r["kind"] == "place_order" and r.get("selection"):
+                out |= {_parent(x) for x in r["selection"].get("skus") or () if x}
+        return out
+
+    def selection_reads_missing(self):
+        """v6p1: các SKU trong tập so sánh của yêu cầu chọn theo tiêu chí còn chưa có báo giá trong lượt (→ ref để đọc)."""
+        out = []
+        for r in self.pending_requests():
+            if r["kind"] == "place_order" and r.get("selection"):
+                for x in r["selection"].get("skus") or ():
+                    if x and x not in self.quotes:
+                        ref = _ref_of(self, x)
+                        if ref not in out:
+                            out.append(ref)
         return out
 
     def order_ref(self, ref):
@@ -180,6 +204,10 @@ class Turn:
     def active_requests(self):
         return [r for r in self.s.reqs.items if r["status"] in ACTIVE]
 
+    def pending_requests(self):
+        return [r for r in self.s.reqs.items if r["status"] in ACTIVE or
+                (r.get("semantic") and r["status"] == "held")]
+
     def order_ops_active(self):
         return [r for r in self.active_requests() if r["kind"] in ORDER_OP_KINDS]
 
@@ -198,6 +226,11 @@ class Turn:
         elif self.c.slots.get("address") and s.reqs.done_orders_ok() and any(not o.get("address") for o in s.orders_created) \
                 and not s.reqs.has_active("change_order_address"):
             out.append("X_COMPLETE_ADDRESS")
+        amend = getattr(s, "amend_created", None)
+        if amend and amend.get("turn") == s.turn_no and not amend.get("done"):
+            out.append("X_AMEND_ORDER")                     # v6p3: sửa món của đơn vừa tạo (request_updates.prepare ghi nhận)
+        if "X_COMPLETE_ADDRESS" not in out and unclear_continuation_address(s):
+            out.append("X_ASK_ORDER_ADDRESS")               # v6p6: địa chỉ bị loại vì ranh giới không chắc → hỏi lại, không ghi
         return out
 
     def variant_refs(self):
@@ -212,6 +245,14 @@ class Turn:
             new_sku, action, _ = _exchange_variant(self, o)
             if new_sku and not any(v["sku"] == new_sku for v in self.vrefs.values()):
                 self.vrefs[f"V{len(self.vrefs) + 1}"] = {"sku": new_sku, "order_id": o["order_id"], "action": action}
+        held = getattr(self.s.reqs, "held_candidate", None) or {}
+        if held.get("kind") == "exchange" and held.get("turn") == self.s.turn_no:
+            oid = (held.get("target") or {}).get("order_id")
+            o = next((x for x in self.orders or [] if x["order_id"] == oid), None)
+            if o:
+                new_sku, action, _ = _exchange_variant(self, o)
+                if new_sku and not any(v["sku"] == new_sku for v in self.vrefs.values()):
+                    self.vrefs[f"V{len(self.vrefs) + 1}"] = {"sku": new_sku, "order_id": oid, "action": action}
         return list(self.vrefs)
 
     def cart_obligation(self):
@@ -269,6 +310,10 @@ class Turn:
 # ---------------------------------------------------------------------- hành động đọc
 
 def _variant(t, sku):
+    lines = [line for r in t.pending_requests() if r.get("semantic") for line in r.get("lines") or []
+             if _parent(line["sku"]) == _parent(sku)]
+    if len({line["sku"] for line in lines}) == 1:
+        return lines[0]["sku"]
     return t.s._target_variant(sku, t.c.text)
 
 
@@ -317,6 +362,27 @@ def _read_quote(t, req_ref, ref):
     c.goals += [g for g in goals if g not in c.goals]
     return {"status": "ok", "goals": goals, "result": {"sku": sku, "final_price_vnd": q.get("final_price_vnd"),
                                                       "in_stock": q.get("in_stock"), "stock_qty": q.get("stock_qty")}}
+
+
+def _read_condition(t, req_ref, ref):
+    r = t.request(req_ref)
+    if not r or r["kind"] != "place_order" or (r.get("condition") or {}).get("type") != "attribute":
+        return {"status": "blocked", "missing": ["valid_product_condition"]}
+    skus = (r.get("target") or {}).get("skus") or (r.get("selection") or {}).get("skus") or ()
+    if not skus:
+        return {"status": "blocked", "missing": ["target"]}
+    attribute = r["condition"].get("attribute")
+    evidence = {}
+    for sku in skus:
+        parent = _parent(sku)
+        rows = (t.s.tools.call("catalog.search", sku=parent) or {}).get("items") or []
+        row = next((x for x in rows if x.get("sku") == parent), None)
+        if row is None or not isinstance((row.get("attributes") or {}).get(attribute), bool):
+            return {"status": "blocked", "missing": [f"attribute_evidence:{parent}:{attribute}"]}
+        evidence[parent] = row["attributes"][attribute]
+    r["condition_evidence"] = {"source": "catalog.search", "turn": t.s.turn_no, "attribute": attribute, "values": evidence}
+    t.s.reqs._event("condition_evidence", id=r["id"], source="catalog.search", values=evidence)
+    return {"status": "ok", "result": evidence}
 
 
 def _variant_withhold(t):
@@ -396,6 +462,10 @@ def resume_pending_clarify(t):
     return {**out, "action": "kept", "missing": a.get("fields")}
 
 
+def _has_fee_condition(t):
+    return any((r.get("condition") or {}).get("type") == "fee_free" for r in t.order_ops_active())
+
+
 def _read_stock(t, req_ref, ref):
     if str(ref or "").startswith("V"):
         t.variant_refs()
@@ -404,6 +474,11 @@ def _read_stock(t, req_ref, ref):
             return {"status": "blocked", "missing": ["valid_variant_ref"]}
         inv = t.s.tools.call("inventory.check", sku=v["sku"])
         t.stock[v["sku"]] = {"in_stock": inv.get("in_stock"), "qty": inv.get("qty"), "restock_expected": inv.get("restock_expected")}
+        if settings.write_path_gate and _has_fee_condition(t):
+            # v6p12: điều kiện fee_free cần giá biến thể mới (chênh lệch khách phải trả) — đọc cùng bước, chỉ làm bằng chứng
+            q = t.s.tools.call("pricing.get_quote", sku=v["sku"], customer_phone=(t.s.customer or {}).get("phone") or t.s.phone)
+            if isinstance(q, dict) and not q.get("error"):
+                t.quotes.setdefault(v["sku"], q)
         return {"status": "ok", "goals": [], "result": {"sku": v["sku"], "in_stock": inv.get("in_stock"), "for": "exchange"}}
     p = t.product_ref(ref)
     if p is None:
@@ -542,6 +617,23 @@ def _attr_terms(c):
     return keys, unkeyed
 
 
+def _trial_total(t):
+    """S4 v6p13: khách hỏi tổng tiền cho N cái của MỘT mẫu khi chưa có giỏ → pricing.quote_order chỉ để báo giá (không tạo đơn,
+    không thêm giỏ). Cần một sản phẩm cha, biến thể đã xác định nếu mẫu có biến thể, số lượng nói trong chính lượt này."""
+    c, s = t.c, t.s
+    skus = list(dict.fromkeys(c.mentioned or ([s.focus] if s.focus else [])))
+    if len({_parent(x) for x in skus}) != 1 or not (s.qty_obs and s.qty_obs[0] == s.turn_no and 1 <= s.qty_obs[1] <= 20):
+        return
+    rv = s._resolve_variant(skus[-1], c.text)
+    p, v = T._A().mt._parent(rv)
+    if not p or (p["variants"] and not v):
+        return
+    oq = s._quote_order([{"sku": rv, "qty": s.qty_obs[1]}])
+    if oq:
+        c.facts["cart"] = {**s._cart_facts(oq), "trial": True}
+        c.goals.append("cart_total")
+
+
 def _answer_attribute(t):
     """S3 (13/11): trả lời thuộc tính bằng payload catalog đúng SKU / khóa / giá trị — adapter B2, KHÔNG sửa h_attr_check chung,
     không đọc giá chỉ để mượn renderer. Sản phẩm: một sản phẩm cha duy nhất trong câu, hoặc mẫu đang bàn khi câu không nhắc mẫu
@@ -561,6 +653,18 @@ def _answer_attribute(t):
         return {"reason": "no_product"}
     par = A.mt._parent(par_sku)[0]
     attrs = (par or {}).get("attributes") or {}
+    if settings.doc_answer and (not keys and not unkeyed or [k for k in keys if k not in attrs] or unkeyed):
+        # S3 v6p14: catalog không có / không đủ khóa → đọc câu nguyên văn trong tài liệu thông số của ĐÚNG hãng mẫu này; ý không có
+        # câu nào trả lời → nói không có thông tin. Khóa catalog có giá trị vẫn đọc từ catalog như cũ.
+        da = T.doc_answer(c, sku=par_sku)
+        if da:
+            items = [{"key": k, "value": attrs[k]} for k in keys if k in attrs and ATTR_PHRASE.get(k) and ATTR_PHRASE[k](attrs[k])]
+            if items:
+                c.facts["attribute_answer"] = {"sku": par_sku, "product": par["name"], "items": items, "source": "catalog"}
+            c.facts["policy"] = (c.facts.get("policy") or []) + da["policy"]
+            c.facts["doc_answer"] = {"sentences": da["sentences"], "unknown": da["unknown"]}
+            c.goals += [g for g in ["doc_answer"] if g not in c.goals]
+            return {"reason": "doc_answer", "product": par_sku}
     if not keys and not unkeyed:
         # patch cuối 13/11: không nhận ra thuộc tính nào → HỎI ĐÚNG NỘI DUNG (thông tin gì về mẫu này), gợi ý thông tin catalog có;
         # không đọc giá, không đoán thuộc tính, không để ask treo gây lặp
@@ -687,7 +791,7 @@ def _category_switch(t):
     nhóm được nêu, không phải mẫu đang bàn. Chỉ B2. → [nhóm] | None (không áp → luồng cũ)."""
     from core.config import settings
     c, s = t.c, t.s
-    if settings.planner_variant != "b2_jev" or c.mentioned or c.alt:
+    if settings.planner_variant != "b2_jev" or c.mentioned or c.alt or getattr(c, "name_choices", None):
         return None
     cats = _named_categories(t)
     if not cats or (len(cats) == 1 and s.focus and _in_cat(s.focus, cats[0])):
@@ -866,8 +970,14 @@ def _answer_ask(t, req_ref, ref):
     extra = {}
     named_eval = settings.b2_two_tier and topic == "recommend" and bool(getattr(t, "consult_scope", None))
     sw = None if named_eval else (_category_switch(t) if (topic in _QUOTE_TOPICS or topic == "recommend") else None)
+    pick = settings.pick_by_name and topic in _QUOTE_TOPICS and not c.mentioned and bool(getattr(c, "name_choices", None))
+    if pick:
+        # S2 v6p13: tên khách gọi khớp nhiều mẫu trong catalog → hỏi chọn (danh sách từ catalog), không tự gợi ý mẫu khác
+        c.facts["which_products"] = list(c.name_choices)
+        if "ask_which_product" not in c.goals:
+            c.goals.append("ask_which_product")
     try:
-        for h in (() if (sw or named_eval) else ASK_HANDLERS[topic]):
+        for h in (() if (sw or named_eval or pick) else ASK_HANDLERS[topic]):
             if h == "attr_check":
                 extra = _answer_attribute(t)            # adapter B2 (thay h_attr_check cho B2; B1/B3 giữ dòng R15)
                 continue
@@ -881,6 +991,8 @@ def _answer_ask(t, req_ref, ref):
             if h == "warranty_fact" and not (c.mentioned or c.s.focus):
                 continue
             if h == "cart_total" and not c.s.cart:
+                if settings.trial_total:
+                    _trial_total(t)
                 continue
             if h == "refund_amount" and not T.PREDS_TARGET["has_return_info"](c):
                 continue
@@ -940,6 +1052,21 @@ def _answer_other(t):
     Hạn chế đã ghi: câu kép mà bộ hiểu gộp cả hai ý vào `other` thì ý thứ hai không được trả lời riêng."""
     c, s = t.c, t.s
     n = len(c.goals)
+    common_goals = [g for g in t.common["goals"] if g in COMMON_RESPONSE_GOALS]
+    if settings.doc_answer and not (t.policy and "policy_answer" in c.goals) and not common_goals:
+        # S3 v6p14: câu hỏi `other` đọc câu nguyên văn trong tài liệu (model chỉ chọn số thứ tự câu); không có câu nào → no_info như cũ
+        da = T.doc_answer(c, about=(c.mentioned or [s.focus])[-1] if (c.mentioned or s.focus) else None)
+        if da:
+            c.facts["policy"] = (c.facts.get("policy") or []) + da["policy"]
+            c.facts["doc_answer"] = {"sentences": da["sentences"], "unknown": da["unknown"]}
+            c.goals += [g for g in ["doc_answer"] if g not in c.goals]
+            ev = [{"kind": "policy", "ref": h["chunk_id"]} for h in da["policy"]]
+            t.ask_outcome["other"] = {"outcome": "answered" if da["sentences"] else "responded_no_source", "evidence": ev,
+                                      "reason": "doc_answer"}
+            if da["sentences"] and "other" not in t.answered:
+                t.answered.append("other")
+            o = t.ask_outcome["other"]
+            return {"status": "ok", "goals": c.goals[n:], "result": {"topic": "other", "outcome": o["outcome"]}, "ask_outcome": o}
     if t.policy and "policy_answer" in c.goals:
         ev = [{"kind": "policy", "ref": h.get("chunk_id")} for h in t.policy]
         t.ask_outcome["other"] = {"outcome": "answered", "evidence": ev, "reason": "read_policy_this_turn"}
@@ -998,8 +1125,56 @@ def _commit_request(t, req_ref, ref):
     if req_ref == "X_CANCEL":
         if "X_CANCEL" not in t.extra_requests():
             return {"status": "blocked", "missing": ["cancel_request_with_order"]}
+        oid = _single_cancellable_order(t)
+        if oid and _try_ext_cancel(t, oid):                 # v6p8: tool riêng (ORDER_EXT_TOOLS=1) hủy đúng một đơn chưa giao
+            return {"status": "ok", "goals": ["cancel_done"], "terminal": True, "result": {"via": "order.cancel", "order_id": oid}}
+        done = list(getattr(s, "ext_cancelled", None) or [])
+        from core.config import settings                    # hàm này có import cục bộ phía sau → tên settings là biến cục bộ
+        if not oid and len(done) == 1 and settings.done_no_handoff and getattr(s, "done_confirm_told", None) is None:
+            # G7 v6p13 (duyệt, theo BTC): tool đã xác nhận hủy → xác nhận lại với khách, chỉ chuyển người khi khách đòi lần nữa
+            s.done_confirm_told = s.turn_no
+            c.facts["cancel_done_confirm"] = {"order_id": done[0]}
+            c.goals += [g for g in ("cancel_done_confirm",) if g not in c.goals]
+            return {"status": "ok", "goals": ["cancel_done_confirm"], "terminal": True,
+                    "result": {"via": "confirm_after_cancel", "order_id": done[0]}}
+        if not oid and len(done) == 1:
+            # v6p9b (23/11, H13-086): đơn ĐÃ hủy bằng tool trong cuộc; khách nhắc lại / xin người xác nhận → không gọi hủy lần nữa,
+            # chuyển nhân viên với brief nêu rõ đơn đã hủy; câu trả lời không nói "đơn chưa hủy"
+            s.handoff_task = {"action": "cancel_confirm", "order_id": done[0], "evidence": c.text[:160], "already_cancelled_by_tool": True}
+            s.open_questions.append(s._record_view(c.text)[:200])
+            c.facts["handoff"] = s._handoff(c.text, "khac")
+            c.facts["cancel_done_handoff"] = {"order_id": done[0]}
+            c.goals += [g for g in ("cancel_done_handoff",) if g not in c.goals]
+            return {"status": "ok", "goals": ["cancel_done_handoff"], "terminal": True,
+                    "result": {"via": "handoff_after_cancel", "order_id": done[0]}}
         T.h_cancel_request(c, None)
         return {"status": "ok", "goals": ["cancel_handoff"], "terminal": True}
+    if req_ref == "X_ASK_ORDER_ADDRESS":
+        if "X_ASK_ORDER_ADDRESS" not in t.extra_requests():
+            return {"status": "blocked", "missing": ["unclear_continuation_address"]}
+        c.goals += [g for g in ("ask_address",) if g not in c.goals]
+        s.continuation_address_asked = s.turn_no
+        return {"status": "ok", "goals": ["ask_address"], "terminal": True, "result": {"via": "address_boundary_unclear"}}
+    if req_ref == "X_AMEND_ORDER":
+        if "X_AMEND_ORDER" not in t.extra_requests():
+            return {"status": "blocked", "missing": ["amend_created_order_request"]}
+        a = s.amend_created
+        if _try_ext_amend(t, a["order_id"], a["operation"], a["products"], None):
+            a["done"] = True                                 # v6p8: tool riêng sửa đúng một dòng (ORDER_EXT_TOOLS=1)
+            return {"status": "ok", "goals": ["amend_done"], "terminal": True,
+                    "result": {"via": "order.update_line", "order_id": a["order_id"], "order_changed": True}}
+        # v6p3 (23/11): tool BTC không có thao tác bỏ / đổi riêng một dòng của đơn nhiều món và không có hủy → chuyển nhân viên kèm
+        # đúng đơn + món; chỉ báo đã tiếp nhận, không báo đơn đã sửa. Ticket trùng trong cuộc được _handoff chặn sẵn (already_queued).
+        s.handoff_task = {"action": "amend_lines", "order_id": a["order_id"], "operation": a["operation"],
+                          "products": a["products"], "keep": a["keep"], "evidence": a["evidence"]}
+        s.open_questions.append(s._record_view(c.text)[:200])
+        c.facts["handoff"] = s._handoff(c.text, "khac")
+        c.facts["amend_task"] = amend_view(t)
+        c.goals.append("amend_handoff")
+        s.outcome = "chuyen_may"
+        a["done"] = True
+        return {"status": "ok", "goals": ["amend_handoff"], "terminal": True,
+                "result": {"via": "handoff", "order_id": a["order_id"], "order_changed": False}}
     if req_ref == "X_COMPLETE_ADDRESS":
         if "X_COMPLETE_ADDRESS" not in t.extra_requests():
             return {"status": "blocked", "missing": ["created_order_missing_address"]}
@@ -1077,14 +1252,61 @@ def _order_for_v45(t, r):
     return None, False, "order_target"
 
 
+def _turn_line_change(t):
+    """v6p9: size / màu MỚI + lời gọi món của dòng trong yêu cầu đổi / trả của lượt (đã kiểm nguyên văn ở bộ hiểu)."""
+    for it in (t.s.u_turn or {}).get("request_items") or []:
+        if it.get("kind") in ("exchange", "return"):
+            for ln in it.get("line_change") or []:
+                if ln.get("size") or ln.get("color"):
+                    return ln.get("size"), ln.get("color"), ln.get("product_span") or ""
+    return None, None, ""
+
+
+def _multi_line_variant(t, o):
+    """v6p9 (23/11, H13-037): đơn NHIỀU món — dòng bị đổi + biến thể mới từ dữ liệu: size / màu mới (dòng của yêu cầu, rồi
+    observation) + thuộc tính KHÔNG đổi lấy từ biến thể hiện tại của chính dòng đó → tra biến thể cùng sản phẩm trong catalog.
+    Chỉ nhận khi có ĐÚNG MỘT dòng cho ra biến thể; không có / nhiều dòng → (None, None, "variant"), không đoán."""
+    A, s = T._A(), t.s
+    lsize, lcolor, pspan = _turn_line_change(t)
+    slots = (s.u_turn or {}).get("slots") or {}
+    size = lsize or slots.get("size") or s.pending_size
+    color = lcolor or slots.get("color")
+    if not size and not color:
+        return None, None, "new_size"
+    named = set(A.find_products(pspan)) if pspan else set()
+    cands = []
+    for sku in dict.fromkeys(ln.get("sku") for ln in o.get("lines") or [] if ln.get("sku")):
+        parent, ov = A.mt._parent(sku)
+        if not parent or not ov or (named and parent["sku"] not in named):
+            continue
+        ts, tc = str(size or ov["size"]).upper(), color or ov["color"]
+        if ts == str(ov["size"]).upper() and tc == ov["color"]:
+            continue
+        new = next((v["variant_sku"] for v in parent["variants"] if str(v["size"]).upper() == ts and v["color"] == tc), None)
+        if new:
+            cands.append((sku, new, "exchange_size" if tc == ov["color"] else "exchange_product"))
+    if len(cands) == 1:
+        return cands[0][1], cands[0][2], None
+    return None, None, "variant"
+
+
 def _exchange_variant(t, o):
     """Biến thể mới cho yêu cầu đổi của đơn o (logic B1, dữ liệu đã kiểm): mẫu khác parser catalog thấy trong câu → đổi mẫu;
     size bộ hiểu trả (hoặc size khách nói ở lượt trước của cùng yêu cầu) → đổi size cùng màu. → (sku | None, action, thiếu)."""
     A, s, c = T._A(), t.s, t.c
+    if len({_parent(ln.get("sku")) for ln in o.get("lines") or [] if ln.get("sku")}) > 1:
+        return _multi_line_variant(t, o)            # v6p9: đơn nhiều món không lấy dòng đầu làm dòng bị đổi
     parent, ov = A.mt._parent(o["sku"])
     other = [x for x in A.find_products(c.text) if x != parent["sku"]]
     if other:
         return A.find_variant(other[0], c.text, None, None) or other[0], "exchange_product", None
+    slots = (s.u_turn or {}).get("slots") or {}
+    color = slots.get("color")
+    if ov and color and color != ov["color"]:
+        size = str(slots.get("size") or ov["size"]).upper()
+        new_sku = next((v["variant_sku"] for v in parent["variants"]
+                        if str(v["size"]).upper() == size and v["color"] == color), None)
+        return (new_sku, "exchange_product", None) if new_sku else (None, None, "variant")
     size = ((s.u_turn or {}).get("slots") or {}).get("size") or s.pending_size
     if not size:
         return None, None, "new_size"
@@ -1133,6 +1355,12 @@ def _order_op_check(t, r, ref):
                 return {"status": "blocked", "missing": ["address_change_order_closed"], "clarify": ["address_change_unavailable"],
                         "clarify_facts": {"address_block": {"order_id": oid, "product": s._order_products(o), "why": "terminal",
                                                             "status": o.get("status")}}, "addr_block": oid}, ctx
+            claim = r.get("order_state_claim") if settings.address_scope_gate else None
+            if claim in ("delivered", "cancelled", "returned") and str(o.get("status") or "").lower() not in TERMINAL_ORDER_STATUS:
+                # v6p11: khách kể đơn đã kết thúc nhưng hệ thống còn mở → không ghi, hỏi xác minh
+                return {"status": "blocked", "missing": ["order_state_conflict"], "clarify": ["address_state_verify"],
+                        "clarify_facts": {"address_state_verify": {"order_id": oid, "product": s._order_products(o), "claim": claim,
+                                                                   "status": o.get("status")}}}, ctx
             # (2) Đơn ngoài cuộc chỉ được chọn vì khách có đúng một đơn (không căn cứ của khách) → hỏi xác nhận đơn, không ghi.
             if unique and oid not in {x["order_id"] for x in s.orders_created}:
                 return {"status": "blocked", "missing": ["order_target"], "clarify": ["ask_which_order"],
@@ -1189,14 +1417,20 @@ def _place_order_check(t, r, ref):
     ctx["mode"]: write | continuation (khách chỉ đọc thêm địa chỉ / thanh toán cho đơn vừa tạo cùng sản phẩm)."""
     from harness.request_state import RequestState
     from harness.tools import product_name
+    from harness.textnorm import fold
     s, c = t.s, t.c
-    multi = [x for x in t.active_requests() if x["kind"] == "place_order"]
+    multi = [x for x in t.active_requests() if x["kind"] == "place_order" and not x.get("semantic")]
     if len(multi) > 1:
         return {"status": "blocked", "missing": ["which_request"], "clarify_fn": "multi_request"}, {}
     if r["status"] == "needs_target":
         return {"status": "blocked", "missing": ["target"], "clarify_fn": "ask_product_target"}, {}
+    if r.get("semantic") and not r.get("intent_authorized"):
+        return {"status": "blocked", "missing": [r.get("missing") or "purchase_intent"],
+                "clarify_fn": "ask_product_target" if not r.get("target") else "semantic_intent"}, {}
     picked = False
-    if r["target"] is not None:
+    if r.get("selection"):
+        skus = tuple(r["selection"]["skus"])
+    elif r["target"] is not None:
         skus = tuple(r["target"]["skus"])
     else:
         p = t.product_ref(ref)
@@ -1204,15 +1438,38 @@ def _place_order_check(t, r, ref):
         if not sel:
             return {"status": "blocked", "missing": ["target"], "clarify_fn": "ask_product_target"}, {}
         skus, picked = tuple(sel), True
+    cheaper = None
+    from core.config import settings as _cfg
+    from harness.textnorm import fold
+    if _cfg.jev_write_gate and (r.get("selection") or r.get("cheaper_scope")):
+        selection = r.get("selection") or {"sort": "cheapest", "skus": r.get("cheaper_scope")}
+        compared = selection.get("skus") or []
+        if len(compared) < 2:
+            return {"status": "blocked", "missing": ["cheaper_scope_ambiguous"], "clarify": ["ask_which_product"]}, {}
+        missing_prices = [f"read_quote:{_ref_of(t, x)}" for x in compared if x not in t.quotes]
+        if missing_prices:
+            return {"status": "blocked", "missing": missing_prices}, {}
+        prices = {x: t.quotes[x].get("final_price_vnd") for x in compared}
+        if not all(type(v) is int and v > 0 for v in prices.values()):
+            return {"status": "blocked", "missing": ["cheaper_price_unresolved"], "clarify": ["ask_which_product"]}, {}
+        best = (min if selection["sort"] == "cheapest" else max)(prices.values())
+        winners = [sku for sku, value in prices.items() if value == best]
+        if len(winners) != 1:
+            return {"status": "blocked", "missing": ["cheaper_price_tie"], "clarify": ["ask_which_product"]}, {}
+        cheaper = winners[0]
+        previous = r.get("selection_resolved")
+        if previous and previous != {"sku": cheaper, "prices": prices}:
+            return {"status": "blocked", "missing": ["selection_price_changed"], "clarify": ["confirm_new_price"]}, {}
+        skus = (cheaper,)
     resolved = []
     for sku in skus:
-        rv = s._target_variant(sku, c.text)
+        rv = sku if r.get("semantic") and r.get("lines") and not r.get("selection") else s._target_variant(sku, c.text)
         p, v = T._A().mt._parent(rv)
         if p and p["variants"] and not v:
             return {"status": "blocked", "missing": [f"variant:{_ref_of(t, sku)}"], "clarify": ["ask_variant"],
                     "clarify_facts": {"need_variant_for": product_name(sku)}}, {}
         resolved.append(rv)
-    ctx = {"resolved": resolved, "picked": picked, "mode": "write"}
+    ctx = {"resolved": resolved, "picked": picked, "mode": "write", "cheaper_target": cheaper}
     if not r.get("additional"):
         dup, rel = s._order_overlap(resolved)
         if dup is not None and rel == "same":
@@ -1237,6 +1494,7 @@ def _place_order_check(t, r, ref):
 # ---------------------------------------------------------------------- mức sẵn sàng (DỮ KIỆN dẫn xuất — duyệt 12/11)
 
 MISSING_INFO = {"address", "new_size", "variant", "order_target", "target", "which_request", "confirm_additional_order",
+                "order_lines_incomplete", "previous_product_ambiguous",
                 "exchange_or_return", "callback_time", "order_not_owned"}      # V45: mã đơn khách nói không thuộc khách → hỏi đơn nào
 CONDITION_UNMET = {"window_undetermined", "new_variant_out_of_stock"}
 FORBIDDEN = {"identity", "window_passed", "multi_line_order", "no_order",
@@ -1275,7 +1533,7 @@ def evaluate_condition(t, r, ctx):
     typ = cond.get("type")
     if not typ or (r["kind"] == "callback" and typ == "time"):
         return None
-    resolved = list(ctx.get("resolved") or [])
+    resolved = list(ctx.get("resolved") or ([ctx["new_sku"]] if ctx.get("new_sku") else []))
     text = cond.get("span") or None
     if typ == "stock":
         st = [t.stock.get(rv, {}).get("in_stock") for rv in resolved]
@@ -1299,14 +1557,82 @@ def evaluate_condition(t, r, ctx):
         if not q or not q.get("final_price_vnd"):
             return {"state": "missing_evidence", "detail": ["price_for_condition"], "goals": [], "facts": {}}
         s = t.s
-        qty = s.qty_obs[1] if s.qty_obs and s.qty_obs[0] >= r["turn"] and 1 <= s.qty_obs[1] <= 20 else 1
+        qty = order_qty_for(s, r)
         total = q["final_price_vnd"] * qty
         if total > mx:
             return {"state": "unmet", "detail": [f"total_{total}_over_{mx}"], "goals": ["condition_unmet"],
                     "facts": {"condition": {"type": "price_max", "max_vnd": mx, "total_vnd": total}}}
         return {"state": "met", "detail": [f"total_{total}_within_{mx}"], "goals": [], "facts": {}}
+    if typ == "attribute" and resolved:
+        ev = r.get("condition_evidence") or {}
+        values = ev.get("values") or {}
+        parents = {_parent(x) for x in resolved}
+        if ev.get("source") != "catalog.search" or ev.get("turn") != t.s.turn_no or ev.get("attribute") != cond.get("attribute") or not parents <= values.keys():
+            return {"state": "missing_evidence", "detail": ["catalog_attribute"], "goals": [], "facts": {}}
+        if not all(values[x] is cond.get("expected") for x in parents):
+            # v6p9 (23/11, H13-056): kết quả điều kiện ĐÃ XÁC MINH (khóa thuộc tính, giá trị khách cần, giá trị catalog, nguồn) —
+            # câu trả lời dựng từ đây, KHÔNG từ span lời khách (span chỉ là căn cứ trích, có thể bị model chọn lệch)
+            bad = next(x for x in sorted(parents) if values[x] is not cond.get("expected"))
+            return {"state": "unmet", "detail": ["attribute_condition_unmet"], "goals": ["condition_attribute_unmet"],
+                    "facts": {"condition": {"type": "attribute", "attribute": cond.get("attribute"), "expected": cond.get("expected"),
+                                            "actual": values[bad], "source": "catalog.search", "product": product_name(bad),
+                                            "order_allowed": False}}}
+        return {"state": "met", "detail": ["catalog_attribute_met"], "goals": [], "facts": {}}
+    if settings.write_path_gate and typ in ("promo_active", "fee_free"):
+        ev = (_promo_active if typ == "promo_active" else _fee_free)(t, r, ctx, resolved)
+        # met: ghi bằng chứng lên CHÍNH yêu cầu để authorize kiểm lại tại biên ghi (cùng lượt)
+        r["condition_evidence"] = {"type": typ, "turn": t.s.turn_no, "met": ev["state"] == "met"}
+        return ev
     return {"state": "pending", "detail": [f"condition_{typ}_pending"], "goals": ["condition_pending"],
             "facts": {"condition": {"type": typ, "text": text}}}
+
+
+def _promo_active(t, r, ctx, resolved):
+    """v6p12: "có giảm thì chốt" — đạt khi báo giá ĐÃ ĐỌC của mọi đối tượng có giá cuối thấp hơn giá niêm yết."""
+    from harness.tools import product_name
+    if not resolved:
+        return {"state": "pending", "detail": ["promo_target_unresolved"], "goals": ["condition_pending"],
+                "facts": {"condition": {"type": "promo_active", "text": (r.get("condition") or {}).get("span") or None}}}
+    missing = [f"read_quote:{_ref_of(t, x)}" for x in resolved if not (t.quotes.get(x) or {}).get("list_price_vnd")]
+    if missing:
+        return {"state": "missing_evidence", "detail": missing, "goals": [], "facts": {}}
+    flat = [x for x in resolved if not t.quotes[x]["final_price_vnd"] < t.quotes[x]["list_price_vnd"]]
+    if flat:
+        q = t.quotes[flat[0]]
+        return {"state": "unmet", "detail": ["promo_not_active"], "goals": ["condition_fact_unmet"],
+                "facts": {"condition": {"type": "promo_active", "product": product_name(flat[0]), "price_vnd": q["final_price_vnd"]}}}
+    return {"state": "met", "detail": ["promo_active"], "goals": [], "facts": {}}
+
+
+def _fee_free(t, r, ctx, resolved):
+    """v6p12: "không tốn gì thì đổi" — DT-03 (bản 2026-10): đổi size / màu lần ĐẦU của đơn miễn phí; cộng chênh lệch giá biến thể
+    mới (giá đã đọc) phải không dương. Số lần đổi chỉ tin fact exchanges:<mã đơn> do agent ghi cho đơn nó theo dõi; thiếu → chưa xác
+    minh, không tự áp miễn phí."""
+    oid, new_sku, o = ctx.get("oid"), ctx.get("new_sku"), ctx.get("o") or {}
+    pend = lambda why: {"state": "pending", "detail": [why], "goals": ["condition_fact_unmet"],
+                        "facts": {"condition": {"type": "fee_free", "why": why, "order_id": oid}}}
+    if r["kind"] != "exchange" or not oid or not new_sku:
+        return pend("fee_target_unresolved")
+    window = t.windows.get(oid) or {}
+    if window.get("version") != "2026-10":
+        # shortcut: chỉ DT-03 bản 2026-10 có lần đổi đầu miễn phí; bản 2026-06 tính phí mỗi lần — thêm bảng phí theo bản khi có bản mới
+        return {"state": "unmet", "detail": ["fee_policy_version"], "goals": ["condition_fact_unmet"],
+                "facts": {"condition": {"type": "fee_free", "why": "policy_version", "order_id": oid}}}
+    cid = (t.s.customer or {}).get("customer_id")
+    fact = (t.s.mem.current_facts(cid, t.s.today) if cid else {}).get(f"exchanges:{oid}") or {}
+    if type(fact.get("value")) is not int:
+        return pend("fee_unverified")
+    if fact["value"] > 0:
+        return {"state": "unmet", "detail": ["not_first_exchange"], "goals": ["condition_fact_unmet"],
+                "facts": {"condition": {"type": "fee_free", "why": "not_first_exchange", "order_id": oid}}}
+    q = t.quotes.get(new_sku) or {}
+    if not q.get("final_price_vnd") or not o.get("price_vnd"):
+        return pend("fee_unverified")
+    diff = q["final_price_vnd"] - o["price_vnd"]
+    if diff > 0:
+        return {"state": "unmet", "detail": ["price_diff"], "goals": ["condition_fact_unmet"],
+                "facts": {"condition": {"type": "fee_free", "why": "price_diff", "order_id": oid, "extra_vnd": diff}}}
+    return {"state": "met", "detail": ["fee_free"], "goals": [], "facts": {}}
 
 
 def _condition_ctx(t, r):
@@ -1344,6 +1670,8 @@ def readiness(t, r):
     s = t.s
     if s.reqs.hold:
         return {"request": r["id"], "state": "missing_info", "detail": [s.reqs.hold]}
+    if r.get("semantic") and not r.get("intent_authorized"):
+        return {"request": r["id"], "state": "missing_info", "detail": [r.get("missing") or "purchase_intent"]}
     ctx = {}
     if r["kind"] == "place_order":
         obs, ctx = _place_order_check(t, r, None)
@@ -1397,9 +1725,15 @@ def _commit_order_op(t, r, ref):
                     "clarify": s._blocked_goals("change_order_address", c.facts, ["confirm_old_address"], orders=t.orders)}
         address = ctx["address"]
         args = dict(order_id=oid, action="update_address", reason=f"địa chỉ mới: {address}")
+        update_key = (oid, "update_address", address)
+        if update_key in s.__dict__.setdefault("unresolved_updates", set()):
+            s._why("order_update_blocked_unresolved", str(update_key))
+            return {"status": "blocked", "missing": ["previous_update_unresolved"]}
         s.reqs.begin(req)
         res = s.tools.call("order.update", **args)
         st = tool_outcome.classify({"name": "order.update", "args": args, "result": res})["status"]
+        if st == "unresolved":
+            s.unresolved_updates.add(update_key)
         s.reqs.settle(req, st, {"order_id": oid, "action": "update_address"})
         if st != "confirmed_success":
             c.goals.append("contract_error")
@@ -1423,14 +1757,20 @@ def _commit_order_op(t, r, ref):
     else:
         if ctx["action"] == "exchange_size":
             s.pending_size = str(((s.u_turn or {}).get("slots") or {}).get("size") or s.pending_size).upper()
-        req = s._req_ok("exchange", target=tgt, unique_target=unique, revision={"new_variant": ctx["new_sku"]}, req_id=r["id"])
+        req = s._req_ok("exchange", target=tgt, unique_target=unique, revision={"new_variant": ctx["new_sku"]},
+                        in_stock=(t.stock.get(ctx["new_sku"]) or {}).get("in_stock") is True, req_id=r["id"])
         args = dict(order_id=oid, action=ctx["action"], new_variant_sku=ctx["new_sku"])
     if not req:
         return {"status": "blocked", "missing": [f"authorize:{getattr(s, '_req_why', None)}"],
                 "clarify": s._blocked_goals(kind, c.facts, None, orders=t.orders) or []}
+    if key in s.__dict__.setdefault("unresolved_updates", set()):
+        s._why("order_update_blocked_unresolved", str(key))
+        return {"status": "blocked", "missing": ["previous_update_unresolved"]}
     s.reqs.begin(req)
     res = s.tools.call("order.update", **args)
     st = tool_outcome.classify({"name": "order.update", "args": args, "result": res})["status"]
+    if st == "unresolved":
+        s.unresolved_updates.add(key)
     s.reqs.settle(req, st, {"order_id": oid, "action": key[1]})
     if st == "unresolved":
         c.goals.append("contract_error")
@@ -1457,6 +1797,15 @@ def _commit_place_order(t, r, ref):
     if obs is not None:
         return obs
     resolved = ctx["resolved"]
+    if r.get("selection"):
+        r["selection_evidence"] = {"turn": s.turn_no, "prices": {
+            sku: t.quotes[sku]["final_price_vnd"] for sku in r["selection"]["skus"]}}
+    if ctx.get("cheaper_target") and tuple((r.get("target") or {}).get("skus") or ()) != tuple(resolved):
+        r["selection_resolved"] = {"sku": ctx["cheaper_target"], "prices": {
+            sku: t.quotes[sku]["final_price_vnd"] for sku in r.get("selection", {}).get("skus", r.get("cheaper_scope", []))}}
+        r["target"] = {"type": "product", "skus": tuple(resolved)}
+        r["revision"] = {**(r.get("revision") or {}), **s.reqs.selection_revision(s, resolved)}
+        s.reqs._event("cheaper_target_from_tool", id=r["id"], sku=resolved[0])
     if ctx["mode"] == "continuation":
         dup = ctx["dup"]
         n = len(c.goals)
@@ -1478,7 +1827,9 @@ def _commit_place_order(t, r, ref):
         t.quotes[rv].update(in_stock=st["in_stock"], **({"stock_qty": st["qty"]} if isinstance(st.get("qty"), int) else {}))
     from core.config import settings
     qty = 1
-    if settings.order_qty and len(resolved) == 1 and s.qty_obs and s.qty_obs[0] >= r["turn"] and 1 <= s.qty_obs[1] <= 20:
+    if r.get("selection"):
+        qty = order_qty_for(s, r)                             # v6p4: chọn theo tiêu chí → chỉ số lượng gắn vào yêu cầu
+    elif settings.order_qty and len(resolved) == 1 and s.qty_obs and s.qty_obs[0] >= r["turn"] and 1 <= s.qty_obs[1] <= 20:
         qty = s.qty_obs[1]
         s.known["qty"] = qty
     c.facts["proposal"] = {"skus": tuple(resolved), "names": [product_name(x) for x in resolved]}
@@ -1494,6 +1845,272 @@ def _commit_place_order(t, r, ref):
         # chưa ghi: hết hàng / vượt hạn mức COD / điều kiện / revision… — executor đã dựng câu trả lời có nguồn (B1 dùng chung)
         out["missing"] = ["not_executed:" + (getattr(s, "_req_why", None) or ",".join(out["goals"]) or "unknown")]
     return out
+
+
+def _draft_reply(t, r):
+    """v6p5 (23/11): phản hồi giỏ nháp đang giữ (chưa có đồng ý đặt). Điều kiện tồn kho (condition=stock hoặc nhánh on_unavailable)
+    → đọc inventory.check từng biến thể (chỉ ĐỌC, không cần quyền ghi); hết hàng + khách dặn hủy → báo hết hàng, rút yêu cầu và bỏ
+    món khỏi giỏ nháp; hết hàng không có nhánh → báo hết hàng, giữ nháp; còn hàng / không có điều kiện → báo đã lưu giỏ nháp.
+    Ghi trace từng điều kiện: loại, căn cứ, kết quả tra, nhánh đã chọn. Không tạo đơn."""
+    s, c = t.s, t.c
+    name = T._A().product_name
+    skus = [ln["sku"] for ln in r.get("lines") or [] if ln.get("sku")]
+    branch = r.get("on_unavailable") or {}
+    cond = r.get("condition") or {}
+    trace = []
+    out = []
+    # v6p6 (23/11): LUÔN tra kho biến thể đang nằm trong giỏ nháp (chỉ đọc, không gọi model) — kể cả khi bộ hiểu bỏ sót lời dặn
+    # "hết thì thôi" (H13-032): không lưu im lặng một biến thể đang hết; không khôi phục biến thể cũ khách đã đổi
+    if skus:
+        for sku in skus:
+            if sku not in t.stock:
+                inv = s.tools.call("inventory.check", sku=sku)
+                t.stock[sku] = {"in_stock": inv.get("in_stock"), "qty": inv.get("qty"), "restock_expected": inv.get("restock_expected")}
+            st = t.stock[sku]
+            trace.append({"condition": "stock", "sku": sku, "evidence": branch.get("evidence") or cond.get("span"),
+                          "lookup": {"tool": "inventory.check", "in_stock": st.get("in_stock")}})
+            if st.get("in_stock") is False:
+                out.append(sku)
+    c.facts["draft_items"] = [name(x) for x in skus]
+    if out:
+        c.facts["quote"] = t.quotes.get(out[0]) or {"sku": out[0], "name": name(out[0])}
+        c.facts["restock_expected"] = t.stock[out[0]].get("restock_expected")
+        if branch.get("action") == "cancel":
+            s.reqs._withdraw("place_order", s.turn_no, "stock_branch_withdraw", req_id=r["id"])
+            s.cart = [x for x in s.cart if x not in out]
+            c.facts["draft_removed"] = [name(x) for x in out]
+            for x in trace:
+                x["branch"] = "customer_cancel_if_unavailable" if x["sku"] in out else "in_stock"
+            r["condition_trace"] = trace
+            return ["out_of_stock", "draft_withdrawn"]
+        for x in trace:
+            x["branch"] = "unavailable_ask_customer" if x["sku"] in out else "in_stock"
+        r["condition_trace"] = trace
+        c.facts["draft_unavailable"] = [name(x) for x in out]
+        return ["out_of_stock", "ask_draft_alternative"]
+    for x in trace:
+        x["branch"] = "in_stock"
+    if trace:
+        r["condition_trace"] = trace
+    return ["draft_saved"]
+
+
+def order_qty_for(s, r):
+    """v6p4 (23/11): số lượng cho một yêu cầu một món. Yêu cầu chọn theo tiêu chí chỉ dùng số lượng gắn vào chính yêu cầu
+    (selection.qty, có căn cứ nguyên văn), mặc định 1; không dùng số lượng tự do của lượt (H13-046). Yêu cầu khác giữ như v6."""
+    if r.get("selection"):
+        q = r["selection"].get("qty")
+        return q if type(q) is int and 1 <= q <= 20 else 1
+    qo = s.qty_obs
+    return qo[1] if qo and qo[0] >= r["turn"] and 1 <= qo[1] <= 20 else 1
+
+
+UNCLEAR_ADDRESS_WHY = ("span_partial_overlap_unresolved", "span_overlap_unresolved", "span_overlap_payment")
+
+
+def unclear_continuation_address(s):
+    """v6p6 (23/11): lượt tiếp tục đơn vừa tạo, đơn còn thiếu địa chỉ, khách có nói địa chỉ nhưng bộ hiểu đã loại vì ranh giới với
+    span thanh toán không xác định được → cần hỏi lại địa chỉ (không ghi). Chỉ đọc trạng thái + lý do loại do code ghi."""
+    cont = getattr(s, "order_continuation", None)
+    if not cont or cont.get("turn") != s.turn_no or getattr(s, "continuation_address_asked", None) == s.turn_no:
+        return False
+    o = next((x for x in getattr(s, "orders_created", None) or [] if x["order_id"] == cont["order_id"]), None)
+    if o is None or o.get("address"):
+        return False
+    dropped = ((getattr(s, "u_turn", None) or {}).get("meta") or {}).get("dropped") or []
+    return any(d.get("slot") == "address" and d.get("why") in UNCLEAR_ADDRESS_WHY for d in dropped)
+
+
+def _ext_tools_on():
+    from harness import order_ext
+    return order_ext.enabled()
+
+
+def _created_record(s, oid):
+    return next((o for o in getattr(s, "orders_created", None) or [] if o.get("order_id") == oid), None)
+
+
+def _try_ext_amend(t, oid, operation, products, new_variant):
+    """v6p8: ORDER_EXT_TOOLS=1 → order.update_line cho ĐÚNG MỘT đơn vị khớp sản phẩm (bỏ) hoặc dòng đã xác định (đổi biến thể).
+    Thành công → cập nhật bản ghi đơn trong cuộc + dữ kiện câu trả lời; lỗi / không xác định được dòng → False (giữ đường chuyển
+    nhân viên). Không đoán dòng khi nhiều đơn vị khớp."""
+    from harness import order_ext
+    if operation == "change_variant" and new_variant and oid and len(products or []) == 1 and order_ext.line_sku_enabled():
+        return _amend_via_order_update(t, oid, products[0], new_variant)
+    if not _ext_tools_on() or not oid or len(products or []) != 1:
+        return False
+    s, c = t.s, t.c
+    rec = _created_record(s, oid)
+    units = [ln.get("sku") for ln in (rec or {}).get("lines") or [] if ln.get("sku")]
+    target = products[0]
+    if operation == "remove":
+        hits = [u for u in units if u == target or _parent(u) == _parent(target)]
+        if len(hits) != 1:
+            return False
+        args = {"order_id": oid, "sku": hits[0], "action": "remove"}
+    elif operation == "change_variant" and new_variant:
+        args = {"order_id": oid, "sku": target, "action": "change_variant", "new_variant_sku": new_variant}
+    else:
+        return False
+    res = s.tools.call("order.update_line", reason=c.text[:160], **args)
+    if not isinstance(res, dict) or res.get("status") != "updated":
+        c.facts["ext_tool_error"] = res.get("error") if isinstance(res, dict) else "unknown"
+        return False
+    name = T._A().product_name
+    if rec is not None:
+        rec["lines"] = [{"sku": ln["sku"], "qty": 1, "price_vnd": ln["price_vnd"]} for ln in res["lines"]]
+        rec["skus"] = list(dict.fromkeys(ln["sku"] for ln in res["lines"]))
+        rec["sku"], rec["total_vnd"] = rec["skus"][0], res["total_vnd"]
+    c.facts["amend_done"] = {"order_id": oid, "action": args["action"], "product": name(args["sku"]),
+                             "new_variant": name(new_variant) if new_variant else None,
+                             "items": [name(x) for x in dict.fromkeys(ln["sku"] for ln in res["lines"])], "total_vnd": res["total_vnd"]}
+    c.goals += [g for g in ("amend_done",) if g not in c.goals]
+    return True
+
+
+def _amend_via_order_update(t, oid, line_sku, new_variant):
+    """v6p15: đổi biến thể của ĐÚNG một dòng bằng tool BTC order.update (exchange_size cùng sản phẩm cha, khác thì
+    exchange_product) + tham số riêng line_sku. Tool chỉ tạo ticket như mock; bản ghi đơn trong cuộc cập nhật theo chênh lệch tool
+    trả để câu trả lời nêu đúng đơn sau đổi. Lỗi → False (giữ đường chuyển nhân viên)."""
+    s, c = t.s, t.c
+    rec = _created_record(s, oid)
+    lines = [dict(ln) for ln in (rec or {}).get("lines") or []]
+    i = next((k for k, ln in enumerate(lines) if ln.get("sku") == line_sku), None)
+    if i is None or int(lines[i].get("qty") or 1) != 1:
+        return False                                       # không thấy đúng dòng / dòng nhiều đơn vị (tool đổi một đơn vị) → không gọi
+    action = "exchange_size" if _parent(new_variant) == _parent(line_sku) else "exchange_product"
+    res = s.tools.call("order.update", order_id=oid, action=action, new_variant_sku=new_variant, line_sku=line_sku,
+                       reason=c.text[:160])
+    if not isinstance(res, dict) or res.get("error") or not res.get("status"):
+        c.facts["ext_tool_error"] = res.get("error") if isinstance(res, dict) else "unknown"
+        return False
+    name = T._A().product_name
+    lines[i] = {**lines[i], "sku": new_variant, "price_vnd": (lines[i].get("price_vnd") or 0) + (res.get("price_diff_vnd") or 0)}
+    rec["lines"], rec["skus"] = lines, list(dict.fromkeys(ln["sku"] for ln in lines))
+    rec["sku"] = rec["skus"][0]
+    rec["total_vnd"] = sum((ln.get("price_vnd") or 0) * int(ln.get("qty") or 1) for ln in lines)
+    c.facts["amend_done"] = {"order_id": oid, "action": "change_variant", "product": name(line_sku), "new_variant": name(new_variant),
+                             "items": [name(x) for x in rec["skus"]], "total_vnd": rec["total_vnd"]}
+    c.goals += [g for g in ("amend_done",) if g not in c.goals]
+    return True
+
+
+def _single_cancellable_order(t):
+    """v6p8: đúng MỘT đơn của chính khách biết được trong cuộc (vừa tạo / Call Brief / đã tra), chưa hủy / chưa giao → order_id."""
+    s = t.s
+    seen = {}
+    for o in list(getattr(s, "orders_created", None) or []) + list((s.brief or {}).get("orders") or []) + list(t.orders or []):
+        oid = o.get("order_id")
+        if oid and o.get("status") not in ("cancelled", "delivered", "da_giao", "shipped"):
+            seen[oid] = o
+    for oid in getattr(s, "ext_cancelled", None) or ():   # v6p9b: Call Brief / bản đọc cũ còn ghi "created" cho đơn vừa hủy
+        seen.pop(oid, None)
+    return next(iter(seen)) if len(seen) == 1 else None
+
+
+def _try_ext_cancel(t, oid):
+    if not _ext_tools_on() or not oid:
+        return False
+    s, c = t.s, t.c
+    res = s.tools.call("order.cancel", order_id=oid, reason=c.text[:160])
+    if not isinstance(res, dict) or res.get("status") != "cancelled":
+        c.facts["ext_tool_error"] = res.get("error") if isinstance(res, dict) else "unknown"
+        return False
+    rec = _created_record(s, oid)
+    if rec is not None:
+        rec["status"] = "cancelled"
+    s.ext_cancelled = list(dict.fromkeys(list(getattr(s, "ext_cancelled", None) or []) + [oid]))
+    c.facts["cancel_done"] = {"order_id": oid}
+    c.goals += [g for g in ("cancel_done",) if g not in c.goals]
+    s.outcome = s.outcome or "tu_choi"
+    return True
+
+
+def _multi_line_task(t, r):
+    """v6p7: yêu cầu đổi / trả trên đơn NHIỀU dòng (tool BTC không nhắm được dòng) → dữ kiện bàn giao: mã đơn, dòng bị đổi (nếu xác
+    định được từ biến thể mới đã kiểm V#, cùng sản phẩm cha), biến thể mới, các dòng giữ. Không đoán dòng khi không xác định được."""
+    oid = (r.get("target") or {}).get("order_id")
+    o = next((x for x in (t.orders or []) if x.get("order_id") == oid), None)         or next((x for x in getattr(t.s, "orders_created", None) or [] if x.get("order_id") == oid), None)
+    if not oid or o is None:
+        return None
+    lines = [ln.get("sku") for ln in o.get("lines") or [] if ln.get("sku")]
+    t.variant_refs()
+    nv = next((v["sku"] for v in t.vrefs.values() if v.get("order_id") == oid), None)
+    hit = [x for x in lines if nv and _parent(x) == _parent(nv)]
+    affected = hit if len(hit) == 1 else []
+    return {"action": "amend_lines", "operation": "update" if r["kind"] == "exchange" else r["kind"], "order_id": oid,
+            "products": affected, "new_variant": nv if affected else None,
+            "keep": [x for x in lines if x not in affected] if affected else [], "evidence": t.c.text}
+
+
+def amend_view(t):
+    """v6p3: dữ kiện sửa đơn vừa tạo cho planner / câu trả lời (tên món, không SKU nội bộ)."""
+    a = getattr(t.s, "amend_created", None) or {}
+    name = T._A().product_name
+    return {"order_id": a.get("order_id"), "operation": a.get("operation"),
+            "products": [name(x) for x in a.get("products") or []], "keep": [name(x) for x in a.get("keep") or []],
+            "order_changed": False}
+
+
+PRODUCT_TARGET_KINDS = ("place_order", "add_to_cart")
+
+
+def history_products(t):
+    """v6p2 (23/11): các mẫu có thật trong lịch sử của khách — ứng viên P# của lượt, mẫu đã tư vấn trong Call Brief, mẫu đã bàn
+    trong cuộc. SKU cha, không trùng, tối đa 4. Chỉ là dữ kiện để hỏi chọn; không cấp quyền ghi."""
+    s = t.s
+    skus = [v["skus"][0] for k, v in s.reqs.refmap.items() if k.startswith("P") and v.get("type") == "product"]
+    skus += [a["sku"] for a in (s.brief or {}).get("products_advised") or [] if a.get("sku")]
+    skus += list(s.discussed or [])
+    return list(dict.fromkeys(_parent(x) for x in skus if x))[:4]
+
+
+def ambiguous_product_hold(t):
+    """v6p2: lượt bị giữ vì mơ hồ, khách đang muốn đặt / thêm giỏ một mẫu CHƯA xác định, và lịch sử thật có ≥ 2 mẫu → đây là
+    câu hỏi chọn mẫu, không phải 'không tìm thấy lần liên hệ trước'. Theo trạng thái + nhãn có cấu trúc của bộ hiểu, không theo câu."""
+    s = t.s
+    if s.reqs.hold not in ("ambiguous_turn",):
+        return None
+    full = s.u_turn or {}
+    wants = [i for i in full.get("request_items") or [] if i.get("kind") in PRODUCT_TARGET_KINDS and not i.get("target_ref")]
+    if not wants and not set((full.get("route") or {}).get("understanding", {}).get("requests") or []) & set(PRODUCT_TARGET_KINDS):
+        return None
+    names = [T._A().product_name(x) for x in history_products(t)]
+    return names if len(names) > 1 else None
+
+
+def ambiguous_order_hold(t):
+    """S2 v6p13: lượt bị giữ vì mơ hồ, khách muốn thao tác trên đơn (đổi / trả / đổi địa chỉ) và đơn đọc được trong lượt có ≥ 2
+    → hỏi chọn đơn (danh sách do code dựng từ order.status), không hỏi "nói lại". Theo nhãn bộ hiểu + kết quả tool."""
+    s = t.s
+    if s.reqs.hold != "ambiguous_turn":
+        return None
+    kinds = [i.get("kind") for i in (s.u_turn or {}).get("request_items") or []]
+    if not set(kinds) & set(ORDER_OP_KINDS):
+        return None
+    if t.orders is None:
+        t.orders = list(s._customer_orders())             # đọc (không ghi) khi lượt dừng trước bước đọc đơn
+    orders = [o for o in t.orders if o.get("status") not in ("cancelled",)]
+    if len(orders) < 2:
+        return None
+    kind = next(k for k in kinds if k in ORDER_OP_KINDS)
+    return {"which_orders": [{"order_id": x["order_id"], "product": s._order_products(x)} for x in orders[-5:]],
+            "which_orders_action": OP_ACTION_VI.get(kind)}
+
+
+def ambiguous_hold_goals(t):
+    """Câu hỏi lại khi lượt bị giữ (hold): v6p2 hỏi chọn trong các mẫu thật khi khớp ambiguous_product_hold; còn lại giữ như v6
+    (ask_prior_contact khi khách nhắc liên hệ trước, ngược lại ask_repeat)."""
+    names = ambiguous_product_hold(t)
+    if names:
+        t.c.facts["which_products"] = names
+        return ["ask_which_product"]
+    if settings.pick_by_name:
+        ws = ambiguous_order_hold(t)
+        if ws:
+            t.c.facts.update(ws)
+            return ["ask_which_order"]
+    return ["ask_prior_contact" if (t.s.u_turn or {}).get("refs", {}).get("previous_contact") else "ask_repeat"]
 
 
 def _ref_of(t, sku):
@@ -1520,13 +2137,30 @@ def _clarify_from(t, r, obs, c, s):
             s.reqs.mark_asked_target(r, s.turn_no)          # V45 §8.5: lượt sau khách trả lời chọn đơn cho CHÍNH yêu cầu này
         return list(obs["clarify"])
     fn = obs.get("clarify_fn")
+    if fn == "semantic_intent":
+        return ["ask_repeat"]
     if getattr(t, "halting", False) and fn in ("handoff_multi_line", "multi_request"):
         return []                                   # dừng sớm: chỉ phản hồi từ bằng chứng đã có, không thực hiện thêm nghiệp vụ
     if fn == "handoff_multi_line":
         s._why("multi_line_order_change_limit", r["id"])
+        task = _multi_line_task(t, r)                 # v6p7 (23/11): brief + câu trả lời nêu đúng đơn / dòng / biến thể mới (H13-037)
+        if task and task.get("new_variant") and len(task["products"]) == 1 \
+                and _try_ext_amend(t, task["order_id"], "change_variant", task["products"], task["new_variant"]):
+            # v6p9b (23/11): tool đã xác nhận → yêu cầu đổi ĐÃ XONG (như tạo đơn thành công); lượt sau không chạy lại nhánh này
+            s.reqs.settle(r, "confirmed_success", {"via": "order.update_line", "order_id": task["order_id"]})
+            return ["amend_done"]                       # v6p8: tool riêng đổi biến thể đúng một dòng
+        if task:
+            s.handoff_task = task
         c.facts["handoff"] = s._handoff(c.text, "khac")
         s.open_questions.append(s._record_view(c.text)[:200])
         s.outcome = "chuyen_may"
+        if task:
+            name = T._A().product_name
+            c.facts["amend_task"] = {"order_id": task["order_id"], "operation": task["operation"],
+                                     "products": [name(x) for x in task["products"]], "keep": [name(x) for x in task["keep"]],
+                                     "new_variant": name(task["new_variant"]) if task.get("new_variant") else None,
+                                     "order_changed": False}
+            return ["amend_handoff"]
         return ["handoff"]
     if fn == "ask_product_target":
         return s._ask_product_target(r, c.facts)
@@ -1558,15 +2192,51 @@ def _clarify(t, req_ref, ref):
         # V45 §8.4: câu chỉ thiếu đơn đích → hỏi đơn nào cho đúng yêu cầu vừa mở, không xin khách nói lại cả câu
         r = next((x for x in reversed(t.active_requests()) if x["kind"] in ORDER_OP_KINDS and x.get("target") is None), None)
     if s.reqs.hold or (r is None and (t.c.u or {}).get("ambiguity") == "needs_clarification"):
-        g = ["ask_repeat"]
+        g = ambiguous_hold_goals(t)
     elif r is None:
         return {"status": "blocked", "missing": ["nothing_to_clarify:no_request"]}
+    elif r.get("semantic") and r["status"] == "held":
+        if r.get("missing") in ("target_unresolved", "cart_line_unresolved"):
+            names = [T._A().product_name(v["skus"][0]) for k, v in s.reqs.refmap.items()
+                     if k.startswith("P") and v.get("type") == "product"]
+            c.facts["which_products"] = list(dict.fromkeys(names))[:4]
+            g = ["ask_which_product"] if len(c.facts["which_products"]) > 1 else ["ask_product"]
+        elif not r.get("missing") and not r.get("purchase_consent") and r.get("lines"):
+            # v6p5 (23/11): giỏ nháp khách CHƯA đồng ý đặt (không thiếu gì) — không xin khách "nói lại"; có điều kiện tồn kho thì
+            # tra kho rồi theo nhánh khách đã dặn (H13-031/032)
+            g = _draft_reply(t, r)
+        elif r.get("missing") == "quantity":
+            # v6p4 (23/11): món đã rõ, chỉ thiếu số lượng kiểm được → hỏi đúng số lượng của món đó, không hỏi lại tên mẫu
+            names = [T._A().product_name(x["sku"]) for x in r.get("lines") or [] if x.get("qty") is None]                 or [T._A().product_name(x) for x in ((r.get("target") or {}).get("skus") or ())]
+            c.facts["quantity_for"] = list(dict.fromkeys(names))[:4]
+            g = ["ask_quantity"]
+        elif r.get("condition"):
+            c.facts["condition"] = {"type": r["condition"]["type"], "text": r["condition"].get("span")}
+            g = ["condition_pending"]
+        else:
+            g = ["ask_repeat"]
     elif any(str(m).startswith(("authorize:", "not_executed:")) for m in (t.blocked.get(r["id"]) or {}).get("missing") or [])             and (t.blocked[r["id"]].get("clarify") or t.blocked[r["id"]].get("goals")):
         # executor đã thử và bị từ chối (điều kiện / revision / hết hàng / COD…): câu trả lời có nguồn executor đã dựng
         last = t.blocked[r["id"]]
         g = list(last.get("clarify") or [])
     else:
         rd = readiness(t, r)
+        if r["kind"] == "place_order" and set(rd["detail"]) & {"out_of_stock", "stock_condition_not_met"} \
+                and (r.get("on_unavailable") or {}).get("action") == "cancel":
+            _, ctx = _place_order_check(t, r, ref)
+            sku = next(x for x in ctx["resolved"] if t.stock.get(x, {}).get("in_stock") is False)
+            c.facts["quote"] = t.quotes.get(sku) or {"sku": sku, "name": T._A().product_name(sku)}
+            c.facts["restock_expected"] = t.stock[sku].get("restock_expected")
+            s.reqs._withdraw("place_order", s.turn_no, "stock_branch_withdraw", req_id=r["id"])
+            c.goals += ["out_of_stock", "defer_ack"]
+            return {"status": "ok", "goals": c.goals[n:], "terminal": True}
+        if "new_variant_out_of_stock" in rd["detail"] and (r.get("on_unavailable") or {}).get("action") == "cancel":
+            s.handoff_task = {"action": "cancel", "order_id": (r.get("target") or {}).get("order_id"),
+                              "evidence": r["on_unavailable"]["evidence"]}
+            if not _try_ext_cancel(t, (r.get("target") or {}).get("order_id")):
+                T.h_cancel_request(c, None)
+            s.reqs.settle(r, "confirmed_success", {"handoff_only": True})
+            return {"status": "ok", "goals": c.goals[n:], "terminal": True}
         if rd["state"] in ("missing_evidence", "ready_executor_rechecks"):
             return {"status": "blocked", "missing": [f"nothing_to_clarify:{rd['state']}"], "readiness": rd}
         if r["kind"] == "place_order":
@@ -1609,9 +2279,15 @@ def _complete_address(t):
     cb, o = got
     address = cb["value"]
     args = dict(order_id=o["order_id"], action="update_address", reason=f"địa chỉ mới: {address}")
+    key = (o["order_id"], "update_address", address)
+    if key in s.__dict__.setdefault("unresolved_updates", set()):
+        s._why("order_update_blocked_unresolved", str(key))
+        return ["contract_error"]
     res = s.tools.call("order.update", **args)
     st = tool_outcome.classify({"name": "order.update", "args": args, "result": res})["status"]
     s.reqs.completion = None
+    if st == "unresolved":
+        s.unresolved_updates.add(key)
     if st != "confirmed_success":
         return ["contract_error"]
     o["address"] = address
@@ -1629,7 +2305,8 @@ def _finish(t, req_ref, ref):
     chưa hỏi rõ / chưa báo điều kiện) → bị chặn. Phản hồi điều kiện KHÔNG bắt thực hiện hay đánh dấu hoàn thành khi điều kiện
     chưa thỏa (executor / request_state giữ yêu cầu ở trạng thái conditional)."""
     pend = t.pending_asks()
-    cond = [r["id"] for r in t.active_requests() if r.get("condition") and r["turn"] == t.s.turn_no and r["id"] not in t.addressed]
+    cond = [r["id"] for r in t.pending_requests() if (r.get("condition") or (r.get("semantic") and r.get("purchase_consent")))
+            and r["turn"] == t.s.turn_no and r["id"] not in t.addressed]
     # patch cuối 13/11: yêu cầu add_to_cart của lượt phải được phản hồi về giỏ (report_cart) — chỉ khi B2 bật reuse_quotes
     cart = ["respond_cart"] if t.reuse_quotes and t.cart_obligation() and not t.cart_reported else []
     if pend or cond or cart:
@@ -1675,6 +2352,40 @@ def _ask_suspended(t, sus):
     return {"why": "address_suspended_multi", "ids": [r["id"] for r in sus], "goals": ["ask_which_order"]}
 
 
+def _save_profile_address(t):
+    """v6p11: phạm vi profile_default đã được DeepSeek + JEV xác nhận → ghi slot address vào hồ sơ NGAY (trước khi dựng câu) để câu trả
+    lời chỉ nói đã ghi nhận khi ghi thành công hoặc giá trị trùng giá trị đã lưu; lỗi ghi → contract_error, không báo đã lưu."""
+    c, s = t.c, t.s
+    ap = getattr(s.reqs, "address_profile", None)
+    if not ap or ap.get("turn") != s.turn_no or ap.get("done"):
+        return
+    ap["done"] = True
+    addr = ((s.u_turn or {}).get("slots") or {}).get("address")
+    prev = getattr(s.reqs, "prev_address", None) if settings.write_path_gate else None
+    if not addr and prev and prev.get("turn") == s.turn_no - 1:
+        addr = prev["value"]
+    cid = (s.customer or {}).get("customer_id")
+    if not addr:
+        c.goals += [g for g in ("ask_address",) if g not in c.goals]
+        return
+    try:
+        if not cid:
+            raise RuntimeError("no_customer")
+        w = s.mem.write_fact(cid, "address", addr, f"{s.call_name}#turn{s.turn_no}", s.session_id, s.today)
+        if isinstance(w, dict) and w.get("error"):
+            raise RuntimeError(str(w["error"])[:80])
+    except Exception as e:                                    # noqa: BLE001 — ghi hỏng: không được báo đã lưu
+        s._addr_profile_result = {"ok": False, "error": f"{type(e).__name__}:{str(e)[:80]}"}
+        c.goals += [g for g in ("contract_error",) if g not in c.goals]
+        return
+    if w:
+        s._addr_profile_writes = list(getattr(s, "_addr_profile_writes", None) or []) + [w]
+    s._addr_profile_result = {"ok": True, "changed": bool(w)}
+    s.known["address"] = addr
+    c.facts["address_saved_profile"] = {"address": addr}
+    c.goals += [g for g in ("address_saved_profile",) if g not in c.goals]
+
+
 def apply_order_gate(t):
     """F8 (13/11, B2): yêu cầu đặt của khách bị cổng request_state chặn ở lượt này (request_state.order_gate) → không ghi gì;
     thêm đúng một câu xin xác nhận:
@@ -1685,6 +2396,8 @@ def apply_order_gate(t):
     from core.config import settings
     from harness.tools import product_name
     c, s = t.c, t.s
+    if settings.address_scope_gate:
+        _save_profile_address(t)
     g = getattr(s.reqs, "order_gate", None)
     og = getattr(s.reqs, "op_gate", None)
     if settings.planner_variant == "b2_jev" and not g and (og is None or og.get("kind") == "change_order_address") \
@@ -1695,6 +2408,29 @@ def apply_order_gate(t):
             if log:
                 return log
     if not g and og:
+        held = getattr(s.reqs, "held_candidate", None) or {}
+        if og.get("why") == "jev_hold" and held.get("kind") == "exchange" and held.get("turn") == s.turn_no:
+            t.variant_refs()
+            oid = (held.get("target") or {}).get("order_id")
+            ref = next((k for k, v in t.vrefs.items() if v["order_id"] == oid), None)
+            if ref:
+                sku = t.vrefs[ref]["sku"]
+                if sku not in t.stock and t.tool_calls < settings.b2_max_tool_calls:
+                    t.run("read_stock", None, ref, "held_exchange_evidence")
+                stock = t.stock.get(sku) or {}
+                c.facts["held_exchange"] = {"order_id": oid, "product": product_name(sku)}
+                if stock.get("in_stock") is False:
+                    c.facts["quote"] = {"sku": sku, "name": product_name(sku)}
+                    c.facts["restock_expected"] = stock.get("restock_expected")
+                    c.goals.append("out_of_stock")
+                    if (held.get("on_unavailable") or {}).get("action") == "cancel":
+                        s.handoff_task = {"action": "cancel", "order_id": oid,
+                                          "evidence": held["on_unavailable"]["evidence"]}
+                        if not _try_ext_cancel(t, oid):
+                            T.h_cancel_request(c, None)
+                    return {"why": "held_exchange_out_of_stock", "sku": sku, "goals": c.goals}
+                c.goals.append("exchange_hold")
+                return {"why": "held_exchange", "sku": sku, "goals": ["exchange_hold"]}
         # V44 (15/11): yêu cầu đổi / trả / đổi địa chỉ thiếu căn cứ (đồng ý ngầm, không có động từ thao tác, lời kể, câu hỏi, điều
         # kiện chưa rõ) → không ghi, xin khách nói rõ lại
         if not any(x in c.goals for x in ORDER_GOAL_DONE) and "ask_repeat" not in c.goals:
@@ -1708,6 +2444,14 @@ def apply_order_gate(t):
     log = {"why": g["why"], **({"stated_vnd": g["stated_vnd"]} if g.get("stated_vnd") else {})}
     if g["why"] == "pseudo_system":
         return log
+    held = getattr(s.reqs, "held_candidate", None) or {}
+    if g["why"] == "jev_hold" and held.get("condition"):
+        c.facts["condition"] = {"type": held["condition"].get("type"), "text": held["condition"].get("span")}
+        c.goals.append("condition_pending")
+        return {**log, "goals": ["condition_pending"]}
+    if g["why"] == "jev_hold":
+        c.goals.append("ask_repeat")
+        return {**log, "goals": ["ask_repeat"]}
     if any(x in c.goals for x in ORDER_GOAL_DONE):
         return {**log, "skipped": "order_goal_present"}
     if g["why"] == "target_ambiguous":
@@ -1848,6 +2592,11 @@ def step_cost(t, action, rq, tg):
         return 0
     if action == "read_quote":
         return 2
+    if action == "read_condition":
+        r = t.request(rq)
+        return len((r.get("target") or {}).get("skus") or ()) if r else 0
+    if action == "read_stock" and settings.write_path_gate and str(tg or "").startswith("V") and _has_fee_condition(t):
+        return 2
     if action in ("read_stock", "read_order"):
         return 1
     if action == "report_cart":
@@ -1888,7 +2637,7 @@ def step_cost(t, action, rq, tg):
             return 1                                              # có thể tra order.status để xác định đơn / phiên bản chính sách
         return 0                                                  # attribute (catalog) / other (khối chung / no_info)
     if action == "commit_request":
-        if rq in ("X_CANCEL", "X_COMPLETE_ADDRESS"):
+        if rq in ("X_CANCEL", "X_COMPLETE_ADDRESS", "X_AMEND_ORDER", "X_ASK_ORDER_ADDRESS"):
             return 1
         r = t.request(rq)
         return 3 if (r or {}).get("kind") == "place_order" else 1

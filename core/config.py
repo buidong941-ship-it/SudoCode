@@ -160,6 +160,23 @@ class Settings:
     # Jev trong chọn thao tác) trên PLANNER_VARIANT=b2_jev; giao dịch giữ nguyên luồng B2. Mặc định TẮT = hành vi bản chính.
     # Bật cờ cũng bật: has_children nhận label khong → False (định nghĩa slot đã có), và trường `consult` của bộ hiểu.
     b2_two_tier: bool = field(default_factory=lambda: _env("B2_TWO_TIER", "0") == "1")
+    jev_write_gate: bool = field(default_factory=lambda: _env("JEV_WRITE_GATE", "0") == "1")
+    # v6p7 (23/11): bộ hiểu trích lại MỘT lần khi output tự mâu thuẫn (mơ hồ dù mọi dòng có tên hợp lệ; số lượng không nguyên văn)
+    understanding_retry: bool = field(default_factory=lambda: _env("UNDERSTANDING_RETRY", "0") == "1")
+    # v6p11 (24/11): phạm vi địa chỉ (đơn hiện có / mặc định cho đơn sau) + lời khách kể trạng thái đơn, DeepSeek trích kèm căn cứ,
+    # JEV phân loại kiểm chéo trong cùng lần gọi cổng ghi; tắt = hành vi v6p10 ở mọi tầng
+    address_scope_gate: bool = field(default_factory=lambda: _env("ADDRESS_SCOPE_GATE", "0") == "1")
+    # v6p12 (24/11): đường ghi — kiểu lời nói (mode) của đổi/trả có JEV kiểm chéo, điều kiện promo_active / fee_free theo dữ kiện
+    # tool + DT-03, địa chỉ không mất khi yêu cầu bị giữ; tắt = hành vi v6p11
+    write_path_gate: bool = field(default_factory=lambda: _env("WRITE_PATH_GATE", "0") == "1")
+    # v6p13 vòng 2A (24/11, duyệt): mỗi cơ chế một cờ, tắt = hành vi v6p12
+    nullable_evidence: bool = field(default_factory=lambda: _env("NULLABLE_EVIDENCE", "0") == "1")
+    trial_total: bool = field(default_factory=lambda: _env("TRIAL_TOTAL", "0") == "1")
+    pick_by_name: bool = field(default_factory=lambda: _env("PICK_BY_NAME", "0") == "1")
+    claim_span: bool = field(default_factory=lambda: _env("CLAIM_SPAN", "0") == "1")
+    done_no_handoff: bool = field(default_factory=lambda: _env("DONE_NO_HANDOFF", "0") == "1")
+    # v6p14 vòng 2B (24/11, duyệt): trả lời câu hỏi chính sách / thông số bằng câu nguyên văn chọn từ tài liệu; tắt = v6p13
+    doc_answer: bool = field(default_factory=lambda: _env("DOC_ANSWER", "0") == "1")
     b2tt_max_tool_calls: int = field(default_factory=lambda: int(_env("B2TT_MAX_TOOL_CALLS", "18")))
     b2tt_max_decisions: int = field(default_factory=lambda: int(_env("B2TT_MAX_DECISIONS", "4")))
     # Candidate kho hướng dẫn điều phối cho Jev (17/11, docs/DE-XUAT/KIEN-TRUC-RAG-HUONG-DAN-JEV-2026-11-17.md). Rỗng = TẮT.

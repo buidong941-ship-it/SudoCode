@@ -5,6 +5,8 @@
   CCCD / số tài khoản đã được che từ lúc nhận câu nói (`harness.textnorm.mask_pii`) và không bao giờ khôi phục.
 - `mask_for_log()`: che một chiều cho dòng log (098****714, [địa chỉ]).
 """
+import functools
+import os
 import re
 
 PHONE_RX = re.compile(r"(?<![\d*])(?:\+84|84|0)(?:[\s.-]?\d){9}(?![\d*])")
@@ -21,6 +23,81 @@ TOKEN_RX = re.compile(r"\[\s*(?:SĐT|ĐỊA[_ ]?CHỈ)[^\]\n]*\]|(?:SĐT|ĐỊA_
 
 PHONE_KEYS = {"phone", "customer_phone", "sdt", "so_dien_thoai"}
 ADDRESS_KEYS = {"address", "dia_chi", "delivery_address", "new_address", "shipping_address"}
+
+
+# ------------------------------------------------------------------ v6p7 (23/11): ranh giới địa chỉ bằng NER cục bộ
+# Theo docs/DE-XUAT/DE-XUAT-NER-CHE-DIA-CHI-PII-2026-11-23.md + POC Kaggle runs/kaggle/ner-pii-poc-1123 (cấu hình 5 "hybrid"):
+# NER Aster (chạy CỤC BỘ, không gửi câu đi đâu) xác định span ADDRESS; đoạn mà regex hiện có coi là địa chỉ nhưng NER không phủ
+# vẫn bị che (dự phòng bảo thủ, không để lộ hơn regex). Bật bằng PII_NER=1; model không nạp được → giữ nguyên regex hiện tại.
+# Chỉ đổi Redactor (dữ liệu gửi model ngoài); mask_for_log giữ nguyên. Model card không ghi license ("research checkpoint") →
+# chưa đủ điều kiện vào main / bản nộp khi chưa làm rõ.
+NER_MODEL = "Keithsel/Aster-Vietnamese-NER-MiniLM"
+_NER = {"pipe": None, "tried": False, "error": None}
+
+
+def ner_enabled():
+    return os.environ.get("PII_NER", "0") == "1"
+
+
+def ner_preload():
+    """Nạp model một lần (gọi lúc khởi động tiến trình agent, ngoài thời gian của lượt). Lỗi → ghi lại, dùng regex."""
+    if _NER["tried"] or not ner_enabled():
+        return _NER["pipe"] is not None
+    _NER["tried"] = True
+    try:
+        from transformers import pipeline
+        _NER["pipe"] = pipeline("token-classification", model=NER_MODEL, aggregation_strategy="simple", device=-1)
+    except Exception as e:                                  # noqa: BLE001
+        _NER["error"] = f"{type(e).__name__}: {e}"[:300]
+    return _NER["pipe"] is not None
+
+
+def ner_status():
+    return {"enabled": ner_enabled(), "loaded": _NER["pipe"] is not None, "error": _NER["error"], "model": NER_MODEL}
+
+
+@functools.lru_cache(maxsize=4096)
+def _ner_address_spans(s):
+    ents = _NER["pipe"](s)
+    spans = sorted((int(e["start"]), int(e["end"])) for e in ents
+                   if "ADDR" in str(e.get("entity_group") or e.get("entity") or "").upper())
+    merged = []
+    for a, b in spans:                                      # gộp mảnh ADDRESS liền kề chỉ cách dấu phẩy / khoảng trắng
+        if merged and s[merged[-1][1]:a].strip(" ,") == "":
+            merged[-1] = (merged[-1][0], b)
+        else:
+            merged.append((a, b))
+    return tuple((a, b) for a, b in merged if b > a)
+
+
+def _regex_address_spans(s):
+    """Các đoạn mà ba regex địa chỉ hiện có bắt được trên chuỗi (không thay thế) — chỉ để làm dự phòng cho NER."""
+    out = [m.span(1) for m in CUE_ADDRESS_RX.finditer(s)]
+    out += [m.span() for m in ADDRESS_RX.finditer(s)] + [m.span() for m in PLAIN_ADDRESS_RX.finditer(s)]
+    return sorted(out)
+
+
+def _hybrid_address_spans(s):
+    tokens = [m.span() for m in TOKEN_RX.finditer(s)]
+    clash = lambda a, b: any(x < b and a < y for x, y in tokens)
+    ner = [(a, b) for a, b in _ner_address_spans(s) if not clash(a, b)]
+    keep = list(ner)
+    for a, b in _regex_address_spans(s):
+        a2, b2 = a, b
+        while a2 < b2 and s[a2] in " ,":
+            a2 += 1
+        while b2 > a2 and s[b2 - 1] in " ,.":
+            b2 -= 1
+        if b2 > a2 and not clash(a2, b2) and not any(x < b2 and a2 < y for x, y in keep):
+            keep.append((a2, b2))                          # regex thấy địa chỉ mà NER không phủ → vẫn che
+    keep.sort()
+    out = []
+    for a, b in keep:                                       # gộp đoạn chồng nhau
+        if out and a < out[-1][1]:
+            out[-1] = (out[-1][0], max(b, out[-1][1]))
+        else:
+            out.append((a, b))
+    return out
 
 
 def _digits(s):
@@ -57,6 +134,11 @@ class Redactor:
             if not key.isdigit():
                 s = re.sub(re.escape(key), tok, s, flags=re.I)
         s = PHONE_RX.sub(lambda m: self._token("SĐT", _digits(m.group()), m.group()), s)
+        if ner_enabled() and ner_preload():
+            for a, b in reversed(_hybrid_address_spans(s)):
+                val = s[a:b].strip()
+                s = s[:a] + self._token("ĐỊA_CHỈ", val.lower(), val) + s[b:]
+            return s
         s = CUE_ADDRESS_RX.sub(lambda m: m.group()[:m.start(1) - m.start()]
                                + self._token("ĐỊA_CHỈ", m.group(1).strip().lower(), m.group(1).strip()), s)
         s = ADDRESS_RX.sub(lambda m: self._token("ĐỊA_CHỈ", m.group().strip().lower(), m.group().strip()), s)

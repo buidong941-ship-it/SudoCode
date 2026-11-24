@@ -166,6 +166,10 @@ def tasks(c, t, crit):
     mở recommend / rẻ nhất / đắt nhất. Xếp hạng chỉ chạy trong phạm vi đã chọn."""
     s = c.s
     out = {}
+    from core.config import settings
+    if settings.pick_by_name and not crit["named"] and 2 <= len(((s.u_turn or {}).get("name_pick") or {}).get("skus") or []) <= 4:
+        # S2 v6p13: tên khách gọi khớp nhiều mẫu → luồng chính hỏi khách chọn mẫu, không tư vấn / gợi ý mẫu khác trong nhóm
+        return {"delegate_main_flow": DELEGATE_DESC}
     cat, lab = crit["category"], _cat_label(crit["category"], crit["category_span"])
     cons = ", ".join(x for x in ([f"ngân sách tối đa {crit['budget_max_vnd']:,}đ".replace(",", ".")] if crit["budget_max_vnd"] else [])
                      + ([f"phòng {crit['room_area_m2']} m²"] if crit["room_area_m2"] else []))

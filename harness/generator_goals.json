@@ -78,11 +78,11 @@
     "legacy_description": "Đơn đã lên nhưng chưa có số điện thoại của khách (kênh chat): xin số điện thoại và địa chỉ nhận hàng để shipper liên hệ. Không hỏi lại thông tin đã có trong KNOWN."
   },
   "ask_prior_contact": {
-    "description": "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm.",
+    "description": "Khách nhắc lần trao đổi Fanpage trước nhưng chưa xác minh được lịch sử: nói ngắn là chưa thấy lượt chat, xin khách nêu tên mẫu hoặc gửi lại nội dung tin nhắn/báo giá cũ để tiếp nối. Không đọc đơn, địa chỉ hay lịch sử riêng từ SĐT khách tự nêu; không đoán sản phẩm.",
     "required_facts": {},
     "optional_facts": {},
     "response_requirements": [
-      "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm."
+      "Khách nhắc lần trao đổi Fanpage trước nhưng chưa xác minh được lịch sử: nói ngắn là chưa thấy lượt chat, xin khách nêu tên mẫu hoặc gửi lại nội dung tin nhắn/báo giá cũ để tiếp nối. Không đọc đơn, địa chỉ hay lịch sử riêng từ SĐT khách tự nêu; không đoán sản phẩm."
     ],
     "question_slot": "customer_phone",
     "legacy_description": "Khách nhắc lần trao đổi trước nhưng em chưa tìm thấy lịch sử với số/kênh này: nói ngắn là em chưa tìm thấy, xin số điện thoại hoặc tên tài khoản Facebook/Zalo khách đã dùng khi nhắn với shop để tra lại. Không hỏi lại khách cần sản phẩm gì, không đoán sản phẩm."
@@ -151,6 +151,112 @@
     },
     "response_requirements": [
       "Xác nhận ngày và giờ hẹn thực tế trong callback; nếu lịch được dời thì giải thích lý do dời (chỉ khi dữ liệu có lý do dời lịch)."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "amend_done": {
+    "description": "Tool đã sửa đúng một dòng của đơn (order.update_line xác nhận): nêu món đã bỏ / đổi, đơn hiện gồm gì, tổng mới.",
+    "required_facts": {"amend_done": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Chỉ nói đã sửa khi tool xác nhận; nêu đúng món, đơn hiện gồm gì và tổng mới."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "address_saved_profile": {
+    "description": "v6p11: địa chỉ mới cho các đơn sau đã ghi vào hồ sơ (ghi thành công hoặc trùng giá trị đã lưu): báo đã ghi nhận.",
+    "required_facts": {"address_saved_profile": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Chỉ nói đã ghi nhận khi ghi hồ sơ thành công; không nói đã cập nhật đơn nào."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "address_state_verify": {
+    "description": "v6p11: khách kể đơn đã kết thúc nhưng hệ thống còn mở: không ghi, hỏi khách xác minh.",
+    "required_facts": {"address_state_verify": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Không nói đã đổi địa chỉ; nêu đúng mã đơn, hỏi xác minh trạng thái."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "cancel_done_handoff": {
+    "description": "Đơn đã hủy bằng order.cancel trong cuộc; khách xin người xác nhận: báo đơn đã hủy và đã chuyển nhân viên xác nhận lại.",
+    "required_facts": {"cancel_done_handoff": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Nêu đúng mã đơn đã hủy; nói đã chuyển nhân viên xác nhận; không nói đơn chưa hủy."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "doc_answer": {
+    "description": "Đọc nguyên văn các câu tài liệu đã chọn (FACTS.doc_answer.sentences); unknown = true thì nói phần còn lại không có thông tin.",
+    "required_facts": {"doc_answer": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Chỉ đọc các câu đã chọn, không thêm số liệu khác; ý không có câu nào thì nói không có thông tin."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "cancel_done_confirm": {
+    "description": "Đơn đã hủy bằng order.cancel trong cuộc; khách xin người xác nhận lần đầu: xác nhận đơn đã hủy, chỉ chuyển nhân viên khi khách đòi lại.",
+    "required_facts": {"cancel_done_confirm": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Nêu đúng mã đơn đã hủy; không nói đã chuyển nhân viên; mời khách báo nếu vẫn cần nhân viên."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "cancel_done": {
+    "description": "Tool đã hủy đơn (order.cancel xác nhận): báo đã hủy đúng mã đơn.",
+    "required_facts": {"cancel_done": "object"},
+    "optional_facts": {},
+    "response_requirements": ["Chỉ nói đã hủy khi tool xác nhận; nêu đúng mã đơn."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "amend_handoff": {
+    "description": "Khách bỏ / đổi một món của đơn vừa tạo: nói đã chuyển yêu cầu sửa đơn (mã đơn, món bỏ / đổi, món giữ) sang nhân viên; đơn CHƯA thay đổi. KHÔNG nói đã sửa xong.",
+    "required_facts": {
+      "amend_task": "object"
+    },
+    "optional_facts": {
+      "handoff": "object"
+    },
+    "response_requirements": [
+      "Nói đã chuyển yêu cầu sửa đơn sang nhân viên; đơn chưa thay đổi. KHÔNG nói đã sửa xong. Không hỏi thêm."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "draft_saved": {
+    "description": "Giỏ nháp khách chưa đồng ý đặt: xác nhận đã lưu các món vào giỏ nháp, CHƯA tạo đơn. Không xin khách nói lại.",
+    "required_facts": {},
+    "optional_facts": {
+      "draft_items": "array"
+    },
+    "response_requirements": [
+      "Xác nhận đã lưu giỏ nháp, chưa tạo đơn. Không xin khách nói lại."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "ask_draft_alternative": {
+    "description": "Biến thể trong giỏ nháp hết hàng, khách chưa dặn cách xử lý: hỏi khách chọn màu/size khác hay bỏ món; chưa tạo đơn; không tự đổi biến thể.",
+    "required_facts": {},
+    "optional_facts": {
+      "draft_unavailable": "array"
+    },
+    "response_requirements": [
+      "Hỏi chọn biến thể khác hay bỏ món; nói chưa lên đơn; không tự đổi biến thể."
+    ],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "draft_withdrawn": {
+    "description": "Biến thể trong giỏ nháp hết hàng và khách đã dặn hết thì thôi: báo đã bỏ món khỏi giỏ nháp, không tạo đơn.",
+    "required_facts": {},
+    "optional_facts": {
+      "draft_removed": "array"
+    },
+    "response_requirements": [
+      "Báo đã bỏ món khỏi giỏ nháp theo ý khách, không tạo đơn."
     ],
     "question_slot": null,
     "legacy_description": null
@@ -649,6 +755,30 @@
     "question_slot": null,
     "legacy_description": null
   },
+  "exchange_hold": {
+    "description": "Yêu cầu đổi biến thể của đơn đã tạo đang chờ xác nhận; nêu đúng đơn và biến thể mới theo held_exchange, hỏi khách xác nhận đổi. Không nói đã đổi hoặc hủy đơn.",
+    "required_facts": {"held_exchange.order_id": "string", "held_exchange.product": "string"},
+    "optional_facts": {},
+    "response_requirements": ["Nêu đúng đơn và biến thể đang chờ; hỏi xác nhận đổi, không nói đã đổi hoặc hủy."],
+    "question_slot": "confirm_order",
+    "legacy_description": null
+  },
+  "condition_attribute_unmet": {
+    "description": "Thuộc tính khách đặt làm điều kiện không có trên đúng sản phẩm theo catalog.search: báo rõ điều kiện không đạt và chưa lên đơn. Không hỏi xác nhận đặt cùng sản phẩm khi điều kiện chưa được khách rút.",
+    "required_facts": {"condition.attribute": "string", "condition.product": "string"},
+    "optional_facts": {},
+    "response_requirements": ["v6p9: nêu thuộc tính theo cụm đã rà của khóa catalog (condition.attribute + condition.actual), không chép lời khách; chưa lên đơn."],
+    "question_slot": null,
+    "legacy_description": null
+  },
+  "condition_fact_unmet": {
+    "description": "v6p12: điều kiện theo dữ kiện (promo_active: đang có giảm giá; fee_free: đổi không mất phí theo DT-03 + chênh lệch giá) chưa đạt hoặc chưa xác minh được: nói rõ lý do, chưa ghi gì. Không hứa miễn phí / giảm giá khi chưa xác minh.",
+    "required_facts": {"condition.type": "string"},
+    "optional_facts": {"condition.why": "string", "condition.order_id": "string", "condition.product": "string", "condition.price_vnd": "money", "condition.extra_vnd": "money"},
+    "response_requirements": ["v6p12: câu dựng từ kết quả đánh giá điều kiện, không chép lời khách; chưa lên đơn / chưa đổi."],
+    "question_slot": null,
+    "legacy_description": null
+  },
   "condition_unmet": {
     "description": "Khách chỉ đặt khi giá không vượt condition.max_vnd nhưng tổng hiện tại (condition.total_vnd) cao hơn: nói rõ tổng hiện tại cao hơn mức khách đặt nên em chưa lên đơn.",
     "required_facts": {
@@ -685,6 +815,26 @@
       "Hỏi rõ đổi hay trả; chưa tạo yêu cầu."
     ],
     "question_slot": "other",
+    "legacy_description": null
+  },
+  "ask_previous_product": {
+    "description": "Lời nhắc mẫu đã bàn trước chưa xác định được đúng sản phẩm; xin khách nêu tên mẫu hoặc gửi lại nội dung tư vấn. Chưa lên đơn và không đoán từ một mẫu còn nhớ.",
+    "required_facts": {},
+    "optional_facts": {},
+    "response_requirements": ["Hỏi rõ tên mẫu đã bàn, chưa lên đơn."],
+    "question_slot": "product",
+    "legacy_description": null
+  },
+  "ask_quantity": {
+    "description": "Món khách muốn mua đã rõ nhưng số lượng chưa kiểm được: hỏi đúng số lượng của món đó; nói chưa lên đơn. Không hỏi lại tên mẫu.",
+    "required_facts": {},
+    "optional_facts": {
+      "quantity_for": "array"
+    },
+    "response_requirements": [
+      "Hỏi đúng số lượng của món đã rõ; nói chưa lên đơn. Không hỏi lại tên mẫu."
+    ],
+    "question_slot": null,
     "legacy_description": null
   },
   "ask_which_product": {

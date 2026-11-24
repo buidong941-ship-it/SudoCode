@@ -377,6 +377,17 @@ def render_offline(plan):
                        else f"Ngoài ra bên em có mẫu {a['name']}, {_price_phrase(a)} ạ.")
         elif g == "stale_promo":
             out.append("Dạ chương trình khuyến mãi hôm trước đã hết hạn rồi ạ, em báo lại giá hiện tại cho mình.")
+        elif g == "draft_saved":
+            # v6p5 (23/11): giỏ nháp khách chưa đồng ý đặt — xác nhận đã lưu, chưa tạo đơn (không xin khách nói lại)
+            items = ", ".join(F.get("draft_items") or [])
+            out.append(f"Dạ em đã để {items or 'sản phẩm'} vào giỏ nháp cho {h}, chưa lên đơn ạ. Khi nào {h} muốn đặt thì báo em ạ.")
+        elif g == "ask_draft_alternative":
+            # v6p6: biến thể trong giỏ nháp hết hàng, khách chưa dặn cách xử lý → hỏi chọn biến thể khác hay bỏ món; không tự đổi
+            items = ", ".join(F.get("draft_unavailable") or [])
+            out.append(f"{h.capitalize()} muốn chọn màu / size khác hay bỏ {items or 'món này'} khỏi giỏ nháp ạ? Em chưa lên đơn ạ.")
+        elif g == "draft_withdrawn":
+            # v6p5: hết hàng + khách đã dặn "hết thì thôi" → đã bỏ món khỏi giỏ nháp, không tạo đơn
+            out.append(f"Theo ý {h}, em đã bỏ {', '.join(F.get('draft_removed') or ['món này'])} khỏi giỏ nháp, chưa lên đơn ạ.")
         elif g == "out_of_stock":
             r = F.get("restock_expected")
             out.append("Dạ mẫu này hiện đang tạm hết hàng" + (f", dự kiến có hàng lại ngày {r}" if r else "") + " ạ.")
@@ -426,8 +437,7 @@ def render_offline(plan):
                                                          + (f" (áp dụng {i['price_note']})" if i.get("price_note") else "")
                                                          for i in ct["items"]) + f", tổng {_vnd(ct['total_vnd'])} ạ.")
         elif g == "ask_prior_contact":
-            out.append(f"Dạ em chưa tìm thấy lịch sử trao đổi của {h} với số này ạ. {h.capitalize()} cho em xin số điện thoại "
-                       "hoặc tên tài khoản Facebook/Zalo đã nhắn với shop để em tra lại đúng thông tin nhé?")
+            out.append(f"Dạ em chưa thấy nội dung lần chat trước trong cuộc gọi này. {h.capitalize()} cho em xin tên mẫu hoặc gửi lại tin nhắn/báo giá cũ để em tiếp nối đúng sản phẩm nhé?")
         elif g == "gift_status" and F.get("gift"):
             gf = F["gift"]
             out.append(f"Dạ mua {gf['product']} hiện được tặng {gf['gift_name']}, chương trình áp dụng đến {gf['end_ddmm']} ạ." if gf["active"]
@@ -496,8 +506,41 @@ def render_offline(plan):
             lead = "nếu trả hàng, số tiền hoàn dự kiến" if r.get("basis") == "order_price" else                 "số tiền chênh lệch được hoàn khi đổi hàng" if r.get("basis") == "exchange_difference" else "số tiền hoàn"
             out.append(f"Dạ {lead} cho đơn {r.get('order_id')} của {h} là {_vnd(r['refund_vnd'])}"
                        + (f", hoàn trong {r['refund_days']}" if r.get("refund_days") else "") + " ạ.")
+        elif g == "amend_done" and F.get("amend_done"):
+            # v6p8: tool riêng đã sửa đúng một dòng (kết quả tool xác nhận) — nêu món bỏ / đổi, đơn còn gì, tổng mới
+            ad = F["amend_done"]
+            what = (f"bỏ {ad['product']}" if ad.get("action") == "remove" else f"đổi {ad['product']} sang {ad.get('new_variant')}")
+            out.append(f"Dạ em đã {what} trong đơn {ad['order_id']}; đơn hiện gồm {', '.join(ad.get('items') or [])}, "
+                       f"tổng {_vnd(ad['total_vnd'])} ạ.")
+        elif g == "address_saved_profile" and F.get("address_saved_profile"):
+            out.append(f"Dạ em đã ghi nhận địa chỉ mới {F['address_saved_profile']['address']} cho các đơn sau của {h} ạ.")
+        elif g == "address_state_verify" and F.get("address_state_verify"):
+            av = F["address_state_verify"]
+            said = {"delivered": "đã nhận", "cancelled": "đã hủy", "returned": "đã trả hàng"}.get(av.get("claim"), "đã kết thúc")
+            out.append(f"Dạ trên hệ thống đơn {av['order_id']}" + (f" ({av['product']})" if av.get("product") else "")
+                       + f" vẫn đang được xử lý, chưa ghi nhận là {said}. {h.capitalize()} xác nhận giúp em đơn này {said} rồi, "
+                       f"hay {h} muốn đổi địa chỉ giao cho đơn này ạ?")
+        elif g == "cancel_done_handoff" and F.get("cancel_done_handoff"):
+            # v6p9b: đơn đã hủy bằng tool; khách xin người xác nhận → báo đã hủy + đã chuyển nhân viên (không nói "chưa hủy")
+            out.append(f"Dạ đơn {F['cancel_done_handoff']['order_id']} em đã hủy rồi ạ; em đã chuyển nhân viên phụ trách để xác nhận "
+                       f"lại với {h}, bên em sẽ liên hệ {h} sớm ạ.")
+        elif g == "cancel_done_confirm" and F.get("cancel_done_confirm"):
+            out.append(f"Dạ đơn {F['cancel_done_confirm']['order_id']} đã được hủy thành công trên hệ thống rồi ạ, {h} không cần làm "
+                       f"thêm bước nào. Nếu {h} vẫn muốn nhân viên gọi xác nhận lại, {h} báo em để em chuyển ngay ạ.")
+        elif g == "cancel_done" and F.get("cancel_done"):
+            out.append(f"Dạ em đã hủy đơn {F['cancel_done']['order_id']} theo yêu cầu của {h} ạ.")
+        elif g == "amend_handoff" and F.get("amend_task"):
+            # v6p3 (23/11): sửa món của đơn vừa tạo — chỉ báo đã chuyển yêu cầu, đơn chưa thay đổi (tool không sửa riêng từng dòng)
+            at, ho = F["amend_task"], F.get("handoff") or {}
+            what = ("bỏ " if at.get("operation") == "remove" else "đổi ") + (", ".join(at.get("products") or []) or "sản phẩm")                 + (f" sang {at['new_variant']}" if at.get("new_variant") else "") + f" trong đơn {at.get('order_id')}"
+            keep = f", giữ {', '.join(at['keep'])}" if at.get("keep") else ""
+            if ho.get("already_queued"):
+                out.append(f"Dạ yêu cầu {what}{keep} em đã chuyển sang nhân viên rồi ạ, hiện đang chờ nhân viên xử lý, đơn chưa thay đổi ạ.")
+            else:
+                out.append(f"Dạ hệ thống bên em chưa sửa được riêng từng món trong đơn, nên em đã chuyển yêu cầu {what}{keep} sang nhân viên "
+                           f"phụ trách xử lý; đơn hiện chưa thay đổi, nhân viên sẽ xác nhận lại với {h} ạ.")
         elif g == "cancel_handoff":
-            out.append(f"Dạ em đã chuyển yêu cầu hủy đơn của {h} sang nhân viên phụ trách để xử lý, bên em sẽ liên hệ lại {h} sớm ạ.")
+            out.append(f"Dạ em đã chuyển nhân viên phụ trách xử lý yêu cầu hủy đơn của {h}, đơn chưa hủy cho tới khi nhân viên xác nhận, bên em sẽ liên hệ lại {h} sớm ạ.")
         elif g == "order_not_found":
             out.append(f"Dạ em chưa tìm thấy đơn của {h}, {h} đọc giúp em mã đơn ạ?")
         elif g == "order_status":
@@ -521,17 +564,25 @@ def render_offline(plan):
         elif g == "policy_answer":
             sn = F.get("policy") or []
             out.append("Dạ theo chính sách bên em: " + sn[0]["text"].split("\n")[0][:220] if sn else "Dạ em chưa có thông tin về vấn đề này ạ.")
+        elif g == "doc_answer" and F.get("doc_answer"):
+            # S3 v6p14: câu nguyên văn trong tài liệu (code tách, model chỉ chọn số thứ tự); ý không có câu nào → không có thông tin
+            da = F["doc_answer"]
+            parts = (["Dạ theo thông tin bên em: " + " ".join(da["sentences"])] if da["sentences"] else [])
+            if da["unknown"]:
+                parts.append(f"Phần còn lại {h} hỏi thì hiện em không có thông tin ạ." if da["sentences"]
+                             else "Dạ về câu này hiện em không có thông tin ạ.")
+            out.append(" ".join(parts))
         elif g == "no_info":
             out.append("Dạ về vấn đề này em chưa có thông tin, em ghi nhận và kiểm tra lại rồi báo mình ạ.")
         elif g == "handoff":
             ho = F.get("handoff") or {}
             if ho.get("already_queued") and ho.get("ticket_id"):
                 # 14/11 (duyệt): ticket đã có từ lượt trước (agent._handoff không gọi lại tool) → nói đúng trạng thái: đã chuyển, đang
-                # chờ chuyên viên tiếp nhận (status queued); không nói như vừa chuyển lần nữa, không hứa đã nối máy
-                state = "đang chờ chuyên viên tiếp nhận" if ho.get("status") == "queued" else "chuyên viên sẽ liên hệ lại"
-                out.append(f"Dạ yêu cầu của {h} em đã chuyển sang chuyên viên rồi ạ, hiện {state}, {h} không cần nói lại thông tin ạ.")
+                # chờ nhân viên tiếp nhận (status queued); không nói như vừa chuyển lần nữa, không hứa đã nối máy
+                state = "đang chờ nhân viên tiếp nhận" if ho.get("status") == "queued" else "nhân viên sẽ liên hệ lại"
+                out.append(f"Dạ yêu cầu của {h} em đã chuyển nhân viên phụ trách rồi ạ, hiện {state}, {h} không cần nói lại thông tin ạ.")
             else:
-                out.append(f"Dạ câu này em xin phép chuyển {h} sang chuyên viên để tư vấn chính xác, em đã gửi đầy đủ thông tin để {h} không phải nói lại ạ.")
+                out.append(f"Dạ câu này em xin phép chuyển nhân viên phụ trách hỗ trợ {h} để tư vấn chính xác, em đã gửi đầy đủ thông tin để {h} không phải nói lại ạ.")
         elif g == "is_bot":
             out.append("Dạ em là trợ lý AI của shop ạ, nếu cần em có thể chuyển mình sang nhân viên.")
         elif g == "data_deleted":
@@ -541,7 +592,41 @@ def render_offline(plan):
         elif g == "condition_pending":
             cd = F.get("condition") or {}
             out.append(f"Dạ em ghi nhận {h} đặt" + (f" khi {cd['text']}" if cd.get("text") else " kèm điều kiện")
-                       + f", em chưa lên đơn ạ; khi {h} xác nhận thì em lên đơn ngay.")
+                       + ", em chưa lên đơn khi điều kiện này chưa được đáp ứng ạ.")
+        elif g == "condition_fact_unmet":
+            # v6p12: câu dựng từ kết quả đánh giá điều kiện (dữ kiện tool / DT-03), không chép lời khách; chưa ghi gì
+            cd = F.get("condition") or {}
+            oid, why = cd.get("order_id") or "này", cd.get("why")
+            if cd.get("type") == "promo_active":
+                out.append(f"Dạ hiện {cd.get('product') or 'mẫu này'} chưa có chương trình giảm giá, giá vẫn là {_vnd(cd.get('price_vnd'))}. "
+                           f"Vì {h} muốn có giảm giá mới lấy nên em chưa lên đơn; {h} vẫn muốn đặt theo giá này thì báo em nhé ạ.")
+            elif why == "policy_version":
+                out.append(f"Dạ đơn {oid} được tính theo chính sách đổi trả bản cũ, đổi size vẫn có phí, nên chưa đúng điều kiện miễn phí "
+                           f"{h} đặt. Em chưa đổi; {h} vẫn muốn đổi có phí thì báo em ạ.")
+            elif why == "not_first_exchange":
+                out.append(f"Dạ đơn {oid} đã đổi một lần rồi; theo chính sách, từ lần đổi thứ hai sẽ tính phí vận chuyển nên lần này "
+                           f"có phí. Em chưa đổi; {h} vẫn muốn đổi có phí thì báo em ạ.")
+            elif why == "price_diff":
+                out.append(f"Dạ mẫu mới cao hơn {_vnd(cd.get('extra_vnd'))} so với món trong đơn {oid}, đổi sẽ phải bù thêm tiền nên chưa "
+                           f"đúng điều kiện không mất thêm {h} đặt. Em chưa đổi; {h} đồng ý bù chênh lệch thì báo em ạ.")
+            else:
+                out.append(f"Dạ em chưa xác minh được lịch sử đổi hàng của đơn {oid} nên chưa thể xác nhận lần đổi này miễn phí. Em chưa đổi; "
+                           f"{h} cần thì em chuyển nhân viên kiểm tra giúp ạ.")
+        elif g == "condition_attribute_unmet":
+            # v6p9 (23/11): câu từ kết quả ĐÃ XÁC MINH (khóa thuộc tính + giá trị catalog → cụm đã rà ATTR_PHRASE), không chép span
+            # lời khách; khóa chưa có cụm diễn đạt → câu an toàn không nêu tên thuộc tính
+            from harness.renderer import ATTR_PHRASE
+            cd = F.get("condition") or {}
+            name = cd.get("product") or (F.get("quote") or {}).get("name") or "mẫu này"
+            fn = ATTR_PHRASE.get(cd.get("attribute") or "")
+            phrase = fn(cd.get("actual")) if fn else None
+            if phrase:
+                out.append(f"Dạ theo thông tin sản phẩm, {name} {phrase}, chưa đúng điều kiện {h} đặt nên em chưa lên đơn ạ.")
+            else:
+                out.append(f"Dạ theo thông tin sản phẩm, {name} chưa đáp ứng điều kiện {h} đặt nên em chưa lên đơn ạ.")
+        elif g == "exchange_hold":
+            ex = F.get("held_exchange") or {}
+            out.append(f"Dạ đơn {ex.get('order_id')} đang chờ đổi sang {ex.get('product')}. {h.capitalize()} xác nhận muốn đổi đơn này nhé?")
         elif g == "condition_unmet":
             cd = F.get("condition") or {}
             out.append(f"Dạ tổng hiện tại là {_vnd(cd['total_vnd'])}, cao hơn mức {_vnd(cd['max_vnd'])} {h} đặt ra nên em chưa lên đơn ạ.")
@@ -558,8 +643,14 @@ def render_offline(plan):
                        else f"Dạ em chưa đổi được địa chỉ giao cho đơn {nm} trong cuộc gọi này ạ.")
         elif g == "ask_exchange_or_return":
             out.append(f"Dạ {h} muốn đổi sang sản phẩm khác hay trả hàng để hoàn tiền ạ?")
+        elif g == "ask_quantity":
+            # v6p4 (23/11): món đã rõ, chỉ thiếu số lượng kiểm được → hỏi đúng số lượng, không hỏi lại tên mẫu
+            names = ", ".join(F.get("quantity_for") or [])
+            out.append(f"Dạ {h} muốn lấy số lượng bao nhiêu" + (f" cho {names}" if names else "") + " ạ? Em chưa lên đơn khi chưa rõ số lượng ạ.")
         elif g == "ask_which_product":
             out.append(f"Dạ {h} muốn lấy mẫu nào ạ: " + ", ".join(F.get("which_products") or []) + "?")
+        elif g == "ask_previous_product":
+            out.append(f"Dạ {h} cho em xin tên mẫu máy mình muốn đặt trong các mẫu đã hỏi trước đó nhé? Em chưa lên đơn khi chưa rõ mẫu ạ.")
         elif g == "ask_multi_request":
             out.append(f"Dạ {h} muốn em lên chung một đơn gồm " + " và ".join((F.get("multi_request") or {}).get("products") or [])
                        + " đúng không ạ?")

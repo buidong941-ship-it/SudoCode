@@ -420,6 +420,9 @@ def target_safety(c):
     s, u = c.s, _u(c)
     safety = set(u.get("safety") or [])
     reqs = set(u.get("requests") or [])
+    if settings.jev_write_gate and (getattr(s.reqs, "write_gate", None) or {}).get("decision") in \
+            ("hold_and_clarify", "reject_or_withdraw"):
+        reqs.discard("place_order")
     proxy = bool(getattr(s, "proxy_caller", False))
     if "asks_other_customer" in safety or PREDS_TARGET["proxy_info_ask"](c):
         s._why("safety_policy", "dữ liệu khách khác / người tự xưng người nhà → từ chối, không chuyển máy")
@@ -440,6 +443,9 @@ def target_safety(c):
         c.fl = {**c.fl, "medical_question": 1.0}
         s._why("safety_policy", "câu y tế → chuyển chuyên viên")
         return h_handoff_scope(c, None)
+    if "handoff" in reqs and settings.done_no_handoff and _confirm_done_first(c, reqs, u):
+        s._why("safety_policy", "việc khách muốn xác nhận đã được tool làm xong → xác nhận trước, chuyển khi khách đòi lại")
+        return "stop"
     if "handoff" in reqs:
         s._why("safety_policy", "khách đòi gặp nhân viên (yêu cầu có căn cứ)")
         return h_handoff_scope(c, None)
@@ -449,6 +455,22 @@ def target_safety(c):
     if "prompt_injection" in safety:
         s._why("safety_policy", "câu có lệnh giả hệ thống: không đổi giá / quyền; giá vẫn từ tool")
     return None
+
+
+def _confirm_done_first(c, reqs, u):
+    """G7 mở rộng v6p14 (duyệt, theo BTC): khách xin người thật ngay sau khi đơn đã được hủy bằng tool trong cuộc (đúng một đơn),
+    lượt không có yêu cầu / câu hỏi nào khác và không còn yêu cầu đang mở → xác nhận đơn đã hủy (một lần); khách đòi lại → chuyển."""
+    from harness.request_state import ACTIVE
+    s = c.s
+    done = list(getattr(s, "ext_cancelled", None) or [])
+    if len(done) != 1 or getattr(s, "done_confirm_told", None) is not None or set(reqs) - {"handoff", "cancel"} or u.get("asks"):
+        return False
+    if any(r["status"] in ACTIVE for r in s.reqs.items):
+        return False
+    s.done_confirm_told = s.turn_no
+    c.facts["cancel_done_confirm"] = {"order_id": done[0]}
+    c.goals += [g for g in ("cancel_done_confirm",) if g not in c.goals]
+    return True
 
 
 # ----------------------------------------------------------------------------------------------- handler
@@ -611,10 +633,91 @@ def h_policy_answer(c, row):                                                    
     elif about_order:
         past = s._customer_orders()
         order_date = (past[-1].get("created_on") or past[-1].get("date")) if past else None
+    if settings.doc_answer:
+        da = doc_answer(c, order_date=order_date, about=(c.mentioned or [s.focus])[-1] if (c.mentioned or s.focus) else None)
+        if da:
+            c.facts["policy"], c.facts["doc_answer"] = da["policy"], {"sentences": da["sentences"], "unknown": da["unknown"]}
+            c.goals.append("doc_answer")
+            s._why("policy", "câu tài liệu được chọn")
+            return
     hits = A.knowledge.search(c.text, k=2, order_date=order_date)
     c.facts["policy"] = [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits]
     c.goals.append("policy_answer" if hits else "no_info")
     s._why("policy", "có tài liệu" if hits else "không có tài liệu")
+
+
+def _doc_cell(head, value):
+    """Ô bảng thông số → "nhãn giá-trị đơn-vị"; đơn vị lấy từ ngoặc cuối tiêu đề cột ("Độ ồn min–max (dB)"), khoảng "a–b" → "a dB – b dB"."""
+    unit = head[head.rfind("(") + 1:-1].strip() if head.endswith(")") and "(" in head else ""
+    label = head[:head.rfind("(")].strip() if unit else head
+    if unit and "–" in value:
+        lo, hi = value.split("–", 1)
+        value = f"{lo.strip()} {unit} – {hi.strip()} {unit}"
+    elif unit:
+        value = f"{value} {unit}"
+    return f"{label} {value}"
+
+
+def _doc_sentences(text, only_sku=None):
+    """Câu của một đoạn tài liệu: dòng chữ → tách câu (bỏ ký hiệu markdown); bảng → mỗi dòng một câu "Tên mẫu: cột giá-trị; …"
+    (dòng theo SKU; only_sku → chỉ dòng của đúng mẫu đó). Không viết thêm nội dung."""
+    A = _A()
+    from harness.audit import sentences
+    out, header = [], None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if line.startswith("|"):
+            cells = [x.strip() for x in line.strip("|").split("|")]
+            if header is None:
+                header = cells
+            elif not all(set(x) <= set("-: ") for x in cells) and len(cells) == len(header):
+                if only_sku and cells[0] != only_sku:
+                    continue
+                who = A.product_name(cells[0]) if A.mt._parent(cells[0])[0] else cells[0]
+                out.append(who + ": " + "; ".join(_doc_cell(h, v) for h, v in zip(header[1:], cells[1:])) + ".")
+            continue
+        header = None
+        out += sentences(line.replace("**", "").strip(" -*#"))
+    return out
+
+
+def doc_answer(c, sku=None, order_date=None, about=None):
+    """S3 v6p14: trả lời bằng CÂU NGUYÊN VĂN trong tài liệu. Code truy hồi đoạn (có sku → chỉ đoạn nhắc đúng hãng của mẫu), tách
+    câu; DeepSeek chỉ chọn SỐ THỨ TỰ câu trả lời trực tiếp + báo có ý không tài liệu nào trả lời. Câu đọc ra là câu tài liệu, không
+    do model viết. → {"sentences", "unknown", "policy"} | None (không có đoạn / lỗi gọi → caller giữ hành vi cũ)."""
+    A = _A()
+    name = A.product_name(sku or about) if (sku or about) else ""          # about: mẫu đang nói, chỉ làm ngữ cảnh trong prompt
+    par = (A.mt._parent(sku)[0] or {}) if sku else {}
+    if sku:
+        # câu hỏi thông số: truy hồi theo tên mẫu; chỉ giữ đoạn nhắc đúng hãng hoặc đúng mã mẫu (bảng thông số ghi theo SKU)
+        brand = A.fold(par.get("brand") or "")
+        hits = A.knowledge.search(name + " " + c.text, k=6, order_date=order_date)
+        hits = [h for h in hits if (brand and brand in A.fold(h["text"])) or (par.get("sku") and par["sku"] in h["text"])][:3]
+    else:
+        hits = A.knowledge.search(c.text, k=3, order_date=order_date)
+    sents = [x for h in hits for x in _doc_sentences(h["text"], par.get("sku"))]
+    if not sents:
+        return None
+    prompt = ("Câu khách hỏi: " + c.text + ("\nSản phẩm đang nói: " + name if name else "") + "\nCác câu trong tài liệu của shop:\n"
+              + "\n".join(f"[{i}] {x}" for i, x in enumerate(sents))
+              + "\nanswers = số thứ tự các câu trả lời TRỰC TIẾP từng ý khách hỏi (tối đa 4; câu về đúng sản phẩm / trường hợp của khách); "
+              "không chọn câu không liên quan. unknown = true nếu còn ý khách hỏi mà KHÔNG câu nào nói tới.")
+    schema = {"type": "object", "required": ["answers", "unknown"], "additionalProperties": False,
+              "properties": {"answers": {"type": "array", "items": {"type": "integer"}}, "unknown": {"type": "boolean"}}}
+    try:
+        from core.llm.deepseek import LLM
+        d = LLM("qwen" if settings.deepseek_simulated else "deepseek").json(prompt, schema=schema, cache=False, max_tokens=120,
+                                                                           timeout=settings.understanding_timeout_s)
+    except Exception as e:  # noqa: BLE001 — lỗi gọi → hành vi cũ
+        c.s._why("doc_answer_error", f"{type(e).__name__}"[:40])
+        return None
+    ids = list(dict.fromkeys(i for i in (d or {}).get("answers") or [] if isinstance(i, int) and not isinstance(i, bool)
+                             and 0 <= i < len(sents)))[:4]
+    unknown = (d or {}).get("unknown") is True
+    if not ids and not unknown:
+        return None
+    return {"sentences": [sents[i] for i in ids], "unknown": unknown,
+            "policy": [{"chunk_id": h["chunk_id"], "text": h["text"]} for h in hits]}
 
 
 def h_attr_check(c, row):                                                               # L829–836
@@ -908,6 +1011,8 @@ def h_refund_amount(c, row):                                                    
 def h_cancel_request(c, row):                                                           # E03 — mock không có action hủy
     s = c.s
     s.open_questions.append(s._record_view(c.text)[:200])
+    s.handoff_task = getattr(s, "handoff_task", None) or {"action": "cancel", "evidence": c.text,
+        "order_ids": [o["order_id"] for o in s.orders_created]}
     c.facts["handoff"] = s._handoff(c.text, "khac")
     c.goals.append("cancel_handoff"); s.outcome = "chuyen_may"
     s._why("cancel_request", "không có thao tác hủy đơn, chuyển nhân viên")
@@ -1011,6 +1116,9 @@ def _prepare_target(c):
     A, s, text, f, u = _A(), c.s, c.text, c.f, c.u
     asks = set(u.get("asks") or [])
     reqs = set(u.get("requests") or [])
+    if settings.jev_write_gate and ((getattr(s.reqs, "write_gate", None) or {}).get("decision") in
+                                    ("hold_and_clarify", "reject_or_withdraw") or s.reqs.order_gate):
+        reqs.discard("place_order")
     mentioned = A.find_products(text)                                   # parser catalog (tên / mã mẫu)
     c.gift_q = "gift" in asks
     if c.gift_q:
@@ -1019,6 +1127,15 @@ def _prepare_target(c):
         # 13/11 (duyệt): chuẩn hóa mã phụ kiện bằng CÙNG hàm đã dựng ứng viên cho DeepSeek (agent.normalize_accessories):
         # "màng lọc … <máy>" là phụ kiện của máy đó, không phải máy; "màng lọc" không gắn tên máy → của máy duy nhất / mẫu đang bàn
         mentioned, c.accessory_norm = A.normalize_accessories(text, mentioned, s.focus)
+    c.name_choices = None
+    if settings.pick_by_name and not mentioned:
+        # S2 v6p13: parser không thấy tên → dùng tên khách gọi đã khớp catalog ở bộ hiểu (span nguyên văn, mã trong danh mục):
+        # một mẫu → mẫu được nhắc; 2–4 mẫu → hỏi chọn; nhiều hơn → như cũ (tư vấn theo nhóm)
+        picked = ((s.u_turn or {}).get("name_pick") or {}).get("skus") or []
+        if len(picked) == 1:
+            mentioned = list(picked)
+        elif 2 <= len(picked) <= 4:
+            c.name_choices = [A.product_name(x) for x in picked]
     c.mentioned = mentioned
     c.alt = None if mentioned else (A.find_by_model_token(text, s.focus) if s.focus else None)
     c.asking = bool(u.get("asks_question"))
@@ -1030,7 +1147,10 @@ def _prepare_target(c):
     # 13/11 (B2 S4): ghi lại giỏ trước bước chuẩn bị + SKU được yêu cầu thêm — chỉ là thuộc tính quan sát cho planner B2 (giỏ vẫn
     # chỉ đổi ở đây, một chủ); không đổi hành vi B1 / B3.
     c.cart_before, c.cart_touched = list(s.cart), []
-
+    semantic = settings.jev_write_gate and settings.planner_variant == "b2_jev"
+    if semantic:
+        c.cart_before = list(getattr(s, "semantic_cart_before", s.cart))
+        c.cart_touched = [x for x in s.cart if x not in c.cart_before]
     def add(sku):
         c.cart_touched.append(sku)
         s._cart_add(sku)
@@ -1041,7 +1161,7 @@ def _prepare_target(c):
     # "ref của bộ hiểu" cùng thêm vào giỏ → cộng dồn lựa chọn mâu thuẫn, vd màng lọc + cả máy). Phụ kiện không được thêm chỉ vì
     # được nhắc tên: thiếu căn cứ trong câu yêu cầu thì hỏi rõ (goal ask_accessory_intent), không thêm.
     c.cart_source, c.cart_unclear = None, []
-    if takes:
+    if takes and not semantic:
         picks, c.cart_source, c.cart_unclear = _cart_picks(c, mentioned)
         for sku in picks:
             add(sku)

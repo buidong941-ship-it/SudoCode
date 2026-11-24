@@ -32,7 +32,7 @@ INSTRUCTIONS = ("Bạn là bộ lập kế hoạch của nhân viên bán hàng 
                 "thực hiện yêu cầu khi khách thật sự yêu cầu và đã có giá + tồn kho của đúng sản phẩm trong lượt này. Trả lời mọi "
                 "câu khách hỏi trước khi kết thúc. Không lặp lại bước đã làm.")
 
-_DISPLAY = {"read_quote": "read_tool_quote_and_stock", "read_stock": "read_tool_stock", "read_order": "read_tool_customer_orders",
+_DISPLAY = {"read_quote": "read_tool_quote_and_stock", "read_stock": "read_tool_stock", "read_condition": "read_tool_product_condition", "read_order": "read_tool_customer_orders",
             "check_window": "read_tool_return_window", "read_policy": "read_tool_policy_docs",
             "answer_ask": "answer_customer_question", "commit_request": "execute_request", "report_cart": "tell_customer_cart",
             "finish": "finish_turn", "clarify_field": "ask_customer_variant_field"}
@@ -48,6 +48,8 @@ def display_of(step):
         return f"{name}:{str(tg)[4:]}"
     if a == "commit_request":
         return f"{name}:{rq}" + (f"@{tg}" if tg else "")
+    if a == "read_condition":
+        return f"{name}:{rq}"
     return f"{name}:{tg}" if tg else name         # clarify_field → ask_customer_variant_field:<trường>@<P#>
 
 
@@ -97,6 +99,13 @@ def _request_context(t, r):
     if cond:
         out["condition"] = {"type": cond.get("type"), **({"max_vnd": cond["max_vnd"]} if cond.get("max_vnd") else {}),
                             **({"customer_words": cond["span"]} if cond.get("span") else {})}
+    sel = r.get("selection")
+    if sel:
+        # v6p1 (23/11): Jev thấy tiêu chí + tập so sánh + mẫu nào đã có giá trong lượt; code vẫn tự so giá ở executor
+        out["selection"] = {"sort": sel.get("sort"), "scope": sel.get("scope"), "customer_words": r.get("evidence"),
+                            "compared": [{"ref": P._ref_of(t, x), "product": _pname(x), "price_read_this_turn": x in t.quotes}
+                                         for x in sel.get("skus") or () if x],
+                            "note": "code so giá các mẫu đã đọc; cần đọc giá đủ mọi mẫu trong compared trước khi thực hiện"}
     if rev:
         terms = {}
         if rev.get("units"):
@@ -121,8 +130,11 @@ def state_for(t):
     full = s.u_turn or {}            # route.understanding là bản gọn (withdrawn = tên loại); request_items chỉ có ở u_turn
     cands = [{"ref": k, **({"product": s.reqs._target_name(v)} if v.get("type") == "product" else {"order_id": v.get("order_id")})}
              for k, v in s.reqs.refmap.items() if k not in ("CART", "ALL")]
-    reqs = [_request_context(t, r) for r in t.active_requests()]
-    reqs += [{"id": x, "kind": {"X_CANCEL": "cancel", "X_COMPLETE_ADDRESS": "complete_address_of_created_order"}[x], "status": "open"}
+    reqs = [_request_context(t, r) for r in t.pending_requests()]
+    reqs += [{"id": x, "kind": {"X_CANCEL": "cancel", "X_COMPLETE_ADDRESS": "complete_address_of_created_order",
+                                "X_AMEND_ORDER": "amend_lines_of_created_order",
+                                "X_ASK_ORDER_ADDRESS": "ask_address_of_created_order"}[x], "status": "open",
+              **({"amend": P.amend_view(t)} if x == "X_AMEND_ORDER" else {})}
              for x in t.extra_requests()]
     vrefs = [{"ref": k, "new_variant": _pname(v["sku"]), "order_id": v["order_id"], "action": v["action"]}
              for k, v in t.vrefs.items()]
@@ -212,6 +224,8 @@ def step_of(action, request_ref=None, target_ref=None):
     tg = None if target_ref in (None, "none") else target_ref
     if action in ("read_quote", "read_stock", "check_window", "clarify_field"):
         return f"{action}:{tg}"
+    if action == "read_condition":
+        return f"read_condition:{rq}"
     if action == "answer_ask":
         return f"answer_ask:{str(tg)[4:] if str(tg).startswith('ask:') else tg}"
     if action == "commit_request":
@@ -228,6 +242,8 @@ def parse_step(step):
         rq, _, tg = rest.partition("@")
         return action, rq or None, tg or None
     if action == "clarify":
+        return action, rest or None, None
+    if action == "read_condition":
         return action, rest or None, None
     if action == "answer_ask":
         return action, None, f"ask:{rest}"
@@ -249,6 +265,13 @@ def options(t):
                                    f"inventory.check; không ghi gì.")
         desc[f"read_stock:{k}"] = (f"ĐỌC TOOL (không hỏi khách): chỉ tồn kho hiện tại của {name} ({k}). Dùng khi đã có giá, chỉ còn thiếu "
                                    f"kho. Kết quả: bằng chứng kho. Tool: inventory.check; không ghi gì.")
+    # v6p1 (23/11): yêu cầu chọn theo tiêu chí (vd rẻ hơn trong các mẫu đã bàn) cần giá hiện tại của MỌI mẫu trong tập so sánh;
+    # mẫu nào chưa có bước đọc (không nằm trong danh sách ứng viên P#) vẫn được mời đọc theo SKU cha — code so giá, không phải Jev.
+    for k in t.selection_reads_missing():
+        if f"read_quote:{k}" not in desc and t.product_ref(k):
+            desc[f"read_quote:{k}"] = (f"ĐỌC TOOL (không hỏi khách): giá, khuyến mãi và tồn kho hiện tại của {_pname(k) if not str(k).startswith('P') else s.reqs._target_name(t.product_ref(k))} "
+                                       f"({k}) — mẫu thuộc tập so sánh của yêu cầu chọn theo tiêu chí; cần đủ giá mọi mẫu trong tập trước khi "
+                                       f"thực hiện yêu cầu. Tool: pricing.get_quote, inventory.check; không ghi gì.")
     for k in t.variant_refs():
         v = t.vrefs[k]
         desc[f"read_stock:{k}"] = (f"ĐỌC TOOL (không hỏi khách): tồn kho của biến thể mới {_pname(v['sku'])} ({k}) cho yêu cầu đổi đơn "
@@ -285,14 +308,21 @@ def options(t):
                                "thêm vào giỏ trong lượt này. Chỉ đọc: không thêm / bớt món, không tạo đơn, không suy số lượng. Tool: "
                                "pricing.quote_order (+ giá từng mẫu chưa đọc trong lượt). Giỏ không đổi từ lần báo trước trong lượt thì bước này "
                                "không còn trong danh mục.")
-    for r in t.active_requests():
+    for r in t.pending_requests():
         tgt = s.reqs._target_name(r["target"]) or "chưa rõ đối tượng"
         rd = P.readiness(t, r)
-        desc[f"commit_request:{r['id']}"] = (f"THỰC HIỆN yêu cầu {r['id']} ({r['kind']}: {tgt}). Mức sẵn sàng hiện tại: {rd['state']} "
+        if settings.jev_write_gate and r["kind"] == "place_order" and (r.get("condition") or {}).get("type") == "attribute" \
+                and r.get("target") and (r.get("condition_evidence") or {}).get("turn") != s.turn_no:
+            desc[f"read_condition:{r['id']}"] = (f"ĐỌC TOOL catalog.search thuộc tính có điều kiện của đúng sản phẩm trong yêu cầu {r['id']}; "
+                                                  "không dùng tồn kho thay bằng chứng thuộc tính.")
+        if not settings.jev_write_gate or rd["state"] == "ready_executor_rechecks":
+            desc[f"commit_request:{r['id']}"] = (f"THỰC HIỆN yêu cầu {r['id']} ({r['kind']}: {tgt}). Mức sẵn sàng hiện tại: {rd['state']} "
                                              f"({', '.join(map(str, rd['detail']))}). Code kiểm lại quyền + bằng chứng và từ chối kèm "
                                              f"phần thiếu nếu chưa đủ. Kết quả: ghi một lần hoặc bị chặn. Tool: "
                                              f"{', '.join(P.SCOPE.get('commit_request:' + r['kind'], ())) or 'không'}.")
-        if r["kind"] == "place_order" and r["target"] is None:
+        else:
+            removed[f"commit_request:{r['id']}"] = f"readiness:{rd['state']}"
+        if r["kind"] == "place_order" and r["target"] is None and (not settings.jev_write_gate or rd["state"] == "ready_executor_rechecks"):
             for k, v in prods:
                 desc[f"commit_request:{r['id']}@{k}"] = (f"THỰC HIỆN yêu cầu {r['id']} (đặt hàng) với sản phẩm {s.reqs._target_name(v)} "
                                                          f"({k}); code kiểm lại và từ chối nếu chưa đủ. Tool: pricing.quote_order, "
@@ -311,7 +341,12 @@ def options(t):
         desc[f"commit_request:{x}"] = {"X_CANCEL": "THỰC HIỆN: chuyển yêu cầu HỦY đơn của khách sang nhân viên rồi kết thúc lượt. "
                                                    "Tool: handoff.transfer.",
                                        "X_COMPLETE_ADDRESS": "THỰC HIỆN: bổ sung địa chỉ khách vừa đọc cho đơn VỪA tạo trong cuộc. "
-                                                             "Tool: order.update."}[x]
+                                                             "Tool: order.update.",
+                                       "X_AMEND_ORDER": "THỰC HIỆN: khách bỏ / đổi một món của đơn VỪA tạo trong cuộc; tool không sửa riêng "
+                                                        "từng dòng đơn → chuyển yêu cầu sửa đơn (mã đơn, món bị bỏ / đổi, món giữ lại) sang "
+                                                        "nhân viên rồi kết thúc lượt; đơn chưa thay đổi. Tool: handoff.transfer.",
+                                       "X_ASK_ORDER_ADDRESS": "HỎI KHÁCH lại địa chỉ giao cho đơn VỪA tạo: địa chỉ khách vừa nói lẫn với "
+                                                              "phần thanh toán, không xác định được ranh giới nên chưa ghi. Không gọi tool."}[x]
     amb = (t.c.u or {}).get("ambiguity")                 # route.understanding: ambiguity là CHUỖI level (understanding.py)
     if s.reqs.hold or amb == "needs_clarification":
         desc["clarify"] = ("HỎI KHÁCH nói lại vì câu khách mơ hồ / không hiểu được rồi KẾT THÚC lượt. Không dùng để tìm thông tin "
@@ -388,6 +423,18 @@ def options(t):
             a, rq, tg = parse_step(st)
             if a == "commit_request" and tg and str(tg).startswith("P"):
                 removed[st] = "purchase_target_ambiguous"
+                del desc[st]
+    # v6p1 (23/11): sau mọi bộ lọc, còn mẫu trong tập so sánh chưa đọc giá VÀ bước đọc đó vẫn có trong danh mục → chưa cho kết thúc
+    # lượt (H13-045/046: Jev đọc một mẫu rồi chọn finish lặp tới no_progress). Chỉ theo trạng thái yêu cầu, không theo câu khách.
+    if "finish" in desc and any(f"read_quote:{k}" in desc for k in t.selection_reads_missing()):
+        removed["finish"] = "selection_evidence_pending"
+        del desc["finish"]
+    # v6p2 (23/11): lượt bị giữ vì khách muốn đặt một mẫu chưa xác định trong nhiều mẫu thật của lịch sử, và khách không hỏi gì
+    # → không mời đọc / báo giá mẫu đang bàn trước khi khách chọn (H13-047/048 báo giá focus rồi mới hỏi). Chỉ theo trạng thái.
+    if not t.pending_asks() and P.ambiguous_product_hold(t):
+        for st in list(desc):
+            if st.startswith(("read_quote:", "read_stock:")):
+                removed[st] = "clarify_target_before_read"
                 del desc[st]
     steps = list(desc)
     parsed = legacy
@@ -585,16 +632,30 @@ def run(c, decider=None):
     opening_focus = P.apply_opening_focus(t, stop)   # TA1 (14/11): khách quay lại nêu mẫu khác → đọc giá đúng mẫu được nêu
     if opening_focus and "quote" in c.goals and result is None:
         result = "stop"
+    if stop in ("finish", "no_progress", "clarify") and "price" in t.asks() \
+            and (getattr(t, "consult_scope", None) or {}).get("skus"):
+        # Câu hỏi giá nhiều mẫu: mỗi mẫu khách nêu cần bằng chứng riêng trước khi báo đã trả lời.
+        for ref, target in s.reqs.refmap.items():
+            sku = (target.get("skus") or [None])[0] if target.get("type") == "product" else None
+            if sku and P._parent(sku) in {P._parent(x) for x in t.consult_scope["skus"]} \
+                    and P._parent(sku) not in {P._parent(x) for x in t.quotes} \
+                    and t.tool_calls + 2 <= settings.b2_max_tool_calls:
+                t.run("read_quote", None, ref, "complete_named_price_scope")
     P.reconcile_price_context(t)       # 13/11 vòng giỏ: giá mua riêng vs giá trong giỏ trước khi render (không gọi tool)
     order_gate = P.apply_order_gate(t)   # F8 (13/11): yêu cầu đặt bị cổng chặn → xin xác nhận, không ghi
     if order_gate and order_gate.get("goals") and result is None:
         result = "stop"                  # câu xin xác nhận là nội dung của lượt (không để dòng chung thay)
     unanswered = t.pending_asks()
+    scoped = list(dict.fromkeys(P._parent(x) for x in (getattr(t, "consult_scope", None) or {}).get("skus") or []))
+    quoted = {P._parent(x) for x, q in t.quotes.items() if q.get("final_price_vnd")}
     s.planner_loop = {"variant": "b2_jev", "encoding": "single_choice_atomic_steps", "stop": stop, "decisions": t.decisions,
                       "steps": [{k: v for k, v in o.items() if k not in ("dup", "resolved", "clarify_fn", "clarify_facts")} for o in t.steps],
                       "tool_calls": t.tool_calls, "ms": int((time.perf_counter() - t.t0) * 1000),
                       **({"halt_tool_calls": t.halt_tool_calls} if hasattr(t, "halt_tool_calls") else {}),
                       "asks": t.asks(), "answered": list(t.answered),
+                      "answered_by_product": [{"topic": a, "product": sku, "answered": sku in quoted}
+                                              for a in t.asks() if a in ("price", "promo", "stock") for sku in scoped]
+                      if len(scoped) > 1 else [],
                       "unanswered": {a: (t.deferred.get(a) or stop) for a in unanswered},
                       "ask_outcome": t.ask_outcome,
                       "common_before_planner": t.common,
@@ -639,7 +700,7 @@ def _halt(t, stop):
     if blocked:
         t.run("clarify", blocked[-1]["request_ref"], None, f"halt:{stop}")
     elif t.s.reqs.hold:
-        t.c.goals.append("ask_repeat")
+        t.c.goals += [g for g in P.ambiguous_hold_goals(t) if g not in t.c.goals]
     # patch cuối 13/11: yêu cầu add_to_cart chưa được phản hồi → báo mẫu đã có trong giỏ (không tool); tổng giỏ cần tool nên không
     # làm trong phần dừng
     if t.reuse_quotes and t.cart_obligation() and not t.cart_reported and t.cart_already():

@@ -74,6 +74,18 @@ def _tools():
     def reset():
         mt._ORDERS.clear(); mt._CALLBACKS.clear(); mt._TICKETS.clear(); mt._ONCE_USED.clear()
         return {"ok": True}
+    if os.environ.get("ORDER_EXT_TOOLS", "0") == "1":
+        # v6p8 (23/11): tool riêng của nhóm sửa dòng / hủy đơn (harness/order_ext.py) — chỉ đăng ký khi bật cờ
+        from harness import order_ext
+        for name in order_ext.NAMES:
+            out[name] = ((lambda n: (lambda **a: order_ext.FUNCS[n](mt, **a)))(name), order_ext.DESCRIPTIONS[name],
+                         order_ext.SCHEMAS[name])
+    if os.environ.get("LINE_SKU_UPDATE", "0") == "1":
+        # v6p15 (24/11): order.update giữ nguyên tham số BTC + tham số riêng tùy chọn line_sku (đổi đúng dòng của đơn nhiều dòng)
+        from harness import order_ext
+        _, desc, sch = out["order.update"]
+        sch = {**sch, "properties": {**sch["properties"], "line_sku": order_ext.LINE_SKU_PROP}}
+        out["order.update"] = (lambda **a: order_ext.order_update(mt, **a), desc + " line_sku: tham số riêng tùy chọn của nhóm.", sch)
     out["world.reset"] = (reset, "Nội bộ harness: xóa đơn/lịch/ticket/KM đã dùng của lần chạy trước (không phải tool cho khách).",
                           {"type": "object", "properties": {}, "additionalProperties": False})
     return out

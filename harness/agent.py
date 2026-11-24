@@ -153,6 +153,8 @@ EPISODIC_SLOTS = frozenset({"product_advised", "price_quoted_vnd", "promo_code",
 def _mem_layers(facts):
     """Ablation MEM_ABLATE (mặc định rỗng → trả nguyên): profile = bỏ fact về khách; episodic = bỏ fact về phiên trước.
     ttl / supersede xử lý trong Memory.current_facts."""
+    # v6p12: exchanges:<mã đơn> là sổ đếm nội bộ cho fee_free, không phải thông tin về khách → không vào known / brief / prompt
+    facts = {k: v for k, v in facts.items() if k != "phone_claim" and not k.startswith("exchanges:")}
     ablate = settings.mem_ablate
     if "profile" in ablate:
         facts = {k: v for k, v in facts.items() if k in EPISODIC_SLOTS}
@@ -228,6 +230,70 @@ def _next_action(last, blockers, open_q, orders, advised, stale):
         return "hỏi nhu cầu mới, không hỏi lại thông tin đã có trong profile_facts"
     return None
 
+
+SEED_TRANSIENT = ("blocker", "callback_requested", "self_name", "competitor_price_vnd")
+# BTC 11/2026 (2.2): tên field của seed_history.facts khác tên slot bộ nhớ của nhóm. Chỉ ánh xạ field BTC đã công bố; field trùng
+# tên slot dùng thẳng; field lạ → bỏ + ghi log (không đoán), summary vẫn được trích như cũ.
+SEED_FIELD_ALIASES = {"interest_sku": "product_advised"}
+SEED_INT_SLOTS = ("room_area_m2", "budget_vnd", "household_size", "price_quoted_vnd", "competitor_price_vnd")
+SEED_BOOL_SLOTS = ("has_children",)
+SEED_SKU_SLOTS = ("product_advised", "owned_product", "unresolved_order_sku")
+
+
+def _seed_value(slot, value):
+    if slot in SEED_INT_SLOTS:
+        return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+    if slot in SEED_BOOL_SLOTS:
+        return value if isinstance(value, bool) else None
+    if slot in SEED_SKU_SLOTS:
+        return value if isinstance(value, str) and mt._parent(value)[0] else None
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _seed_facts(raw, session_date):
+    """→ ([(as_of, slot, value)], [lý do bỏ]). as_of thiếu / sai định dạng → ngày của phiên."""
+    from harness.memory import TTL_DAYS
+    out, bad = [], []
+    for f in raw if isinstance(raw, list) else []:
+        if not isinstance(f, dict):
+            bad.append("not_object"); continue
+        field = str(f.get("field") or "")
+        slot = SEED_FIELD_ALIASES.get(field, field)
+        if slot not in TTL_DAYS or slot in SEED_TRANSIENT:
+            bad.append(f"unknown_field:{field[:40]}"); continue
+        value = _seed_value(slot, f.get("value"))
+        if value is None:
+            bad.append(f"bad_value:{field[:40]}"); continue
+        asof = str(f.get("as_of") or "")
+        try:
+            date.fromisoformat(asof)
+        except ValueError:
+            asof = session_date
+        out.append((asof, slot, value))
+    return out, bad
+
+
+
+# S5 v6p13: câu do agent tự sinh theo goal → claim chỉ giữ khi goal của lượt có thể sinh ra khẳng định đó
+_IDENTITY_GOALS = ("is_bot",)
+_PRODUCT_PRICE_FIELDS = ("price_vnd", "list_price_vnd", "price_quoted_vnd")
+
+
+def _grounded_claims(claims, goals, policy_texts, row):
+    """is_human chỉ từ goal danh tính; số tiền trong câu chép từ tài liệu chính sách không phải giá của sản phẩm."""
+    from harness.audit import sentences
+    quoted = [fold(x) for t in policy_texts for line in (t or "").splitlines() for x in sentences(line.replace("**", "").strip(" -*#|")) if len(x) >= 20]
+    keep, dropped = [], []
+    for c in claims:
+        from_policy = any(q in fold(c.get("text") or "") for q in quoted)
+        not_identity = c["field"] == "is_human" and not set(goals) & set(_IDENTITY_GOALS)
+        if not_identity or (c["field"] in _PRODUCT_PRICE_FIELDS and from_policy):
+            dropped.append({"field": c["field"], "why": "goal_not_claim_source"})
+        else:
+            keep.append(c)
+    if dropped:
+        row.setdefault("claim_grounding", []).extend(dropped)
+    return keep
 
 class CallSession:
     def __init__(self, *, memory, today, call_name, session_id, channel, channel_identity, phone, input_mode,
@@ -368,6 +434,8 @@ class CallSession:
             self.focus_by = "memory" if self.focus else None
 
     def import_old_session(self, s, cid):
+        if not hasattr(self, "_seed_asof"):
+            self._seed_asof = {}
         sid = s["session_id"]
         if any(p["session_id"] == sid for p in self.mem.past_sessions(cid)):
             return
@@ -385,10 +453,29 @@ class CallSession:
             if prods: slots["product_advised"] = prods[0]
             money = find_money(text)
             if money and prods: slots["price_quoted_vnd"] = money[0][2]
-        for k in ("blocker", "callback_requested", "self_name", "competitor_price_vnd"):
+        for k in SEED_TRANSIENT:
             slots.pop(k, None)
-        for k, v in slots.items():
-            self.mem.write_fact(cid, k, v, f"crm:{sid}", sid, self.today, confidence=0.8, valid_from=d)
+        structured, unmapped = _seed_facts(s.get("facts"), d)
+        if unmapped:
+            self.crm_import_log.append({"session_id": sid, "facts_unmapped": unmapped})
+        writes = [(d, k, v, 0.8, f"crm:{sid}") for k, v in slots.items() if k not in {x[1] for x in structured}]
+        writes += [(asof, k, v, 1.0, f"crm:{sid}:facts") for asof, k, v in structured]
+        for asof, k, v, conf, src in sorted(writes, key=lambda w: w[0]):
+            if not self._seed_newer(cid, k, asof):
+                continue
+            self.mem.write_fact(cid, k, v, src, sid, self.today, confidence=conf, valid_from=asof)
+            self._seed_asof[(cid, k)] = asof
+
+    def _seed_newer(self, cid, slot, asof):
+        """BTC 11/2026 (2.2): cùng field mâu thuẫn → as_of mới nhất thắng, bất kể thứ tự nạp phiên. Fact học từ cuộc gọi thật
+        (nguồn không phải crm:) mới hơn mọi phiên seed → không bị seed ghi đè."""
+        if not hasattr(self, "_seed_asof"):
+            self._seed_asof = {}
+        prev = self._seed_asof.get((cid, slot))
+        if prev is not None:
+            return asof >= prev
+        cur = self.mem.current_facts(cid, self.today, include_expired=True).get(slot)
+        return cur is None or str(cur.get("source") or "").startswith("crm:")
 
     def _build_brief(self):
         c = self.customer or {}
@@ -506,6 +593,11 @@ class CallSession:
                                                        state_ctx=state_ctx)
                 slots, pending = dict(self.u_turn["slots"]), None
                 ext_meta.update(backend="deepseek_unified", ms=self.u_turn["meta"]["ms"])
+                if settings.pick_by_name and target and not self.turn_mentioned:
+                    # S2 v6p13: tên khách gọi khớp đúng MỘT mẫu catalog → mẫu được nhắc của lượt (cùng chỗ parser ghi)
+                    picked = (self.u_turn.get("name_pick") or {}).get("skus") or []
+                    if len(picked) == 1:
+                        self.turn_mentioned = list(picked)
                 if target:
                     q = slots.pop("qty", None)                 # số lượng: chỉ cho đơn của yêu cầu đặt cùng / sau lượt này
                     if q:
@@ -521,7 +613,14 @@ class CallSession:
                 self.reqs.events, self.reqs.hold = [], "input_truncated"     # câu bị cắt: không mở / dùng yêu cầu nào
             elif target:
                 self.turn_text = text                          # F8 (B2): cổng mở yêu cầu đặt hàng đọc đúng câu khách của lượt
-                self.reqs.ingest(self, self.u_turn, self.turn_no)
+                gate = None
+                if settings.jev_write_gate and settings.planner_variant == "b2_jev" and not self.u_turn.get("error"):
+                    from harness.jev_write_gate import assess, normalize
+                    self.u_turn, normalization = normalize(self, self.u_turn, self.reqs)
+                    gate = assess(self, self.u_turn, self.reqs, self.turn_no)
+                else:
+                    normalization = None
+                self.reqs.ingest(self, self.u_turn, self.turn_no, gate=gate, normalization=normalization)
         else:
             slots, pending = extractor.customer_slots_start(
                 text, self.today, meta=ext_meta, context=extraction_context or None,
@@ -532,15 +631,26 @@ class CallSession:
             self.proxy_caller = True
             self._why("proxy_caller", "người gọi tự xưng người nhà của khách khác; không gắn hồ sơ theo SĐT đọc trong câu")
         from harness.identity_permissions import may_bind_spoken_phone
-        # D60 (ủy quyền theo cụm 10/11, cụm 1): SĐT khách TỰ ĐỌC không cấp quyền xem / gộp / sửa / xóa hồ sơ CRM ở MỌI selector
-        # (trước đây chỉ đường selector). Quyền chỉ theo danh tính transport/kênh (caller ID, zalo_id, fb_id); số tự đọc khác
-        # số tin cậy (hoặc khi không có số tin cậy) chỉ là số liên hệ giao hàng. Không có OTP: không tuyên bố caller ID đủ xác thực.
+        phone_link = None
+        if settings.jev_write_gate and p['phone'] and not may_bind_spoken_phone(self, p['phone']):
+            from harness.identity_permissions import link_new_spoken_phone
+            phone_link = link_new_spoken_phone(self, p['phone'])
         unverified_phone = bool(p['phone'] and not may_bind_spoken_phone(self, p['phone']))
         if unverified_phone and not proxy_now:
             self.contact_phone = p['phone']
+            if settings.jev_write_gate and self.customer and self.customer.get("customer_id"):
+                # Claim thuộc kênh hiện tại; không gắn identity SĐT hay cấp quyền đọc hồ sơ của số đó.
+                self.mem.write_fact(self.customer["customer_id"], "phone_claim",
+                                    {"phone": p["phone"], "channel": self.channel, "session_id": self.session_id,
+                                     "status": "unverified"}, f"customer_claim:t{self.turn_no}",
+                                    self.session_id, self.today, confidence=0.0)
         identity_note = {"branch": "spoken_phone_contact_only", "reason": "SĐT khách tự đọc không khớp danh tính kênh: chỉ là số liên hệ"} \
             if unverified_phone and not proxy_now else None
-        if p["phone"] and (proxy_now or unverified_phone):
+        if phone_link:
+            identity_note = {"branch": "demo_phone_link", "reason": phone_link["reason"], "linked": phone_link["linked"]}
+        if phone_link and phone_link["linked"]:
+            pass
+        elif p["phone"] and (proxy_now or unverified_phone):
             pass                            # 1c J6: SĐT của người khác → không gắn / gộp hồ sơ
         elif p["phone"] and self.customer and self.customer.get("customer_id") and not self.candidates:
             cid = self.customer["customer_id"]
@@ -627,7 +737,7 @@ class CallSession:
         tools_ms = sum(tc.get("ms", 0) for tc in self.tools.log)
         tool_log = (self.start_tool_log if self.turn_no == 1 else []) + self.tools.take_log()
         if target:
-            self.call_tool_log += tool_log           # ref nguồn của block + revision đề nghị đọc mọi lời gọi tool của cuộc
+            self.call_tool_log += [{**entry, "_turn": self.turn_no} for entry in tool_log]  # ref nguồn + lượt phát sinh
         plan = {"honorific": (self.customer or {}).get("honorific") or "anh/chị", "customer_name": (self.customer or {}).get("name"),
                 "call": self.call_name, "is_returning": bool(self.brief and self.brief["is_returning"]),
                 "customer_said": text, "intent": route["intent"], "goals": goals, "facts": facts,
@@ -781,6 +891,9 @@ class CallSession:
             from harness import audit
             audit_rec = {"turn": self.turn_no, "sha256": emitted["sha256"], "agent_meta": agent_meta, "t_start": t_start,
                          "t_submit": agent_started}
+            if settings.claim_span:
+                audit_rec["goals"] = list(goals)
+                audit_rec["policy_texts"] = [p["text"] for p in facts.get("policy") or [] if isinstance(p, dict) and p.get("text")]
             audit_rec["future"] = _POST_EXTRACTOR_POOL.submit(_timed_audit, audit.run, emitted["text"], known_for_q, agent_meta,
                                                             self._audit_candidates(tool_log))
             questions, claims = [], []       # điền khi audit xong (_finalize_audit), không trước
@@ -864,8 +977,14 @@ class CallSession:
                                         "ambiguity": {"level": u["ambiguity"]["level"]},
                                         "observations": [o["slot"] for o in u["observations"]],
                                         "dropped": [{"slot": x.get("slot") or x.get("request") or x.get("withdrawn") or x.get("response_to_agent")
-                                                     or ("intent" if "intent" in x else "?"), "why": x.get("why", "invalid"), **({"raw": x["raw"]} if x.get("raw") else {})}
+                                                     or ("intent" if "intent" in x else "?"), "why": x.get("why", "invalid"), **({"raw": x["raw"]} if x.get("raw") else {}),
+                                                     # v6p7b: đường dẫn trường sai kiểu (không có giá trị khách) để chẩn đoán type_invalid
+                                                     **({"field": x["field"], "got": x.get("got")} if x.get("field") else {})}
                                                     for x in u["meta"]["dropped"]][:8], "ms": u["meta"]["ms"],
+                                        **({"type_hold": u["meta"]["type_hold"]} if u["meta"].get("type_hold") else {}),
+                                        **({"retry": {"reasons": u["meta"]["retry"].get("reasons"), "still": u["meta"]["retry"].get("still"),
+                                                      "error": u["meta"]["retry"].get("error"), "first_ms": u["meta"]["retry"].get("first_ms")}}
+                                           if u["meta"].get("retry") else {}),
                                         **({"contract": "v2", "asks": u.get("asks"), "refs": {k: v for k, v in (u.get("refs") or {}).items() if v},
                                             "response": (u.get("response") or {}).get("act"),
                                             "withdrawn": [w["kind"] for w in u.get("withdrawn") or []],
@@ -978,6 +1097,8 @@ class CallSession:
                 status = "ok"
             except Exception as e:
                 status, error, t_done = "error", f"{type(e).__name__}: {str(e)[:200]}", time.perf_counter()
+        if settings.claim_span and "goals" in rec:
+            claims = _grounded_claims(claims, rec["goals"], rec["policy_texts"], row)
         row["questions"], row["claims"] = questions, claims
         row["audit"] = am.get("audit") if status == "ok" else {"status": status, "error": error, "pipeline": "target_v1",
                                                                "cert": None, "cascade": None}
@@ -1678,9 +1799,18 @@ class CallSession:
         - price_mismatch (expected_units): KHÔNG tự sửa giá rồi tạo lại — báo giá lại, revision cũ hết hiệu lực, xin xác nhận;
         - timeout / transport → unresolved, không tạo lại."""
         from harness import tool_outcome
+        if settings.jev_write_gate and self.proxy_caller:
+            self._why("order_identity_blocked", "proxy_claim")
+            return ["refuse_other_customer"]
+        if settings.jev_write_gate and self.contact_phone and not self.phone and not (self.customer or {}).get("phone"):
+            self._why("order_identity_blocked", "phone_claim chưa xác minh")
+            facts["handoff"] = self._handoff(self.turn_text, "khac")
+            self.outcome = "chuyen_may"
+            return ["handoff"]
         new = list(resolved)
         payment = (terms.get("payment") or {}).get("value") or "COD"
-        n_of = {s: (qty if len(new) == 1 else 1) for s in new}
+        line_qty = {line["sku"]: line["qty"] for line in r.get("lines") or []} if r.get("semantic") else {}
+        n_of = {s: line_qty.get(s, qty if len(new) == 1 else 1) for s in new}
         for q in quotes:
             stock = q.get("stock_qty")
             if q.get("in_stock") is False or (isinstance(stock, int) and stock < n_of.get(q["sku"], 1)):
@@ -2116,6 +2246,8 @@ class CallSession:
             if r is None:
                 self.req_blocked.append(f"{kinds[0]}:{why}")
                 self._why("request_blocked", f"{kinds[0]}: {why}")
+            elif settings.jev_write_gate:
+                self._why("request_allowed", f"{kinds[0]}: {r['id']}, target={r.get('target')}")
             return r
         from harness import request_gate
         r = getattr(self, "req_turn", None)
@@ -2250,6 +2382,16 @@ class CallSession:
                       self.seen_money | {v for v in self.known.values() if isinstance(v, int)}, self.gen.backend, 800)
         self.last_sentiment = (s or {}).get("sentiment")
         name = product_name(self.focus) if self.focus else "sản phẩm khách quan tâm"
+        task = getattr(self, "handoff_task", None)
+        if not task and getattr(self, "ext_cancelled", None):
+            # v6p9b: chuyển nhân viên SAU khi đã hủy bằng order.cancel trong cuộc → brief nêu rõ đơn đã hủy (không để nhân viên hiểu
+            # là yêu cầu hủy còn chờ)
+            task = {"action": "cancel_confirm", "order_id": self.ext_cancelled[-1], "evidence": text[:160], "already_cancelled_by_tool": True}
+        next_action = ("Tiếp nhận yêu cầu " + {"cancel": "hủy đơn", "exchange": "đổi hàng", "return": "trả hàng",
+                                                "amend_lines": "sửa món trong đơn vừa tạo (đơn chưa thay đổi)",
+                                                "cancel_confirm": "xác nhận lại với khách việc hủy đơn (đơn ĐÃ hủy bằng order.cancel)"}.get(
+            task.get("action"), "hỗ trợ") + ": " + str(task) + "; kiểm tra và xử lý, sau đó thông báo kết quả cho khách") if task else \
+            "Xử lý nội dung khách vừa yêu cầu: " + text
         return {"customer_phone": c.get("phone") or self.phone, "customer_name": c.get("name"), "customer_id": c.get("customer_id"),
                 "channel": self.channel if self.channel in ("hotline", "chat_fanpage", "zalo_oa") else "other",
                 "escalation_reason": reason, "escalation_reason_detail": text,
@@ -2260,7 +2402,7 @@ class CallSession:
                 "facts_confirmed": {k: v for k, v in self.known.items() if k != "self_name"},
                 "open_questions": list(dict.fromkeys([text] + ((s or {}).get("open_questions") or []))),
                 "sentiment": (s or {}).get("sentiment") or "binh_thuong",
-                "next_action": f"trả lời câu hỏi chuyên môn của khách rồi tiếp tục tư vấn/chốt {name}",
+                "next_action": next_action,
                 "history_refs": [self.session_id], "generated_at": datetime.now().isoformat(timespec="seconds")}
 
     def _remember(self, slots, route):
@@ -2270,9 +2412,14 @@ class CallSession:
             return [{"key": "*", "value": None, "op": "delete", "source": f"{self.call_name}#turn{self.turn_no}", "customer_id": cid}] \
                 if self.deleted and self.turn_no == self._deleted_turn else []
         src = f"{self.call_name}#turn{self.turn_no}"
-        writes = []
+        writes = list(self.__dict__.pop("_addr_profile_writes", None) or [])
+        # v6p11: lượt có yêu cầu đổi địa chỉ → slot address chỉ vào hồ sơ qua _save_profile_address (profile_default đã xác nhận)
+        addr_req = settings.address_scope_gate and any(
+            i.get("kind") == "change_order_address" for i in (self.u_turn or {}).get("request_items") or [])
         for k, v in slots.items():
             if settings.planner_selector != 'rules' and self.proxy_caller and k in ('address', 'phone', 'self_name'):
+                continue
+            if addr_req and k == "address":
                 continue
             if k == "claimed_prices" or (k == "self_name" and not cid.startswith("N-")):
                 continue
@@ -2298,6 +2445,36 @@ class CallSession:
             if self.known.get(k):
                 w = self.mem.write_fact(cid, k, self.known[k], src, self.session_id, self.today)
                 if w: writes.append(w)
+        if settings.write_path_gate:
+            writes += self._remember_exchanges(cid, src)
+        return writes
+
+    def _remember_exchanges(self, cid, src):
+        """v6p12 (fee_free, DT-03): số lần đổi của đơn AGENT theo dõi — 0 khi order.create thành công, +1 sau order.update đổi hàng
+        thành công. Đơn không có fact (CRM, lịch sử ngoài hệ thống) KHÔNG được khởi tạo ở đây → fee_free coi là chưa xác minh.
+        shortcut: đếm từ nhật ký tool của cuộc gọi; nguồn có thẩm quyền lâu dài là lịch sử đơn của hệ thống đơn hàng."""
+        from harness import tool_outcome
+        writes = []
+        for tc in self.call_tool_log:
+            if tc.get("_turn") != self.turn_no or not isinstance(tc.get("result"), dict) or tc["result"].get("error"):
+                continue
+            name, args, res = tc.get("name"), tc.get("args") or {}, tc["result"]
+            if name == "order.create" and res.get("order_id"):
+                key, value = f"exchanges:{res['order_id']}", 0
+                if key in self.mem.current_facts(cid, self.today):
+                    continue
+            elif name == "order.update" and str(args.get("action", "")).startswith("exchange") \
+                    and tool_outcome.classify(tc)["status"] == "confirmed_success":
+                key = f"exchanges:{args.get('order_id')}"
+                cur = (self.mem.current_facts(cid, self.today).get(key) or {}).get("value")
+                if type(cur) is not int:
+                    continue
+                value = cur + 1
+            else:
+                continue
+            w = self.mem.write_fact(cid, key, value, src, self.session_id, self.today)
+            if w:
+                writes.append(w)
         return writes
 
     def end(self):

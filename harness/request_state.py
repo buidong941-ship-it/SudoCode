@@ -212,6 +212,62 @@ def op_authority(s, u, text, ev, kind, *, accept, conditional):
     return None if found else "op_no_command"
 
 
+def _address_refused(u):
+    """v6p11: khách rút / hoãn yêu cầu đổi địa chỉ đang chờ — theo trường có cấu trúc của bộ hiểu (withdrawn, act=defer)."""
+    return any(w.get("kind") == "change_order_address" for w in (u or {}).get("withdrawn") or []) \
+        or ((u or {}).get("response") or {}).get("act") == "defer"
+
+
+def _address_scope_check(u, it, gate):
+    """v6p11: thay kiểm từ vựng của op_authority cho change_order_address. → None (đơn hiện có, cho đi tiếp tới hàng rào ghi đơn) |
+    "profile_default" (chỉ ghi hồ sơ) | lý do chặn. Phạm vi và lời kể trạng thái đơn của DeepSeek phải KHỚP JEV; lệch / unclear → hỏi."""
+    if any(w.get("kind") == "change_order_address" for w in (u or {}).get("withdrawn") or []):
+        return "withdrawn"
+    if ((u or {}).get("response") or {}).get("act") == "defer":
+        return "deferred"
+    if not settings.jev_write_gate:
+        return "address_scope_no_jev"
+    jev = [x for x in (gate or {}).get("updates") or [] if x.get("kind") == "change_order_address"]
+    if len(jev) != 1 or jev[0].get("error"):
+        return "address_scope_jev_missing"
+    jev = jev[0]
+    if jev.get("decision") != "open_or_update_request":
+        return "jev_hold"
+    ds, js = it.get("address_scope") or "unclear", jev.get("address_scope") or "unclear"
+    if "unclear" in (ds, js):
+        return "address_scope_unclear"
+    if ds != js:
+        return "address_scope_mismatch"
+    if settings.write_path_gate and ds == "profile_default":
+        return "profile_default"            # v6p12 (H13-057): ghi hồ sơ không đụng đơn nào → trạng thái đơn cũ không là căn cứ cần khớp
+    dc, jc = it.get("order_state_claim") or "unclear", jev.get("order_state_claim") or "unclear"
+    if "unclear" in (dc, jc):
+        return "order_state_claim_unclear"
+    if dc != jc:
+        return "order_state_claim_mismatch"
+    return "profile_default" if ds == "profile_default" else None
+
+
+def _op_mode_check(u, it, decision):
+    """v6p12: kiểu lời nói của đổi / trả. DeepSeek và JEV phải KHỚP; → None (direct / conditional, đi tiếp tới hàng rào ghi) |
+    "ask_info" (chỉ trả lời) | lý do chặn. Rút / hoãn theo trường có cấu trúc (withdrawn, act=defer)."""
+    kind = it.get("kind")
+    if any(w.get("kind") == kind for w in (u or {}).get("withdrawn") or []):
+        return "withdrawn"
+    if ((u or {}).get("response") or {}).get("act") == "defer":
+        return "deferred"
+    ds, js = it.get("mode") or "unclear", (decision or {}).get("mode") or "unclear"
+    if "unclear" in (ds, js):
+        return "mode_unclear"
+    if ds != js:
+        return "mode_mismatch"
+    if ds == "defer":
+        return "deferred"
+    if ds == "conditional" and not it.get("condition"):
+        return "mode_condition_missing"
+    return "ask_info" if ds == "ask_info" else None
+
+
 def op_refused(text, kind):
     """V44: câu hiện tại phủ định / hoãn đúng thao tác `kind` (vd "Thôi anh chưa đổi đâu") → yêu cầu đang chờ cùng loại không được
     dùng lại ở lượt sau."""
@@ -427,7 +483,7 @@ def _parents_of(target):
 # ---------------------------------------------------------------------- V45 (duyệt 15/11, MP1): căn cứ đơn đích của KHÁCH
 # Đơn đích của đổi địa chỉ / đổi / trả chỉ từ căn cứ của khách; target_ref của bộ hiểu và ref Jev chỉ là gợi ý (không cấp đơn).
 ORDER_ID_RX = re.compile(r"(?<![a-z0-9])od\s?(\d{6})(?![0-9])", re.I)              # D3: mã đơn OD + 6 chữ số
-TARGET_BASES = ("order_id", "product", "variant", "focus", "single_order", "accepted_proposal")
+TARGET_BASES = ("order_id", "product", "variant", "focus", "single_order", "accepted_proposal", "model_context")
 
 
 def _skus_of_names(items):
@@ -477,14 +533,6 @@ def _variant_hit(sku, text):
 
 
 ADDRESS_STANCES = ("stated", "chosen")      # V46 (duyệt 16/11): hợp đồng bộ hiểu dùng cả hai cho địa chỉ khách tự nêu / chọn
-
-
-def _stated_address(u):
-    """Địa chỉ khách TỰ nói trong lượt (observation address, stance stated | chosen, chủ thể self) — span nguyên văn, hoặc None.
-    Không nhận asked / negated / conditional / reported hay chủ thể other."""
-    obs = [o for o in (u or {}).get("observations") or [] if o.get("slot") == "address" and o.get("stance", "stated") in ADDRESS_STANCES
-           and o.get("subject", "self") == "self" and o.get("span")]
-    return obs[-1]["span"].strip(" ,.") if obs else None
 
 
 def order_basis(s, text, orders):
@@ -561,6 +609,22 @@ class RequestState:
         self.q_intent = []
         self.completion = None
         self._prop0 = None
+        self.held_candidate = None       # ứng viên Jev giữ chờ; chưa có quyền ghi
+
+    def retain_held(self, gate):
+        """Giữ cùng bản ghi qua hold; held không nằm trong tập trạng thái được thực thi."""
+        data = self.held_candidate
+        existing = next((r for r in self.items if r["id"] == gate.get("request_id")
+                         and r["kind"] == data["kind"] and r["status"] in ACTIVE + (PARKED, "held")), None)
+        if existing is None:
+            self.seq += 1
+            existing = {"id": f"R{self.seq}", "created_turn": self.turn, "revision": None}
+            self.items.append(existing)
+        existing.update(data)
+        existing["status"] = "held"
+        existing.pop("write_gate", None)
+        self.held_candidate = existing
+        self._event("held", id=existing["id"], kind=existing["kind"])
 
     # ------------------------------------------------------------------ ngữ cảnh gọn cho bộ hiểu (K07)
     def context(self, s):
@@ -573,6 +637,11 @@ class RequestState:
         roles = [(x, "mentioned") for x in mentioned] + ([(s.focus, "focus")] if s.focus else []) \
             + ([(prop["sku"], "agent_proposed")] if prop and prop.get("sku") else []) \
             + [(x, "cart") for x in s.cart] + [(x, "discussed") for x in s.discussed]
+        if settings.jev_write_gate:
+            roles += [(x["sku"], "previous_advised") for x in (s.brief or {}).get("products_advised") or [] if x.get("sku")]
+            roles += [(x, "pending_proposal") for x in ((self.proposal or {}).get("target") or {}).get("skus", ())]
+            roles += [(line["sku"], "pending_request") for r in self.items if r["status"] in ACTIVE + (PARKED, "held")
+                      for line in r.get("lines") or []]
         for sku, role in roles:
             par = _parent(sku)
             if not sku or par in seen or par in cut:
@@ -583,7 +652,7 @@ class RequestState:
             seen.append(par)
             ref = f"P{len(seen)}"
             self.refmap[ref] = {"type": "product", "skus": (par,)}
-            cands.append({"ref": ref, "kind": "product", "name": product_name(par), "role": role})
+            cands.append({"ref": ref, "kind": "product", "sku": par, "name": product_name(par), "role": role})
         if cut:
             self.truncated["products"] = cut
         if not getattr(s, "proxy_caller", False):          # người tự xưng người nhà: không đưa đơn của khách vào ngữ cảnh
@@ -605,16 +674,30 @@ class RequestState:
         if s.discussed:
             self.refmap["ALL"] = {"type": "product", "skus": tuple(dict.fromkeys(_parent(x) for x in s.discussed))}
         pending = [{"id": r["id"], "kind": r["kind"], "status": r["status"], "target": self._target_name(r["target"]),
-                    "condition": (r.get("condition") or {}).get("type")} for r in self.items if r["status"] in ACTIVE + (PARKED,)]
+                    "lines": r.get("lines"), "condition": r.get("condition"), "missing": r.get("missing")}
+                   for r in self.items if r["status"] in ACTIVE + (PARKED, "held")]
         # B (15/11, GEN-T16): nội dung các nhóm CART / ALL và các món của đề nghị đang chờ khách xác nhận — chỉ là dữ kiện cho bộ
         # hiểu chọn đúng đối tượng; không cấp quyền gì
         groups = {k: [product_name(x) for x in self.refmap[k]["skus"]] for k in ("CART", "ALL") if k in self.refmap}
         ptgt = (self.proposal or {}).get("target")
+        from harness.jev_write_gate import _product_evidence
         return {"candidates": cands, "pending": pending, "groups": groups,
+                "product_evidence": _product_evidence(s, self), "held_request": self.held_candidate,
                 "agent_proposal": (self.proposal or {}).get("goal"),
                 "agent_proposal_items": [product_name(x) for x in (ptgt or {}).get("skus") or ()]
                 if ptgt and ptgt.get("type") == "product" else None,
                 "agent_last_goals": list(s.table_prev_goals or [])[:6]}
+
+    def selection_criteria(self, s, u):
+        """Tiêu chí model hiểu; tập so sánh lấy từ SKU có nguồn, không lấy target model đoán."""
+        c = u.get("consult") or {}
+        if c.get("sort") not in ("cheapest", "most_expensive"):
+            return None
+        scope = c.get("scope")
+        discussed = list(s.discussed) + [x["sku"] for x in (s.brief or {}).get("products_advised") or [] if x.get("sku")]
+        skus = list(getattr(s, "turn_mentioned", []) or []) if scope == "mentioned" else discussed if scope == "discussed" else []
+        return {"sort": c["sort"], "scope": scope, "skus": list(dict.fromkeys(_parent(x) for x in skus if x)),
+                "evidence": s.turn_text, "turn": self.turn}
 
     @staticmethod
     def _target_name(t):
@@ -625,14 +708,31 @@ class RequestState:
         return t.get("order_id")
 
     # ------------------------------------------------------------------ nhận kết quả bộ hiểu
-    def ingest(self, s, u, turn):
+    def ingest(self, s, u, turn, *, gate=None, normalization=None):
         """u = kết quả understanding.understand (đã kiểm). Không có quyền nào được cấp từ lỗi / mơ hồ."""
         self.events, self.hold, self.turn, self.last_blocked = [], None, turn, None
         self.order_gate = None
         self.op_gate = None              # V44: yêu cầu thao tác đơn bị chặn ở lượt này {"why", "kind"} → hỏi lại (apply_order_gate)
+        self.address_profile = None      # v6p11: địa chỉ mặc định cho đơn sau đã được DeepSeek + JEV xác nhận ở lượt này
         self.write_hold = None
         self.q_intent, self.completion, self._prop0 = [], None, self.proposal
         self._bound_turn = set()         # V49: địa chỉ (đã fold) được gắn cho một chủ cụ thể trong lượt này
+        self.write_gate = gate if settings.jev_write_gate else None
+        if settings.write_path_gate:
+            # v6p12 (H13-058): địa chỉ khách nói ở lượt yêu cầu đổi địa chỉ — lượt sau xác nhận phạm vi "các đơn sau" dùng lại
+            a = self._one_address(u)
+            self.prev_address, self.cur_address = getattr(self, "cur_address", None), (
+                {**a, "turn": turn} if a and any(i.get("kind") == "change_order_address" for i in (u or {}).get("request_items") or [])
+                else None)
+        if normalization and normalization["reasons"]:
+            from core.pii import Redactor
+            self._event("understanding_normalized", **Redactor().redact(normalization))
+        if settings.jev_write_gate and gate is not None:
+            self._event("jev_write_gate", **{k: v for k, v in gate.items() if k != "revision"})
+        if settings.jev_write_gate and settings.planner_variant == "b2_jev":
+            from harness.request_updates import apply
+            apply(self, s, u or {"error": "missing_understanding"}, gate, turn)
+            return
         if settings.planner_variant == "b2_jev":
             # V45 §8.2: căn cứ đơn trong câu khách (chỉ câu khách) + hiệu lực order_focus của cuộc gọi
             self.turn_basis = order_basis(s, getattr(s, "turn_text", "") or "", known_orders(s))
@@ -660,20 +760,77 @@ class RequestState:
                     self._conflict_check(s, u, turn)              # V49: câu mơ hồ có địa chỉ khác cũng treo binding cũ
                 return
         for w in u.get("withdrawn") or []:
-            self._withdraw(w["kind"], turn, f"withdrawn:{w['evidence'][:40]}")
+            withdrawn = self._withdraw(w["kind"], turn, f"withdrawn:{w['evidence'][:40]}")
+            if withdrawn and self.held_candidate and self.held_candidate["kind"] == w["kind"]:
+                self._event("held_withdrawn", kind=w["kind"])
+                self.held_candidate = None
         act = (u.get("response") or {}).get("act")
         self.turn_act = act
         prop = self.proposal
         if prop and act in ("decline", "defer"):
             self._withdraw(prop["kind"], turn, f"{act}:{prop['goal']}")
         new = list(u.get("request_items") or [])
-        b2 = settings.planner_variant == "b2_jev"
         text = getattr(s, "turn_text", "") or ""
+        if settings.jev_write_gate and gate is not None:
+            decision = gate["decision"]
+            if decision == "reject_or_withdraw":
+                affected = {x["kind"] for x in new if x["kind"] in ("place_order",) + ORDER_KINDS}
+                if prop and prop["kind"] in ("place_order",) + ORDER_KINDS:
+                    affected.add(prop["kind"])
+                for kind in affected:
+                    self._withdraw(kind, turn, "jev_reject_or_withdraw", req_id=gate["request_id"])
+                new = [x for x in new if x["kind"] not in ("place_order",) + ORDER_KINDS]
+            elif decision == "hold_and_clarify":
+                held = next((x for x in new if x["kind"] == "place_order"), None)
+                if held:
+                    previous_held = self.held_candidate or {}
+                    cond = held.get("condition") or previous_held.get("condition")
+                    self.held_candidate = {"kind": "place_order", "target_ref": held.get("target_ref"),
+                                           "target": self.refmap.get(held.get("target_ref")), "condition": cond,
+                                           "evidence": held.get("evidence"), "turn": turn, "reason": "jev_hold",
+                                           "selection": self.selection_criteria(s, u) or previous_held.get("selection")}
+                    self.retain_held(gate)
+                    self._event("candidate_held", target_ref=held.get("target_ref"), condition=cond, turn=turn)
+                exchange = next((x for x in new if x["kind"] == "exchange"), None)
+                if exchange:
+                    self.held_candidate = {"kind": "exchange", "target_ref": exchange.get("target_ref"),
+                                           "target": self.refmap.get(exchange.get("target_ref")),
+                                           "condition": exchange.get("condition"), "evidence": exchange.get("evidence"),
+                                           "slots": dict(u.get("slots") or {}), "turn": turn, "reason": "jev_hold"}
+                    self.retain_held(gate)
+                    self._event("candidate_held", kind="exchange", target_ref=exchange.get("target_ref"),
+                                condition=exchange.get("condition"), turn=turn)
+                for x in new:
+                    if x["kind"] in ORDER_KINDS:
+                        self.op_gate = {"why": "jev_hold", "kind": x["kind"]}
+                new = [x for x in new if x["kind"] not in ("place_order",) + ORDER_KINDS]
+                if any(x["kind"] == "place_order" for x in u.get("request_items") or []):
+                    self.order_gate = {"why": "jev_hold", "target": None, "stated_vnd": []}
+            elif gate["request_id"] not in {f"R{self.seq + 1}"} | {r["id"] for r in self.items if r["status"] in ACTIVE + (PARKED, "held")} \
+                    or gate["evidence_turn"] != turn:
+                new = [x for x in new if x["kind"] not in ("place_order",) + ORDER_KINDS]
+                self.order_gate = {"why": "jev_request_revision", "target": None, "stated_vnd": []}
+            else:
+                for x in new:
+                    if x["kind"] == "place_order" and gate["target_ref"] != "none":
+                        x["target_ref"] = gate["target_ref"]
+                    if x["kind"] == "place_order" and self.held_candidate:
+                        held = self.held_candidate
+                        target = self.refmap.get(x.get("target_ref"))
+                        if held["target"] and target and not held.get("selection") and _relation(held["target"], target) not in ("same", "covers"):
+                            self.write_hold = "held_target_changed"
+                        elif held.get("condition") and not x.get("condition"):
+                            x["condition"] = held["condition"]
+                            self._event("held_condition_carried", from_turn=held["turn"], condition=x["condition"])
+                    if x["kind"] == "place_order" and self.held_candidate:
+                        x["selection"] = self.held_candidate.get("selection")
+        b2 = settings.planner_variant == "b2_jev"
         if b2:
             # V44: yêu cầu thao tác đơn đang chờ (mở ở lượt trước) mà câu hiện tại phủ định / hoãn đúng thao tác đó → rút, không để
             # lượt sau (vd khách đọc size) dùng lại yêu cầu cũ
             for k in ORDER_KINDS:
-                if any(r["kind"] == k and r["status"] in ACTIVE + (PARKED,) and r["turn"] < turn for r in self.items) and op_refused(text, k):
+                if any(r["kind"] == k and r["status"] in ACTIVE + (PARKED,) and r["turn"] < turn for r in self.items) \
+                        and (_address_refused(u) if settings.address_scope_gate and k == "change_order_address" else op_refused(text, k)):
                     self._withdraw(k, turn, "refused_op")
                     if (self.proposal or {}).get("kind") == k:
                         self.proposal = None
@@ -683,8 +840,12 @@ class RequestState:
             self._cancel_proposal(turn, "withdrawn")
             prop = None
         accept_ok = None                                     # V41-1: đồng ý cùng lượt qua kiểm cứng chưa (None = không có đồng ý)
-        if b2 and prop and act == "accept" and prop.get("kind") == "place_order":
+        if b2 and prop and act == "accept" and prop.get("kind") == "place_order" \
+                and (not settings.jev_write_gate or gate and gate["decision"] == "open_or_update_request"):
             why_a, bad_a = order_authority(s, u, text, (u.get("response") or {}).get("evidence") or "", accept=True, conditional=False)
+            if settings.jev_write_gate and gate and gate["decision"] == "open_or_update_request" \
+                    and why_a == "accept_has_digits" and not gate.get("error"):
+                why_a = None
             # V43: "ok" chỉ trả lời đề nghị MỚI (vừa nói ở lượt trước, không phải đề nghị mang qua lượt xen), có revision ĐÃ NÓI (giá
             # từng đơn vị), và không nêu mẫu ngoài đề nghị
             men_a = {_parent(x) for x in (getattr(s, "turn_mentioned", None) or []) if x}
@@ -705,7 +866,8 @@ class RequestState:
                     if not any(r["kind"] == "place_order" for r in new):
                         self.order_gate = {"why": why_a if why_a in ("pseudo_system", "price_unconfirmed") else "accept_unconfirmed",
                                            "target": prop.get("target"), "stated_vnd": bad_a}
-        if prop and act == "accept" and accept_ok is not False and not any(r["kind"] == prop["kind"] for r in new):
+        if prop and act == "accept" and accept_ok is not False and not any(r["kind"] == prop["kind"] for r in new) \
+                and (not settings.jev_write_gate or gate and gate["decision"] == "open_or_update_request"):
             new.append({"kind": prop["kind"], "evidence": u["response"]["evidence"], "target_ref": None, "condition": None,
                         "_target": prop.get("target"), "_revision": prop.get("revision"), "_source": f"accept:{prop['goal']}",
                         "_additional": bool(prop.get("additional"))})
@@ -726,7 +888,18 @@ class RequestState:
                 # V44: thao tác đơn (đổi / trả / đổi địa chỉ) — đồng ý đề nghị hoặc yêu cầu trực tiếp đều qua kiểm cứng RIÊNG của
                 # thao tác; qua thì ghi bằng chứng kiểm (consent) GẮN vào chính yêu cầu (kind / nguồn / lượt / đơn) để authorize kiểm lại
                 is_acc = str(it.get("_source", "")).startswith("accept:")
-                why_o = op_authority(s, u, text, it.get("evidence") or "", it["kind"], accept=is_acc, conditional=bool(it.get("condition")))
+                if settings.address_scope_gate and it["kind"] == "change_order_address":
+                    why_o = _address_scope_check(u, it, gate)
+                    if why_o == "profile_default":
+                        self.address_profile = {"turn": turn, "evidence": (it.get("evidence") or "")[:60],
+                                                "scope_span": it.get("address_scope_span")}
+                        self._event("address_profile_default", evidence=(it.get("evidence") or "")[:60])
+                        continue
+                else:
+                    why_o = op_authority(s, u, text, it.get("evidence") or "", it["kind"], accept=is_acc, conditional=bool(it.get("condition")))
+                    if settings.jev_write_gate and gate and gate["decision"] == "open_or_update_request" \
+                            and not gate.get("error") and why_o == "op_no_command":
+                        why_o = None
                 if why_o is None and is_acc and it["kind"] == "exchange" and not (it.get("_revision") or {}).get("new_variant"):
                     why_o = "accept_no_revision"
                 if why_o:
@@ -798,16 +971,28 @@ class RequestState:
                 # yêu cầu CÓ ĐIỀU KIỆN ("khi nào có hàng thì lấy …") là cam kết của khách, chờ điều kiện — không phải chỉ bày tỏ ý định
                 # V43: yêu cầu có điều kiện KHÔNG còn được miễn intent_only (đã kiểm lệnh / động từ mua tại mệnh đề trong
                 # order_authority); chỉ đồng ý ĐÃ QUA kiểm cứng (accept_ok) mới thay cho lệnh rõ
+                if settings.jev_write_gate and gate and gate["decision"] == "open_or_update_request" \
+                        and not gate.get("error") and why == "intent_only":
+                    why = None
                 if why and not (accepted and why == "intent_only"):
                     self.order_gate = {"why": why, "target": target, "stated_vnd": bad}
                     self._event("order_gate", why=why, **({"stated_vnd": bad} if bad else {}))
                     continue
-            inherit, restated = None, None
+            inherit, restated, cheaper_scope = None, None, None
+            selection = it.get("selection") or (self.selection_criteria(s, u) if it["kind"] == "place_order" else None)
             cond = it.get("condition")
             for r in self.items:
                 if r["kind"] != it["kind"] or r["status"] not in ACTIVE + (PARKED,):
                     continue
                 rel = _relation(r["target"], target)
+                if settings.jev_write_gate and it["kind"] == "place_order" and cond is None \
+                        and r.get("condition") and rel in ("same", "covers", "unknown"):
+                    cond = r["condition"]  # điều kiện mua còn hiệu lực qua lời xác nhận/bổ sung; chỉ rút rõ mới bỏ
+                if settings.jev_write_gate and it["kind"] == "place_order" and r.get("cheaper_scope") \
+                        and rel in ("same", "covers", "unknown"):
+                    cheaper_scope = r["cheaper_scope"]
+                if not selection and r.get("selection") and rel in ("same", "covers", "unknown"):
+                    selection = r["selection"]
                 if r["status"] == PARKED and rel not in ("same", "covers"):
                     continue                                    # yêu cầu đang chờ làm rõ: chỉ đóng khi khách nhắc lại / rút
                 if r["turn"] == turn and r["status"] != PARKED:
@@ -832,15 +1017,31 @@ class RequestState:
             if restated is not None:
                 self._event("restated_in_turn", id=restated["id"])
                 continue
-            self.seq += 1
+            updating = next((old for old in self.items if gate and settings.jev_write_gate
+                             and old["id"] == gate.get("request_id") and old["kind"] == it["kind"]
+                             and old["status"] in ACTIVE + (PARKED, "held", "superseded")), None)
+            if updating is None:
+                self.seq += 1
             status = "needs_target" if it.get("target_invalid") else "conditional" if cond else "open"
             rev = it.get("_revision")
             if rev is None and target and target.get("type") == "product":
                 rev = self.selection_revision(s, target.get("skus") or ())     # giá / số lượng ĐÃ BÁO lúc khách đồng ý
             if it["kind"] == "place_order":
                 rev = {**(rev or {}), **self.delivery_terms(s)}
-            r = {"id": f"R{self.seq}", "kind": it["kind"], "target": target, "revision": rev, "condition": cond,
+            r = {"id": updating["id"] if updating else f"R{self.seq}", "kind": it["kind"], "target": target, "revision": rev, "condition": cond,
                  "evidence": it["evidence"][:120], "turn": turn, "source": it.get("_source", "customer_request"), "status": status}
+            if selection:
+                r["selection"] = selection
+                r["cheaper_scope"] = selection["skus"] if selection["sort"] == "cheapest" else []
+            elif cheaper_scope:
+                r["cheaper_scope"] = cheaper_scope
+            if settings.jev_write_gate and it["kind"] in ("place_order",) + ORDER_KINDS \
+                    and gate and gate["decision"] == "open_or_update_request":
+                r["write_gate"] = {"request_id": r["id"], "evidence_turn": gate["evidence_turn"],
+                                   "target_ref": gate["target_ref"], "revision": gate["revision"],
+                                   "selected_request_id": gate["request_id"]}
+            if settings.jev_write_gate and self.held_candidate and self.held_candidate["kind"] == r["kind"]:
+                self.held_candidate = None
             if inherit:
                 r["inherit"] = inherit
             if it.get("_additional"):
@@ -859,8 +1060,16 @@ class RequestState:
                 r["target_ambiguous"] = bool(it.get("_ambiguous")) and not target
                 r["model_ref"] = it.get("_hint")
                 if it["kind"] == "change_order_address":
+                    if settings.address_scope_gate:
+                        r["order_state_claim"] = it.get("order_state_claim")
                     self._bind_command(s, u, r, turn)          # V48 L1: chỉ khi lượt một mục đích
-            self.items.append(r)
+            if updating is not None:
+                origin = updating.get("created_turn", updating["turn"])
+                updating.clear()
+                updating.update(r, created_turn=origin)
+            else:
+                r["created_turn"] = turn
+                self.items.append(r)
             self._event("opened", id=r["id"], kind=r["kind"], source=r["source"], status=status)
         if b2:
             self._bind_answer(u, turn)
@@ -1024,6 +1233,24 @@ class RequestState:
     def completion_for(self, s):
         """Binding bổ sung địa chỉ còn hiệu lực ở lượt này cho đúng một đơn vừa tạo còn thiếu địa chỉ, hoặc None."""
         cb = self.completion
+        cont = getattr(s, "order_continuation", None)
+        if (not cb or cb.get("turn") != self.turn) and cont and cont.get("turn") == self.turn                 and not self.has_active("change_order_address"):
+            # v6p5 (23/11): lượt tiếp tục đơn vừa tạo (request_updates._created_order_continuation) có đúng MỘT địa chỉ của chính khách
+            # → bổ sung cho đúng đơn đó nếu đơn còn thiếu địa chỉ (không cần câu hỏi địa chỉ ở lượt ngay trước)
+            o = next((x for x in getattr(s, "orders_created", None) or [] if x["order_id"] == cont["order_id"] and not x.get("address")), None)
+            a = self._one_address(getattr(s, "u_turn", None))
+            if o is not None and a:
+                self.completion = cb = {**a, "order_id": o["order_id"], "turn": self.turn, "via": "continuation_of_created_order"}
+                self._event("completion_bound", order_id=o["order_id"], via="continuation")
+        if settings.write_path_gate and (not cb or cb.get("turn") != self.turn) and not self.has_active("change_order_address"):
+            # v6p12 (H13-038–040): câu hỏi địa chỉ hết hiệu lực khi có lượt xen (sửa dòng) → vẫn bổ sung cho ĐÚNG MỘT đơn vừa tạo còn
+            # thiếu địa chỉ, khi lượt chỉ có một địa chỉ của chính khách và không phục vụ việc nào khác
+            lacking = [x for x in getattr(s, "orders_created", None) or [] if not x.get("address")]
+            u = getattr(s, "u_turn", None) or {}
+            a = self._one_address(u)
+            if len(lacking) == 1 and a and self._single_purpose(s, u, ("place_order",), self._order_parents(lacking)):
+                self.completion = cb = {**a, "order_id": lacking[0]["order_id"], "turn": self.turn, "via": "address_for_created_order"}
+                self._event("completion_bound", order_id=lacking[0]["order_id"], via="created_order_lacking_address")
         if not cb or cb.get("turn") != self.turn or self.has_active("change_order_address"):
             return None
         o = next((x for x in getattr(s, "orders_created", None) or [] if x["order_id"] == cb["order_id"] and not x.get("address")), None)
@@ -1122,11 +1349,19 @@ class RequestState:
         self._withdraw("place_order", turn, f"refused:{why}")
         self.turn_act = "decline"
 
-    def _withdraw(self, kind, turn, why):
-        for r in self.items:
-            if r["kind"] == kind and r["status"] in ACTIVE + (PARKED,):
-                r["status"] = "withdrawn"; r["closed_turn"] = turn
-                self._event("withdrawn", id=r["id"], why=why)
+    def _withdraw(self, kind, turn, why, req_id=None):
+        matches = [r for r in self.items if r["kind"] == kind and r["status"] in ACTIVE + (PARKED, "held")
+                   and (req_id is None or r["id"] == req_id)]
+        if settings.jev_write_gate and req_id is None and len(matches) > 1:
+            self.hold = "withdraw_target_ambiguous"
+            self._event("withdraw_blocked", kind=kind, reason=self.hold)
+            return False
+        for r in matches:
+            r["status"] = "withdrawn"; r["closed_turn"] = turn
+            self._event("withdrawn", id=r["id"], why=why)
+        if matches and req_id and self.hold == "withdraw_target_ambiguous":
+            self.hold = None
+        return bool(matches)
 
     @staticmethod
     def selection_revision(s, skus):
@@ -1218,6 +1453,10 @@ class RequestState:
         không lấy toàn giỏ) kèm revision — để lượt sau khách đổi mẫu / size / số lượng / giá thì đồng ý cũ không áp."""
         for r in self.items:
             if r["status"] in EXECUTABLE and r["target"] is None and r["kind"] == "place_order" and r["turn"] == self.turn:
+                if settings.jev_write_gate and r.get("selection"):
+                    # v6p1 (23/11): yêu cầu chọn theo tiêu chí chỉ có đối tượng khi executor so xong giá tool; không gắn mẫu đang
+                    # bàn (focus) vào trước (H13-045: gắn Panasonic rồi mở đầu báo giá Panasonic dù khách muốn mẫu rẻ hơn)
+                    continue
                 sel = self.unambiguous_selection(s, r.get("inherit"))
                 if sel:
                     r["target"] = {"type": "product", "skus": sel}
@@ -1231,6 +1470,9 @@ class RequestState:
         if settings.planner_variant == "b2_jev":
             self._confirm_questions(s, goals)
         prev, self.proposal = self.proposal, None
+        if settings.jev_write_gate and self.held_candidate:
+            self._event("proposal_blocked", why="held_request_unresolved")
+            return
         for g in goals:
             kind = PROPOSALS.get(g)
             if not kind:
@@ -1301,6 +1543,25 @@ class RequestState:
                 return None, "multi_request"
             r = act[-1]
         self.last_blocked = r
+        if kind == "place_order" and r.get("selection"):
+            selection, ev = r["selection"], r.get("selection_evidence") or {}
+            prices = ev.get("prices") or {}
+            if ev.get("turn") != self.turn or len(prices) < 2 or set(prices) != set(selection["skus"]) \
+                    or not all(type(value) is int and value > 0 for value in prices.values()):
+                return None, "selection_evidence_missing"
+            best = (min if selection["sort"] == "cheapest" else max)(prices.values())
+            winners = [sku for sku, value in prices.items() if value == best]
+            actual = tuple(_parent(x) for x in (target or {}).get("skus") or ())
+            if len(winners) != 1 or actual != tuple(winners):
+                return None, "selection_target_mismatch"
+        if settings.jev_write_gate and kind in ("place_order",) + ORDER_KINDS:
+            wg = r.get("write_gate") or {}
+            if wg.get("request_id") != r["id"] or wg.get("evidence_turn") != r["turn"]:
+                return None, "jev_write_gate_missing"
+            if r.get("semantic"):
+                from harness.request_updates import payload_revision
+                if not r.get("intent_authorized") or wg.get("payload_revision") != payload_revision(r):
+                    return None, "semantic_payload_changed"
         if r["status"] == "needs_target":
             return None, "target_unresolved"
         if kind in ORDER_KINDS and settings.planner_variant == "b2_jev":
@@ -1356,9 +1617,20 @@ class RequestState:
             if cond["type"] == "stock":
                 if in_stock is not True:
                     return None, "condition_pending"        # chưa có kết quả tồn kho xác nhận trong lượt
+            elif cond["type"] == "attribute":
+                ev = r.get("condition_evidence") or {}
+                skus = (target or r.get("target") or {}).get("skus") or ()
+                if ev.get("source") != "catalog.search" or ev.get("turn") != self.turn or not skus \
+                        or ev.get("attribute") != cond.get("attribute") \
+                        or not all((ev.get("values") or {}).get(_parent(x)) is cond.get("expected") for x in skus):
+                    return None, "condition_pending"
             elif cond["type"] == "price_max" and cond.get("max_vnd") and total_vnd is not None:
                 if total_vnd > cond["max_vnd"]:
                     return None, "condition_unmet"
+            elif settings.write_path_gate and cond["type"] in ("promo_active", "fee_free"):
+                ev = r.get("condition_evidence") or {}
+                if ev.get("type") != cond["type"] or ev.get("turn") != self.turn or ev.get("met") is not True:
+                    return None, "condition_pending"
             else:
                 return None, "condition_pending"            # chờ người nhà / thời điểm / điều kiện code không tự đánh giá được
         if r["target"] is None and target is not None:

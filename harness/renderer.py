@@ -336,6 +336,8 @@ def render(plan, tool_log, call_log, gen_backend, asking, asks=None, focus=None)
     ques = [rendered[b["id"]] for b in blocks if b["question"]]
     goals = plan.get("goals") or []
     policy, attrs = _sources(plan, asks if asks is not None else (["policy"] if asking else []), focus)
+    if settings.doc_answer and "doc_answer" in goals:
+        policy = []                 # S3 v6p14: câu tài liệu đã được chọn trong block doc_answer → không đọc lặp đoạn chính sách
     leads = _allowed_leads(goals)
     comp, lead, pol, att = {"used": False, "offered": {"policy": len(policy), "attributes": len(attrs), "leads": leads}}, "", [], []
     if set(goals) & set(COMPOSE_GOALS) or policy or attrs:

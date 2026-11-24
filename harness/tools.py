@@ -19,7 +19,11 @@ _spec = importlib.util.spec_from_file_location("mock_tools", os.path.join(settin
 mt = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mt)
 
-DATED = {"inventory.check", "pricing.get_quote", "pricing.quote_order", "order.create", "order.update"}
+DATED = {"inventory.check", "pricing.get_quote", "pricing.quote_order", "order.create", "order.update",
+         "order.update_line", "order.cancel"}            # v6p8: tool riêng của nhóm (harness/order_ext.py, cờ ORDER_EXT_TOOLS)
+
+
+_EXT_NAMES = ("order.update_line", "order.cancel")
 
 
 class ToolBox:
@@ -47,6 +51,12 @@ class ToolBox:
                     res = connection("commerce").call(name, args)
                 except McpToolError as e:
                     res = {"error": "tool_exception", "detail": str(e)}
+            elif name == "order.update" and args.get("line_sku"):
+                from harness import order_ext                  # v6p15: tham số riêng line_sku (LINE_SKU_UPDATE)
+                res = order_ext.order_update(mt, **args) if order_ext.line_sku_enabled() else {"error": "line_sku_disabled"}
+            elif name in _EXT_NAMES:
+                from harness import order_ext
+                res = order_ext.FUNCS[name](mt, **args) if order_ext.enabled() else {"error": "tool_disabled", "tool": name}
             else:
                 res = mt.TOOLS[name](**args)
         except Exception as e:
