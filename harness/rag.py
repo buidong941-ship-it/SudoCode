@@ -285,6 +285,3 @@ def search(query, k=3, include_restricted=False, order_date=None):
     return [h for h in hits if include_restricted or not h["restricted"]][:k]
 
 
-def touches_restricted(query, order_date=None):
-    hits = retrieve(query, k=1, order_date=order_date)
-    return bool(hits and hits[0]["restricted"])

@@ -938,7 +938,7 @@ Theo [điểm yếu.md](../điểm%20yếu.md):
 - `CallSession.config` và `self.blockers` được gán nhưng không dùng. Baseline do `mem.read_enabled` quyết định, không phải `config`.
 - Tham số `route` trong `_remember`, biến `full` trong `_resolve_candidate`, biến `out` trong `_update_address` không dùng.
 - `perceive()["when"]` không được agent dùng; ngày hẹn do bộ trích tự tính.
-- `rag.touches_restricted` không có nơi nào gọi.
+- `rag.touches_restricted` đã xóa 24/11/2026 (không nơi nào gọi).
 - `knowledge.spent_ms` là biến toàn cục, `turn()` đặt về 0 trước `_plan` và đọc lại sau.
 - `harness/agent.py` và `tools.py` đọc thẳng thành phần nội bộ của mock BTC (`_parent`, `PRODUCTS`, `PROMOS`, `HOLIDAYS`, `_ORDERS`). BTC đổi tên thì phải sửa theo.
 - Code đã bỏ hết comment "vì sao" (commit `ec08d2f`). Lý do nằm trong `docs/` (HAM-*, THAY-DOI, SO-SANH, NHAT-KY).

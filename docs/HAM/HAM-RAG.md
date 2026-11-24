@@ -44,7 +44,6 @@ Cấu hình bằng biến môi trường, máy yếu tự lùi xuống mà khôn
 | `_allowed(c, order_date)` [:261](../harness/rag.py#L261) | Luật phiên bản và nhiễu: loại chunk nhiễu; chunk hết hiệu lực chỉ cho phép khi `order_date < 2026-10-01` | chunk; ngày đơn | `True` / `False` | |
 | `retrieve(query, k, order_date, rrf_k)` [:269](../harness/rag.py#L269) | Tìm top-k **kể cả chunk nội bộ**: điểm BM25 (câu đã mở rộng) và điểm vector, lọc bằng `_allowed`, gộp thứ hạng bằng RRF (`1/(60 + hạng)`), xếp hạng lại nếu có reranker | câu hỏi; k (mặc định 5); ngày đơn; hằng số RRF | list chunk kèm `score`, `dense`, `bm25`, `rerank` | `expand_query`, `_bm25.scores`, `_vector`, `_rerank`, `_allowed` |
 | `search(query, k, include_restricted, order_date)` [:295](../harness/rag.py#L295) | Giao diện cho agent: lấy `k + 4` kết quả rồi bỏ chunk nội bộ (trừ khi `include_restricted`), giữ `k` | câu hỏi; k (mặc định 3); cờ nội bộ; ngày đơn | list chunk | `retrieve` |
-| `touches_restricted(query, order_date)` [:301](../harness/rag.py#L301) | Chunk đứng đầu có phải tài liệu nội bộ không (câu hỏi đang dò giá nhập / nhà cung cấp) | câu hỏi; ngày đơn | `True` / `False` | `retrieve` |
 
 ## 3. Các lớp
 
@@ -60,6 +59,6 @@ Cấu hình bằng biến môi trường, máy yếu tự lùi xuống mà khôn
 
 ## 4. Ghi chú khi đọc code
 
-- **`touches_restricted` không có nơi nào gọi.** Agent nhận câu hỏi dò giá nhập qua cờ `asks_internal_cost` của router; `run_rag_eval.py` tự xét chunk đứng đầu.
+- **`touches_restricted` đã xóa 24/11/2026 (không nơi nào gọi).** Agent nhận câu hỏi dò giá nhập qua cờ `asks_internal_cost` của router; `run_rag_eval.py` tự xét chunk đứng đầu.
 - **Agent chưa truyền `order_date`,** nên luật "chính sách cũ cho đơn cũ" chưa được dùng trong hội thoại (chỉ đo ở `run_rag_eval.py`).
 - **Đường pgvector và reranker `bge-reranker-v2-m3` chưa chạy thử trên server** ([ARCHITECTURE.md](ARCHITECTURE.md) mục 5.3). Số đo RAG: Recall@3 93,2%, Recall@5 93,2% với `bge-m3` + BM25 ([NHAT-KY-2026-10-08.md](NHAT-KY-2026-10-08.md) mục 6).

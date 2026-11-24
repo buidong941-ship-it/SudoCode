@@ -53,5 +53,3 @@ def rx(name, key):
         raise ValueError(f"harness/lexicon/{name}.json: mẫu {key} sai cú pháp: {err}") from err
 
 
-def all_patterns(name):
-    return list(load(name)["patterns"])
