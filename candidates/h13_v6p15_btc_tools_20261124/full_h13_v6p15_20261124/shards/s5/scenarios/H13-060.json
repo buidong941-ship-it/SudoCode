@@ -1,0 +1,152 @@
+{
+  "scenario_id": "H13-060",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_nho_qua_phien",
+  "customer_phone": "0932823186",
+  "customer_name": "Huy",
+  "honorific": "anh",
+  "notes": "Địa chỉ cũ bị thay ở phiên 2 (không có đơn đang mở); phiên 3 phải dùng 41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế, không đọc lại địa chỉ cũ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-12",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi anh lấy cái Xiaomi 4.5L nghe.",
+        "Gửi về 142 Kim Mã, Ba Đình, Hà Nội, nhận hàng anh trả tiền mặt."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-XM",
+        "price_quoted_vnd": 1590000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "142 Kim Mã, Ba Đình, Hà Nội"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-XM",
+          "price_vnd": 1590000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 8,
+      "customer_goal": "bao dia chi moi, khong dat hang",
+      "customer_turns": [
+        "Em ơi, đơn bữa trước anh nhận rồi nghe. Mà anh mới dọn nhà, từ giờ địa chỉ của anh là 41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế.",
+        "Ừ em ghi lại giùm anh, lần sau giao về chỗ mới nghe."
+      ],
+      "facts_established": {
+        "address": "41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế"
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create",
+          "order.update"
+        ],
+        "must_say_any": [
+          "ghi nhận",
+          "cập nhật",
+          "ghi lại",
+          "lưu lại",
+          "đã lưu"
+        ]
+      },
+      "memory_expectation": {
+        "address": "41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế",
+        "superseded": "142 Kim Mã, Ba Đình, Hà Nội"
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_3": {
+      "days_later": 4,
+      "customer_goal": "dat hang giao dia chi moi da bao",
+      "customer_turns": [
+        "Em ơi anh muốn đặt cái Xiaomi 4.5L, giao về địa chỉ mới anh báo lần trước nghe.",
+        "Nhận hàng anh trả tiền nghe em."
+      ],
+      "must_carry_over": [
+        "address"
+      ],
+      "must_not_ask": [
+        "address"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-XM",
+          "price_vnd": 1590000
+        },
+        "trace_must_not_match": [
+          "142 Kim Mã"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F14-dia-chi-moi-thay-dia-chi-cu",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N222",
+    "synthetic_customer": true,
+    "address": "142 Kim Mã, Ba Đình, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-12",
+      "call_2": "2026-10-20",
+      "call_3": "2026-10-24"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N222",
+      "addr2": "41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế",
+      "p": "SKU-AF-XM",
+      "b": "SKU-AF-XM",
+      "d1": "2026-10-12",
+      "g1": 8,
+      "g2": 4
+    },
+    "template_family": "H13-F14",
+    "group": "nho_qua_phien",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ],
+      "call_3": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho anh Xiaomi 4.5L nhé.",
+        "Giao về 142 Kim Mã, Ba Đình, Hà Nội, nhận hàng anh trả tiền mặt."
+      ],
+      "call_2": [
+        "Em ơi đơn hôm trước anh nhận rồi nha. Anh báo em là anh mới chuyển nhà, từ giờ địa chỉ của anh là 41 Nguyễn Huệ, TP Huế, Thừa Thiên Huế.",
+        "Ừ em ghi lại giúp anh nhé, lần sau giao về chỗ mới."
+      ],
+      "call_3": [
+        "Em ơi anh muốn đặt Xiaomi 4.5L, giao về địa chỉ mới anh báo lần trước nha.",
+        "Thanh toán khi nhận hàng em."
+      ]
+    }
+  }
+}

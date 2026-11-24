@@ -1,0 +1,111 @@
+{
+  "scenario_id": "H13-064",
+  "level": "M2",
+  "persona": "khach_hoi_nhieu_khong_mua",
+  "hard_case": "h13_nho_qua_phien",
+  "customer_phone": "0994935633",
+  "customer_name": "Bích",
+  "honorific": "cô",
+  "notes": "Khách hỏi giá giùm người khác → báo 3.290.000đ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-13",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi cô đặt cái UF Sunhouse nghe.",
+        "Gửi về 72 Lê Lợi, TP Huế, Thừa Thiên Huế, nhận hàng cô trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-UF",
+        "price_quoted_vnd": 3290000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "72 Lê Lợi, TP Huế, Thừa Thiên Huế"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-WF-UF",
+          "price_vnd": 3290000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 7,
+      "customer_goal": "hoi gia giup nguoi khac, khong mua",
+      "customer_turns": [
+        "Alo em, cái UF Sunhouse cô đặt bữa trước giờ bán giá bao nhiêu rồi? Đứa em cô nó muốn biết thôi.",
+        "Ừ để cô nói lại nó, cô không đặt chi đâu nghe."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "3 triệu 290",
+          "3,290,000",
+          "3.290.000",
+          "3290000",
+          "3290k",
+          "3tr290"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F15n-dong-y-cu-khong-thanh-dong-y-moi",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N237",
+    "synthetic_customer": true,
+    "address": "72 Lê Lợi, TP Huế, Thừa Thiên Huế",
+    "dates": {
+      "call_1": "2026-10-13",
+      "call_2": "2026-10-20"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N237",
+      "p": "SKU-WF-UF",
+      "d1": "2026-10-13",
+      "gap": 7
+    },
+    "template_family": "H13-F15",
+    "group": "nho_qua_phien",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cô đặt UF Sunhouse nha em.",
+        "Địa chỉ 72 Lê Lợi, TP Huế, Thừa Thiên Huế, thanh toán khi nhận hàng giúp cô."
+      ],
+      "call_2": [
+        "Alo em, UF Sunhouse cô đặt hôm trước giờ bán giá nhiêu? Đứa em cô muốn biết thôi.",
+        "Ok cô nói lại nó, cô không đặt gì đâu nha."
+      ]
+    }
+  }
+}

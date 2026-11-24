@@ -1,0 +1,32 @@
+{
+  "candidate": "h13_v6p15_btc_tools_20261124",
+  "status": "cpu_passed_api_canary_pending",
+  "candidate_manifest_sha256": "73f4d48df1325d2ab403c30ba0bec4dbd55a54e48fa2c585eabd19b48ac3b723",
+  "base": "candidates/h13_v6p14_round2b_20261124 (3f9f57cf)",
+  "step": "BTC tools only: order.update + optional line_sku (LINE_SKU_UPDATE), ORDER_EXT_TOOLS=0 (remove/cancel → handoff), DONE_NO_HANDOFF=0",
+  "flags_on": [
+    "PII_NER",
+    "UNDERSTANDING_RETRY",
+    "ADDRESS_SCOPE_GATE",
+    "WRITE_PATH_GATE",
+    "NULLABLE_EVIDENCE",
+    "TRIAL_TOTAL",
+    "PICK_BY_NAME",
+    "CLAIM_SPAN",
+    "DOC_ANSWER",
+    "LINE_SKU_UPDATE"
+  ],
+  "flags_off": [
+    "ORDER_EXT_TOOLS",
+    "DONE_NO_HANDOFF"
+  ],
+  "changed_runtime_files_vs_v6p14": [
+    "harness/order_ext.py",
+    "harness/tools.py",
+    "mcp_servers/commerce_server.py",
+    "harness/plan_primitives.py"
+  ],
+  "cpu_job": "elylish11/sudocode-v6p15-cpu1 v1",
+  "cpu_result": "runs/kaggle/v6p15-cpu1-r1 exit 0 (v6p15 19/19 incl. MCP + all prior)",
+  "fixture": "r7"
+}

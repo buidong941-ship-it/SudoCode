@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "counts": {
+    "scenarios": 86,
+    "calls": 162,
+    "customer_turns": 346
+  },
+  "repaired_fields": 85,
+  "source_corrupted_scenarios": [
+    "H13-025",
+    "H13-026",
+    "H13-027",
+    "H13-028",
+    "H13-029",
+    "H13-030",
+    "H13-031",
+    "H13-032",
+    "H13-045",
+    "H13-046",
+    "H13-047",
+    "H13-048",
+    "H13-067",
+    "H13-068",
+    "H13-085",
+    "H13-086"
+  ],
+  "source_corrupted_runtime_scenarios": [
+    "H13-029",
+    "H13-030",
+    "H13-031",
+    "H13-032",
+    "H13-047",
+    "H13-048",
+    "H13-067",
+    "H13-068",
+    "H13-085",
+    "H13-086"
+  ],
+  "errors": [],
+  "manifest_sha256": "e56f6978134ce86d33368990cc71d9f80f70b12cbf77b4234f6c85fe42581139",
+  "protected_btc_files": 13
+}

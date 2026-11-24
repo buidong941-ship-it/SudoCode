@@ -1,0 +1,19 @@
+{
+  "status": "READY_FOR_KAGGLE_PREFLIGHT_NOT_RUN",
+  "source_release": "datagen/datasets/releases/h13_revised_20261122_utf8",
+  "source_integrity": "PASS per existing Kaggle report",
+  "source_structure_errors": 0,
+  "source_structure_warnings": [
+    "địa chỉ '28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk' dùng cho 2 khách khác nhau: ['0918600000', '0941474347']",
+    "địa chỉ '109 Quang Trung, Hà Đông, Hà Nội' dùng cho 2 khách khác nhau: ['0918500000', '0957191850']"
+  ],
+  "source_scenario_hashes": "86/86 match current manifest",
+  "source_audit_hashes": "all declared entries match",
+  "source_report_hashes": "both match VALIDATION.json",
+  "canary_scenario_hashes": "24/24 match source r3",
+  "candidate_manifest_matches": true,
+  "candidate_lock_matches": true,
+  "checklist": "47 NOT_RUN rows regenerated from current r3 scenarios; previous checklist preserved in old canary",
+  "agent_run": false,
+  "new_tests_run_locally": false
+}

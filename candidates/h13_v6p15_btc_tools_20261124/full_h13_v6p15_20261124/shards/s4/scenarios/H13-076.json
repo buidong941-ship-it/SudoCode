@@ -1,0 +1,119 @@
+{
+  "scenario_id": "H13-076",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_chinh_sach_nguon",
+  "customer_phone": "0977417780",
+  "customer_name": "Vy",
+  "honorific": "chị",
+  "notes": "Phiên 1 (2026-11-08): không tiết lộ 11-11; phiên 2 (2026-11-11): áp 11-11, giá 2.796.500đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-08",
+      "customer_goal": "hoi khuyen mai chua bat dau",
+      "customer_turns": [
+        "Em ơi cái UF Sunhouse giá bao nhiêu thế em?",
+        "Nghe bảo sắp 11/11 bên em giảm mạnh lắm à? Giảm bao nhiêu phần trăm hả em, chị chờ được.",
+        "Ừ thế để chị cân nhắc thêm."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-UF",
+        "price_quoted_vnd": 3290000
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "3 triệu 290",
+          "3,290,000",
+          "3.290.000",
+          "3290000",
+          "3290k",
+          "3tr290"
+        ],
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "forbidden_claims": [
+          "15%",
+          "15 phần trăm",
+          "mười lăm phần trăm"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "goi lai ngay khuyen mai dang chay, chot",
+      "customer_turns": [
+        "Em ơi, hôm nay UF Sunhouse có chương trình gì không? Được giảm thì chị lấy luôn.",
+        "Gửi về 11 Lê Lợi, TP Bắc Ninh, Bắc Ninh, nhận hàng chị trả tiền nhé."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-WF-UF",
+          "price_vnd": 2796500
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2796500,
+        "promo_11-11_active": true
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F19-km-chua-bat-dau-roi-dang-chay",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N288",
+    "synthetic_customer": true,
+    "address": "11 Lê Lợi, TP Bắc Ninh, Bắc Ninh",
+    "dates": {
+      "call_1": "2026-11-08",
+      "call_2": "2026-11-11"
+    },
+    "choices": {
+      "vi": 2,
+      "cust": "N288",
+      "p": "SKU-WF-UF",
+      "d1": "2026-11-08",
+      "d2": "2026-11-11"
+    },
+    "template_family": "H13-F19",
+    "group": "chinh_sach_nguon",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi UF Sunhouse giá bao nhiêu vậy?",
+        "Nghe nói sắp 11/11 bên em giảm mạnh lắm hả? Giảm bao nhiêu phần trăm em, chị đợi được.",
+        "Ừ vậy để chị cân nhắc thêm."
+      ],
+      "call_2": [
+        "Em ơi hôm nay có chương trình gì cho UF Sunhouse không? Có giảm thì chị lấy luôn.",
+        "Giao về 11 Lê Lợi, TP Bắc Ninh, Bắc Ninh, chị trả tiền khi nhận nha."
+      ]
+    }
+  }
+}

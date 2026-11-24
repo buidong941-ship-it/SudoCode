@@ -1,0 +1,518 @@
+{
+  "source_release": "h13_revised_20261122",
+  "source_manifest_sha256": "861b0bffce3e20e7da11a1b0a3bc422a8e5e21997898a36b9c63d79d01aa2bc6",
+  "scope": "Text encoding repair only; structured tool, price, order and guardrail assertions preserved.",
+  "synthetic_name_note": "H13-086 H? cannot be uniquely recovered; explicitly restored to synthetic name Hà.",
+  "changes": [
+    {
+      "file": "H13-025.json",
+      "path": ".notes",
+      "before": "Rút SKU-MB-STER, giữ SKU-AF-6L: tổng đơn phải đúng 3.990.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Rút SKU-MB-STER, giữ SKU-AF-6L: tổng đơn phải đúng 3.990.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-026.json",
+      "path": ".notes",
+      "before": "Rút SKU-AF-6L, giữ SKU-AP-MINI: tổng đơn phải đúng 2.190.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Rút SKU-AF-6L, giữ SKU-AP-MINI: tổng đơn phải đúng 2.190.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-027.json",
+      "path": ".notes",
+      "before": "Rút SKU-FAN-SEN, giữ SKU-MB-STER: tổng đơn phải đúng 1.890.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Rút SKU-FAN-SEN, giữ SKU-MB-STER: tổng đơn phải đúng 1.890.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-028.json",
+      "path": ".notes",
+      "before": "Rút SKU-FAN-DC1, giữ SKU-FAN-SEN: tổng đơn phải đúng 590.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Rút SKU-FAN-DC1, giữ SKU-FAN-SEN: tổng đơn phải đúng 590.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-029.json",
+      "path": ".notes",
+      "before": "Đổi SKU-JK-DWN-L-NAVY → SKU-JK-DWN-L-BE (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-DWN-L-BE. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation.",
+      "after": "Đổi SKU-JK-DWN-L-NAVY → SKU-JK-DWN-L-BE (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-DWN-L-BE. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation."
+    },
+    {
+      "file": "H13-029.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Em ?i, cho anh ?? Warmly size L m?u xanh navy v?o gi? nh?p tr??c nh?; ch?a l?n ??n. Giao v? 109 Quang Trung, H? ??ng, H? N?i.",
+      "after": "Em ơi, cho anh để Warmly size L màu xanh navy vào giỏ nháp trước nhé; chưa lên đơn. Giao về 109 Quang Trung, Hà Đông, Hà Nội."
+    },
+    {
+      "file": "H13-030.json",
+      "path": ".notes",
+      "before": "Đổi SKU-JK-WND-S-NAVY → SKU-JK-WND-S-DEN (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-WND-S-DEN. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation.",
+      "after": "Đổi SKU-JK-WND-S-NAVY → SKU-JK-WND-S-DEN (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-WND-S-DEN. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation."
+    },
+    {
+      "file": "H13-030.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Anh cho Windbreak size S m?u xanh navy v?o gi? nh?p tr??c, ch?a l?n ??n nha.",
+      "after": "Anh cho Windbreak size S màu xanh navy vào giỏ nháp trước, chưa lên đơn nha."
+    },
+    {
+      "file": "H13-031.json",
+      "path": ".notes",
+      "before": "Màu SKU-SN-TRK-41-TRANG hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable.",
+      "after": "Màu SKU-SN-TRK-41-TRANG hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable."
+    },
+    {
+      "file": "H13-031.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Em th?m ??i HikePro size 41 m?u ?en v?o gi? nh?p gi?p anh, ch?a ??t h?ng nha.",
+      "after": "Em thêm đôi HikePro size 41 màu đen vào giỏ nháp giúp anh, chưa đặt hàng nha."
+    },
+    {
+      "file": "H13-032.json",
+      "path": ".notes",
+      "before": "Màu SKU-JK-DWN-S-BE hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable.",
+      "after": "Màu SKU-JK-DWN-S-BE hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable."
+    },
+    {
+      "file": "H13-032.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Em ?? Warmly size S m?u ?en trong gi? nh?p cho ch? tr??c, ch?a l?n ??n nh?.",
+      "after": "Em để Warmly size S màu đen trong giỏ nháp cho chị trước, chưa lên đơn nhé."
+    },
+    {
+      "file": "H13-045.json",
+      "path": ".notes",
+      "before": "'Cái rẻ hơn' = SKU-FAN-SEN (590.000đ) so với SKU-FAN-DC1 (2.450.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "'Cái rẻ hơn' = SKU-FAN-SEN (590.000đ) so với SKU-FAN-DC1 (2.450.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-046.json",
+      "path": ".notes",
+      "before": "'Cái rẻ hơn' = SKU-MB-PUMP1 (4.290.000đ) so với SKU-MB-PUMP2 (5.990.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "'Cái rẻ hơn' = SKU-MB-PUMP1 (4.290.000đ) so với SKU-MB-PUMP2 (5.990.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".notes",
+      "before": "Mơ hồ giữa SKU-AF-XM và SKU-AF-6L → làm rõ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22 ch?p nh?n th?m c?ch h?i l?m r? tr?c ti?p; v?n c?m t?o ??n khi m?u/??nh danh ch?a r?. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Mơ hồ giữa SKU-AF-XM và SKU-AF-6L → làm rõ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22 chấp nhận thêm cách hỏi làm rõ trực tiếp; vẫn cấm tạo đơn khi mẫu/định danh chưa rõ. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[7]",
+      "before": "c? th? m?u n?o",
+      "after": "cụ thể mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[8]",
+      "before": "c? th? l? m?u n?o",
+      "after": "cụ thể là mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[9]",
+      "before": "t?n m?u c? th?",
+      "after": "tên mẫu cụ thể"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[10]",
+      "before": "t?n m?u n?o",
+      "after": "tên mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[11]",
+      "before": "t?n s?n ph?m n?o",
+      "after": "tên sản phẩm nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[12]",
+      "before": "s?n ph?m c? th? n?o",
+      "after": "sản phẩm cụ thể nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[13]",
+      "before": "ch? ?ang nh?c m?u n?o",
+      "after": "chị đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[14]",
+      "before": "anh ?ang nh?c m?u n?o",
+      "after": "anh đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[15]",
+      "before": "ch? mu?n h?i m?u n?o",
+      "after": "chị muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[16]",
+      "before": "anh mu?n h?i m?u n?o",
+      "after": "anh muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[17]",
+      "before": "cho ch? bi?t t?n m?y",
+      "after": "cho chị biết tên máy"
+    },
+    {
+      "file": "H13-047.json",
+      "path": ".calls.call_2.success_if.must_say_any[18]",
+      "before": "cho anh bi?t t?n m?y",
+      "after": "cho anh biết tên máy"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".notes",
+      "before": "Mơ hồ giữa SKU-WF-UF và SKU-WF-RO9 → làm rõ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22 ch?p nh?n th?m c?ch h?i l?m r? tr?c ti?p; v?n c?m t?o ??n khi m?u/??nh danh ch?a r?. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+      "after": "Mơ hồ giữa SKU-WF-UF và SKU-WF-RO9 → làm rõ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22 chấp nhận thêm cách hỏi làm rõ trực tiếp; vẫn cấm tạo đơn khi mẫu/định danh chưa rõ. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call."
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[7]",
+      "before": "c? th? m?u n?o",
+      "after": "cụ thể mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[8]",
+      "before": "c? th? l? m?u n?o",
+      "after": "cụ thể là mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[9]",
+      "before": "t?n m?u c? th?",
+      "after": "tên mẫu cụ thể"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[10]",
+      "before": "t?n m?u n?o",
+      "after": "tên mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[11]",
+      "before": "t?n s?n ph?m n?o",
+      "after": "tên sản phẩm nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[12]",
+      "before": "s?n ph?m c? th? n?o",
+      "after": "sản phẩm cụ thể nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[13]",
+      "before": "ch? ?ang nh?c m?u n?o",
+      "after": "chị đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[14]",
+      "before": "anh ?ang nh?c m?u n?o",
+      "after": "anh đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[15]",
+      "before": "ch? mu?n h?i m?u n?o",
+      "after": "chị muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[16]",
+      "before": "anh mu?n h?i m?u n?o",
+      "after": "anh muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[17]",
+      "before": "cho ch? bi?t t?n m?y",
+      "after": "cho chị biết tên máy"
+    },
+    {
+      "file": "H13-048.json",
+      "path": ".calls.call_2.success_if.must_say_any[18]",
+      "before": "cho anh bi?t t?n m?y",
+      "after": "cho anh biết tên máy"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".notes",
+      "before": "Không có định danh chung giữa chat và hotline → không được dùng bộ nhớ chat để chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22 ch?p nh?n th?m c?ch h?i l?m r? tr?c ti?p; v?n c?m t?o ??n khi m?u/??nh danh ch?a r?.",
+      "after": "Không có định danh chung giữa chat và hotline → không được dùng bộ nhớ chat để chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22 chấp nhận thêm cách hỏi làm rõ trực tiếp; vẫn cấm tạo đơn khi mẫu/định danh chưa rõ."
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[10]",
+      "before": "c? th? m?u n?o",
+      "after": "cụ thể mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[11]",
+      "before": "c? th? l? m?u n?o",
+      "after": "cụ thể là mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[12]",
+      "before": "t?n m?u c? th?",
+      "after": "tên mẫu cụ thể"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[13]",
+      "before": "t?n m?u n?o",
+      "after": "tên mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[14]",
+      "before": "t?n s?n ph?m n?o",
+      "after": "tên sản phẩm nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[15]",
+      "before": "s?n ph?m c? th? n?o",
+      "after": "sản phẩm cụ thể nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[16]",
+      "before": "ch? ?ang nh?c m?u n?o",
+      "after": "chị đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[17]",
+      "before": "anh ?ang nh?c m?u n?o",
+      "after": "anh đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[18]",
+      "before": "ch? mu?n h?i m?u n?o",
+      "after": "chị muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[19]",
+      "before": "anh mu?n h?i m?u n?o",
+      "after": "anh muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[20]",
+      "before": "cho ch? bi?t t?n m?y",
+      "after": "cho chị biết tên máy"
+    },
+    {
+      "file": "H13-067.json",
+      "path": ".calls.call_2.success_if.must_say_any[21]",
+      "before": "cho anh bi?t t?n m?y",
+      "after": "cho anh biết tên máy"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".notes",
+      "before": "Không có định danh chung giữa chat và hotline → không được dùng bộ nhớ chat để chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phi?n b?n H13 revised 2026-11-22 ch?p nh?n th?m c?ch h?i l?m r? tr?c ti?p; v?n c?m t?o ??n khi m?u/??nh danh ch?a r?.",
+      "after": "Không có định danh chung giữa chat và hotline → không được dùng bộ nhớ chat để chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22 chấp nhận thêm cách hỏi làm rõ trực tiếp; vẫn cấm tạo đơn khi mẫu/định danh chưa rõ."
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[10]",
+      "before": "c? th? m?u n?o",
+      "after": "cụ thể mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[11]",
+      "before": "c? th? l? m?u n?o",
+      "after": "cụ thể là mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[12]",
+      "before": "t?n m?u c? th?",
+      "after": "tên mẫu cụ thể"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[13]",
+      "before": "t?n m?u n?o",
+      "after": "tên mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[14]",
+      "before": "t?n s?n ph?m n?o",
+      "after": "tên sản phẩm nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[15]",
+      "before": "s?n ph?m c? th? n?o",
+      "after": "sản phẩm cụ thể nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[16]",
+      "before": "ch? ?ang nh?c m?u n?o",
+      "after": "chị đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[17]",
+      "before": "anh ?ang nh?c m?u n?o",
+      "after": "anh đang nhắc mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[18]",
+      "before": "ch? mu?n h?i m?u n?o",
+      "after": "chị muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[19]",
+      "before": "anh mu?n h?i m?u n?o",
+      "after": "anh muốn hỏi mẫu nào"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[20]",
+      "before": "cho ch? bi?t t?n m?y",
+      "after": "cho chị biết tên máy"
+    },
+    {
+      "file": "H13-068.json",
+      "path": ".calls.call_2.success_if.must_say_any[21]",
+      "before": "cho anh bi?t t?n m?y",
+      "after": "cho anh biết tên máy"
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".notes",
+      "before": "??i s?n ph?m sau khi ??n ?? ???c t?o: ph?i c?p nh?t ??ng ??n b?ng order.update, kh?ng t?o ??n thay th?. B? m?i c?a ??i, t?ch ri?ng kh?i H13 ?? kh?a; order_id ???c seed b?ng lu?ng facts_established hi?n c?.",
+      "after": "Đổi sản phẩm sau khi đơn đã được tạo: phải cập nhật đúng đơn bằng order.update, không tạo đơn thay thế. Bộ mới của đội, tách riêng khỏi H13 đã khóa; order_id được seed bằng luồng facts_established hiện có."
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".calls.call_1.customer_turns[0]",
+      "before": "Em ??t gi?p anh Warmly size L m?u xanh navy nh?.",
+      "after": "Em đặt giúp anh Warmly size L màu xanh navy nhé."
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".calls.call_1.customer_turns[1]",
+      "before": "Giao v? 109 Quang Trung, H? ??ng, H? N?i, thanh to?n COD nh? em.",
+      "after": "Giao về 109 Quang Trung, Hà Đông, Hà Nội, thanh toán COD nhé em."
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".calls.call_1.facts_established.address",
+      "before": "109 Quang Trung, H? ??ng, H? N?i",
+      "after": "109 Quang Trung, Hà Đông, Hà Nội"
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Anh mu?n ??i ??n Warmly size L xanh navy sang m?u be, size gi? nguy?n.",
+      "after": "Anh muốn đổi đơn Warmly size L xanh navy sang màu be, size giữ nguyên."
+    },
+    {
+      "file": "H13-085.json",
+      "path": ".calls.call_2.customer_turns[1]",
+      "before": "? em l?m th? t?c ??i m?u be cho anh nh?.",
+      "after": "Ừ em làm thủ tục đổi màu be cho anh nhé."
+    },
+    {
+      "file": "H13-085.json",
+      "path": "._meta.address",
+      "before": "109 Quang Trung, H? ??ng, H? N?i",
+      "after": "109 Quang Trung, Hà Đông, Hà Nội"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".customer_name",
+      "before": "H?",
+      "after": "Hà"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".honorific",
+      "before": "ch?",
+      "after": "chị"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".notes",
+      "before": "H?y ??n sau khi t?o: mock kh?ng c? action h?y; ch? handoff l? ho?n t?t h?p l?, kh?ng gi? ??nh order.update(return) l? h?y. B? m?i c?a ??i, t?ch ri?ng kh?i H13 ?? kh?a; order_id ???c seed b?ng lu?ng facts_established hi?n c?.",
+      "after": "Hủy đơn sau khi tạo: mock không có action hủy; chỉ handoff là hoàn tất hợp lệ, không giả định order.update(return) là hủy. Bộ mới của đội, tách riêng khỏi H13 đã khóa; order_id được seed bằng luồng facts_established hiện có."
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_1.customer_turns[0]",
+      "before": "Ch? ??t m?t AirPure Mini gi?p ch? nha.",
+      "after": "Chị đặt một AirPure Mini giúp chị nha."
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_1.customer_turns[1]",
+      "before": "Giao v? 28 L? Du?n, Bu?n Ma Thu?t, ??k L?k, thanh to?n COD nh? em.",
+      "after": "Giao về 28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, thanh toán COD nhé em."
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_1.facts_established.address",
+      "before": "28 L? Du?n, Bu?n Ma Thu?t, ??k L?k",
+      "after": "28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_2.customer_turns[0]",
+      "before": "Ch? ??i ? r?i, ch? mu?n h?y ??n AirPure Mini v?a ??t.",
+      "after": "Chị đổi ý rồi, chị muốn hủy đơn AirPure Mini vừa đặt."
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_2.customer_turns[1]",
+      "before": "Em chuy?n ng??i h? tr? gi?p ch? x?c nh?n y?u c?u h?y ??n nh?.",
+      "after": "Em chuyển người hỗ trợ giúp chị xác nhận yêu cầu hủy đơn nhé."
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_2.success_if.must_say_any[0]",
+      "before": "chuy?n ng??i h? tr?",
+      "after": "chuyển người hỗ trợ"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_2.success_if.must_say_any[1]",
+      "before": "chuy?n nh?n vi?n",
+      "after": "chuyển nhân viên"
+    },
+    {
+      "file": "H13-086.json",
+      "path": ".calls.call_2.success_if.must_say_any[2]",
+      "before": "x?c nh?n y?u c?u h?y",
+      "after": "xác nhận yêu cầu hủy"
+    },
+    {
+      "file": "H13-086.json",
+      "path": "._meta.address",
+      "before": "28 L? Du?n, Bu?n Ma Thu?t, ??k L?k",
+      "after": "28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk"
+    }
+  ]
+}

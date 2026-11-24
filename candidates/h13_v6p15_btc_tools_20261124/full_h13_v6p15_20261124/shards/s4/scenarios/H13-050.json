@@ -1,0 +1,94 @@
+{
+  "scenario_id": "H13-050",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_dieu_kien",
+  "customer_phone": "0937925956",
+  "customer_name": "Long",
+  "honorific": "anh",
+  "notes": "KM vẫn còn ngày gọi lại → giá 1.521.000đ = giá cũ → chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-18",
+      "customer_goal": "hoi gia dang khuyen mai",
+      "customer_turns": [
+        "Ờ em, đôi RunLite 2 Pro size 40 màu trắng bên em đang bán giá nào vậy?",
+        "Ừ được, vài bữa nữa anh gọi lại chốt nghe."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-RUN2",
+        "variant_sku": "SKU-SN-RUN2-40-TRANG",
+        "price_quoted_vnd": 1521000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1521000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "chot neu gia khong doi",
+      "customer_turns": [
+        "Alo em, đôi RunLite 2 Pro size 40 màu trắng còn giá 1 triệu 521 không em? Còn thì chốt cho anh, mà lên giá rồi thì thôi anh không lấy đâu.",
+        "Gửi về 194 Trần Phú, Nha Trang, Khánh Hòa, COD nghe em."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-RUN2-40-TRANG",
+          "price_vnd": 1521000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1521000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F12p-dieu-kien-gia-theo-ngay-goi",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N183",
+    "synthetic_customer": true,
+    "address": "194 Trần Phú, Nha Trang, Khánh Hòa",
+    "dates": {
+      "call_1": "2026-10-18",
+      "call_2": "2026-10-20"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N183",
+      "p": "SKU-SN-RUN2-40-TRANG",
+      "d1": "2026-10-18",
+      "gap": 2
+    },
+    "template_family": "H13-F12",
+    "group": "dieu_kien",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho anh hỏi RunLite 2 Pro size 40 màu trắng bên em đang bán giá nào?",
+        "Được, vài bữa nữa anh gọi lại chốt."
+      ],
+      "call_2": [
+        "Alo em, RunLite 2 Pro size 40 màu trắng còn giá 1 triệu 521 không? Còn giá đó thì chốt cho anh, lên giá rồi thì anh không lấy đâu.",
+        "Địa chỉ 194 Trần Phú, Nha Trang, Khánh Hòa, COD nhé."
+      ]
+    }
+  }
+}

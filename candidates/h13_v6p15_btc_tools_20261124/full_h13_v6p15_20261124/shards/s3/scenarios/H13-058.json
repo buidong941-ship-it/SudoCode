@@ -1,0 +1,152 @@
+{
+  "scenario_id": "H13-058",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_nho_qua_phien",
+  "customer_phone": "0944295326",
+  "customer_name": "Hùng",
+  "honorific": "anh",
+  "notes": "Địa chỉ cũ bị thay ở phiên 2 (không có đơn đang mở); phiên 3 phải dùng 203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng, không đọc lại địa chỉ cũ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-03",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Ờ em, anh đặt cái UF Sunhouse nghe.",
+        "Gửi về 85 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, nhận hàng anh trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-UF",
+        "price_quoted_vnd": 3290000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "85 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-WF-UF",
+          "price_vnd": 3290000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 7,
+      "customer_goal": "bao dia chi moi, khong dat hang",
+      "customer_turns": [
+        "Alo em, anh chuyển nhà rồi, địa chỉ mới là 203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng. Đơn cũ thì anh nhận rồi nghe.",
+        "Em sửa lại giùm anh, mấy đơn sau gửi về chỗ này nghe."
+      ],
+      "facts_established": {
+        "address": "203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng"
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create",
+          "order.update"
+        ],
+        "must_say_any": [
+          "ghi nhận",
+          "cập nhật",
+          "ghi lại",
+          "lưu lại",
+          "đã lưu"
+        ]
+      },
+      "memory_expectation": {
+        "address": "203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+        "superseded": "85 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk"
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_3": {
+      "days_later": 5,
+      "customer_goal": "dat hang giao dia chi moi da bao",
+      "customer_turns": [
+        "Em ơi anh lấy một cái Philips 6.2L, gửi về nhà mới như bữa anh dặn nghe.",
+        "Nhận hàng trả tiền mặt nghe em."
+      ],
+      "must_carry_over": [
+        "address"
+      ],
+      "must_not_ask": [
+        "address"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-6L",
+          "price_vnd": 3990000
+        },
+        "trace_must_not_match": [
+          "85 Lê Duẩn"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F14-dia-chi-moi-thay-dia-chi-cu",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N214",
+    "synthetic_customer": true,
+    "address": "85 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk",
+    "dates": {
+      "call_1": "2026-10-03",
+      "call_2": "2026-10-10",
+      "call_3": "2026-10-15"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N214",
+      "addr2": "203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+      "p": "SKU-WF-UF",
+      "b": "SKU-AF-6L",
+      "d1": "2026-10-03",
+      "g1": 7,
+      "g2": 5
+    },
+    "template_family": "H13-F14",
+    "group": "nho_qua_phien",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ],
+      "call_3": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Anh đặt UF Sunhouse nha em.",
+        "Địa chỉ 85 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, thanh toán khi nhận hàng giúp anh."
+      ],
+      "call_2": [
+        "Alo em, anh đổi chỗ ở rồi, địa chỉ mới là 203 Nguyễn Văn Linh, Hải Châu, Đà Nẵng. Đơn cũ thì anh nhận xong rồi.",
+        "Em cập nhật giúp anh, mấy đơn sau gửi về đây nha."
+      ],
+      "call_3": [
+        "Anh lấy một Philips 6.2L nhé em, gửi về nhà mới như anh dặn hôm trước.",
+        "Tiền mặt khi nhận nha."
+      ]
+    }
+  }
+}

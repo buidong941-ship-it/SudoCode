@@ -1,0 +1,75 @@
+{
+  "scenario_id": "H13-071",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_chinh_sach_nguon",
+  "customer_phone": "0970151355",
+  "customer_name": "Lan",
+  "honorific": "chị",
+  "notes": "Chỉ hỏi phí ship → trả lời phụ thu 30.000đ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-18",
+      "customer_goal": "hoi phi ship hang cong kenh, chua dat",
+      "customer_turns": [
+        "Em ơi, nhà chị ở xóm Mới, xã Thanh Hà, huyện Thanh Liêm, Hà Nam, đặt cái UF Sunhouse về đấy có mất phí ship không em?",
+        "Thế để chị hỏi thêm mấy chỗ khác rồi tính nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-UF",
+        "price_quoted_vnd": 3290000,
+        "address": "xóm Mới, xã Thanh Hà, huyện Thanh Liêm, Hà Nam"
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "30.000",
+          "30k",
+          "30 nghìn",
+          "ba mươi nghìn"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F18n-phi-ship-hang-cong-kenh",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N266",
+    "synthetic_customer": true,
+    "address": "xóm Mới, xã Thanh Hà, huyện Thanh Liêm, Hà Nam",
+    "dates": {
+      "call_1": "2026-10-18"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N266",
+      "p": "SKU-WF-UF",
+      "d1": "2026-10-18",
+      "addr": "xóm Mới, xã Thanh Hà, huyện Thanh Liêm, Hà Nam"
+    },
+    "template_family": "H13-F18",
+    "group": "chinh_sach_nguon",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi nhà chị ở xóm Mới, xã Thanh Hà, huyện Thanh Liêm, Hà Nam, đặt UF Sunhouse về đó có mất phí ship không em?",
+        "Vậy để chị hỏi thêm chỗ khác rồi tính nha."
+      ]
+    }
+  }
+}
