@@ -12,6 +12,13 @@ Bố cục:
 - Thanh bên  chỉ cái nhân viên cần + cảnh báo ảnh hưởng cuộc gọi; namespace / DB / hash / backend trong "Thông tin hệ thống".
 - Bộ nhớ     timeline theo ngày (phiên, báo giá, hành động, fact mới); bảng fact kỹ thuật mở khi cần.
 - Cải tiến   từng bước: 1 Tiếp nhận → 2 Soạn nháp → 3 Duyệt & đóng gói.
+
+Candidate tích hợp (UI_PROFILE=b2_integ_tt, freeze 20261117-integ-ui): thanh bên có hai cờ độc lập (tư vấn hai tầng B2-TT; dùng gói
+hướng dẫn đang kích hoạt), áp dụng khi mở cuộc gọi. Tab Cải tiến = kho hướng dẫn điều phối: 1 Tiếp nhận & nhập nháp → 2 Duyệt TỪNG
+hướng dẫn → 3 Đóng gói, regress, kích hoạt / quay lui → 4 Thử truy hồi. FAQ đã dừng mở rộng (chỉ xem lại trong mục gập).
+18/11 (freeze 20261118-integ-ui3), bước 2: "Chỉnh sửa" lưu thành PHIÊN BẢN NHÁP MỚI (bản đã duyệt / đã đóng gói / đang kích hoạt
+không bị sửa tại chỗ); "So sánh trước / sau (Jev thật)" chạy luồng agent thật hai phiên thử độc lập (không / có bản nháp) trong
+tiến trình riêng, hiện cạnh nhau: hướng dẫn truy hồi + đưa vào Jev, hành động Jev chọn, tool, câu trả lời, thời gian.
 """
 import hashlib
 import json
@@ -111,7 +118,20 @@ with st.sidebar:
                                           format_func=lambda x: "Có bộ nhớ" if x == "full" else "Không bộ nhớ (baseline)")
     eng = get_engine()
     pkg = E.active_package()
-    st.caption("Gói FAQ: " + (f"đang bật ({str(pkg.get('approved_hash'))[:12]})" if pkg.get("package") else "tắt"))
+    if E.CANDIDATE:
+        st.markdown("**Candidate tích hợp** · áp dụng khi mở cuộc gọi")
+        busy = eng.sess is not None
+        eng.two_tier = st.checkbox("Tư vấn hai tầng (B2-TT)", value=eng.two_tier, disabled=busy, key=f"tt-{eng.ns}",
+                                   help="B2_TWO_TIER: tìm / so sánh / giá thấp nhất chỉ đọc; giao dịch vẫn qua cổng của bản chính")
+        eng.use_guidance = st.checkbox("Dùng gói hướng dẫn đang kích hoạt", value=eng.use_guidance, disabled=busy, key=f"gd-{eng.ns}",
+                                       help="tắt = kho rỗng (R0); bật = gói đã duyệt + đóng gói + kích hoạt ở tab Cải tiến (R1)")
+        ga = E.guidance_active()
+        st.caption("Gói hướng dẫn: " + (f"{os.path.basename(ga['package'])} ({str(ga.get('approved_hash'))[:12]})"
+                                        if ga.get("package") else "chưa kích hoạt gói nào"))
+        st.caption(f"Chế độ {'cuộc gọi đang mở' if busy else 'cuộc gọi mới'}: **{eng.mode()}** — {E.MODE_LABEL[eng.mode()]}")
+        st.caption("Gói FAQ: không nạp (candidate chỉ khác gói hướng dẫn)")
+    else:
+        st.caption("Gói FAQ: " + (f"đang bật ({str(pkg.get('approved_hash'))[:12]})" if pkg.get("package") else "tắt"))
     with st.expander("Thông tin hệ thống"):
         st.caption(BOOT["label"])
         st.caption(f"ARCH={BOOT['arch']} · PLANNER_VARIANT={BOOT['planner_variant']}")
@@ -239,6 +259,17 @@ def show_turn(eng, row, feedback=True):
                 st.markdown("**tool:** " + ", ".join(t["name"] for t in tools))
             if imp:
                 st.json(imp, expanded=False)
+            if ui.get("mode"):
+                st.markdown(f"**chế độ:** {ui['mode']} ({E.MODE_LABEL.get(ui['mode'], '')})"
+                            + (f" · gói hướng dẫn {str(ui.get('guidance_hash'))[:12]}" if ui.get("guidance_hash") else ""))
+            tt = lp.get("two_tier") or {}
+            if tt:
+                st.caption(f"B2-TT: tác vụ {tt.get('task')} · kết quả {tt.get('outcome')} · Jev {tt.get('jev_calls')} · tool {tt.get('tool_calls')}")
+            gtr = lp.get("guidance") or {}
+            if gtr.get("status") and gtr.get("status") != "disabled":
+                st.caption(f"Hướng dẫn: {gtr['status']} · chọn {gtr.get('selected') or []} · đưa vào Jev {gtr.get('supplied_to_planner') or []}"
+                           + (f" · lỗi {gtr.get('error')}" if gtr.get("error") else "")
+                           + " — có trong prompt chưa chứng minh đã có tác dụng")
             if row.get("memory_writes"):
                 st.markdown("**ghi bộ nhớ:** " + ", ".join(f"{w.get('key')} ({w.get('op')})" for w in row["memory_writes"]))
 
@@ -264,7 +295,8 @@ with tab_call:
         cur = eng.calls[-1]
         left, right = st.columns([3, 2], gap="large")
         with left:
-            st.markdown(f"**{cur['call']}** · {cur['date']} · {cur['channel']}" + ("" if eng.sess else " · đã kết thúc"))
+            st.markdown(f"**{cur['call']}** · {cur['date']} · {cur['channel']}" + ("" if eng.sess else " · đã kết thúc")
+                        + (f" · chế độ {cur['mode']}" if cur.get("mode") else ""))
             for row in cur["turns"]:
                 show_turn(eng, row)
             if eng.sess:
@@ -358,7 +390,9 @@ with tab_metrics:
 
 # ---------- Cải tiến: từng bước ----------
 STEPS = ["1 · Tiếp nhận", "2 · Soạn nháp", "3 · Duyệt & đóng gói"]
-with tab_improve:
+
+
+def faq_flow():
     from improve import store as S
     root = E.C5_ROOT
     by = st.session_state.get("reviewer", "")
@@ -477,3 +511,399 @@ with tab_improve:
         if os.path.exists(logp):
             with st.expander("Nhật ký kích hoạt / quay lui"):
                 st.table([json.loads(l) for l in open(logp, encoding="utf-8") if l.strip()][-8:])
+
+
+# ---------- Candidate: kho hướng dẫn điều phối (không lồng expander: luồng này có thể nằm cạnh luồng FAQ) ----------
+GSTEPS = ["1 · Tiếp nhận & nhập nháp", "2 · Duyệt từng hướng dẫn", "3 · Đóng gói & kích hoạt", "4 · Thử truy hồi"]
+SLOTS_ASKED = ["", "has_children", "budget_vnd", "room_area_m2", "household_size", "size", "color", "payment", "address"]
+
+
+def run_cmd(args, timeout=600):
+    r = subprocess.run(E.guidance_cmd(*args), capture_output=True, text=True, timeout=timeout, cwd=E.ROOT,
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+def bullets(title, items):
+    if items:
+        st.markdown(f"**{title}**\n" + "\n".join(f"- {x}" for x in items))
+
+
+def guide_card(p, caps):
+    pl = p["payload"]
+    st.markdown(f"#### {pl.get('title')}")
+    st.caption(f"{p['id']} · {pl.get('guide_id')} v{pl.get('version')} · tầng {pl.get('audience')} · {p.get('classification') or ''} · "
+               f"soạn bởi {p.get('author')} lúc {p.get('created_at')}")
+    if p.get("revision_of"):
+        st.caption(f"Phiên bản sửa từ {p['revision_of']} — lý do sửa: {p.get('revision_note') or '—'}")
+    c1, c2 = st.columns(2)
+    with c1:
+        bullets("Áp dụng khi", pl.get("applies_when"))
+        bullets("Cách làm", pl.get("guidance"))
+        bullets("Ví dụ khách nói", pl.get("examples"))
+    with c2:
+        bullets("Ngoại lệ", pl.get("exceptions"))
+        bullets("Tránh", pl.get("avoid"))
+        bullets("Phản ví dụ (không áp dụng)", pl.get("counterexamples"))
+    need = set(pl.get("requires_capabilities") or [])
+    one = "có" if need <= caps["one_tier"] else "KHÔNG (thiếu " + ", ".join(sorted(need - caps["one_tier"])) + ")"
+    two = "có" if need <= caps["two_tier"] else "KHÔNG"
+    st.caption(f"Năng lực cần: {', '.join(sorted(need)) or '—'} · có trên một tầng: {one} · có trên B2-TT: {two} "
+               "(năng lực code khai báo; Jev có chọn đúng hay không phải kiểm bằng canary)")
+    tests = p.get("tests") or []
+    if tests:
+        st.markdown("**Test đi kèm** (dữ liệu; chạy truy hồi thật, không model)")
+        st.dataframe([{"test": t.get("name"), "khách nói": t.get("customer_text"), "nhân viên vừa hỏi": t.get("asked_slot"),
+                       "asks": ", ".join(t.get("asks") or []), "B2-TT": bool(t.get("two_tier")), "kỳ vọng": t.get("expect")}
+                      for t in tests], width="stretch")
+    ev = E.guidance_evidence(p.get("source_gaps"))
+    if ev:
+        st.caption("Bằng chứng (hồ sơ local, không vào gói / prompt): " + "; ".join(
+            f"{e['ev']} · {e.get('source')} · {e.get('scenario') or ''} {e.get('call') or ''} lượt {e.get('turns') or '—'}" for e in ev))
+    elif p.get("source_gaps"):
+        st.caption(f"Bằng chứng {p['source_gaps']}: không có evidence.jsonl trên máy này")
+
+
+EDIT_LISTS = [("applies_when", "Áp dụng khi"), ("guidance", "Cách làm"), ("examples", "Ví dụ khách nói"), ("exceptions", "Ngoại lệ"),
+              ("avoid", "Tránh"), ("counterexamples", "Phản ví dụ (không áp dụng)"), ("tags", "Tags")]
+
+
+def lines(txt):
+    return [x.strip() for x in (txt or "").splitlines() if x.strip()]
+
+
+def edit_panel(p, by, root):
+    """18/11: sửa → PHIÊN BẢN NHÁP MỚI (improve/guidance_edit.revise). Không ghi đè bản đang có; bản đã duyệt giữ nguyên tới khi bản
+    mới được duyệt; gói đã đóng / đang kích hoạt không đổi."""
+    from improve import guidance_edit as GE
+    from improve import store as S
+    pid, pl = p["id"], p["payload"]
+    opened = st.session_state.setdefault("g_edit_open", {})
+    lab = "Chỉnh sửa" if p.get("status") == "pending" else "Chỉnh sửa (tạo bản mới)"
+    if st.button(lab, key=f"ged-{pid}", disabled=not by, help="nhập tên nhân viên ở thanh bên" if not by else None) and by:
+        opened[pid] = True
+    if not opened.get(pid):
+        return
+    with st.container(border=True):
+        st.markdown(f"**Chỉnh sửa {pl.get('guide_id')} v{pl.get('version')} → lưu thành phiên bản nháp mới**")
+        st.caption("Bản đang xem KHÔNG bị ghi đè. " + ("Bản chờ duyệt này sẽ chuyển sang “Đã loại” (thay bằng bản mới)." if p.get("status") == "pending"
+                   else "Bản đã duyệt giữ nguyên tới khi bản mới được duyệt; gói đã đóng / đang kích hoạt không đổi — muốn dùng bản mới phải "
+                        "duyệt, đóng gói lại và kích hoạt.") + " Test đi kèm giữ nguyên; chạy lại test và so sánh trước / sau rồi mới duyệt.")
+        ch = {"title": st.text_input("Tiêu đề", pl.get("title") or "", key=f"ed-{pid}-title"),
+              "audience": st.selectbox("Tầng", list(S.GUIDE_AUDIENCE), index=list(S.GUIDE_AUDIENCE).index(pl.get("audience"))
+                                       if pl.get("audience") in S.GUIDE_AUDIENCE else 2, key=f"ed-{pid}-audience")}
+        c1, c2 = st.columns(2)
+        for i, (f, name) in enumerate(EDIT_LISTS):
+            ch[f] = lines((c1 if i % 2 == 0 else c2).text_area(f"{name} (mỗi dòng một mục)", "\n".join(pl.get(f) or []), key=f"ed-{pid}-{f}"))
+        capo = sorted(S.GUIDE_CAPABILITIES - {"request_commit"})
+        ch["requires_capabilities"] = st.multiselect("Năng lực cần", capo, default=[c for c in pl.get("requires_capabilities") or [] if c in capo],
+                                                     key=f"ed-{pid}-caps")
+        ch["conflict_group"] = st.text_input("Nhóm xung đột", pl.get("conflict_group") or "", key=f"ed-{pid}-cg")
+        note = st.text_input("Lý do sửa (bắt buộc)", key=f"ed-{pid}-note")
+        preview = S.validate({"kind": "planner_guidance", "payload": {**pl, **ch}})
+        if preview:
+            st.warning("Bản sửa chưa hợp lệ (sẽ không lưu): " + "; ".join(preview))
+        s1, s2, _ = st.columns([3, 1, 6])
+        if s1.button("Lưu thành phiên bản mới", key=f"edsave-{pid}", type="primary", disabled=not (by and note.strip())) \
+                and by and note.strip():
+            try:
+                nid = GE.revise(pid, ch, by, note, root=root)
+                opened.pop(pid, None)
+                st.session_state["g_flash"] = (f"Đã lưu {nid} (bản mới, chờ duyệt). Chạy lại test và so sánh trước / sau trước khi duyệt.")
+                st.rerun()
+            except S.ProposalError as e:
+                st.error(str(e))
+        if s2.button("Đóng", key=f"edclose-{pid}"):
+            opened.pop(pid, None)
+            st.rerun()
+
+
+def _names(*groups):
+    out = {}
+    for g in groups:
+        for p in g:
+            pl = p.get("payload") or p
+            out[p["id"]] = f"{pl.get('title') or p['id']} (v{pl.get('version')})"
+    return out
+
+
+def _tools_txt(tools):
+    return "; ".join(f"{t['name']}({', '.join(f'{k}={v}' for k, v in (t.get('args') or {}).items())})"
+                     + (" — GHI (môi trường thử)" if t.get("write") else "") + (" — lỗi" if t.get("error") else "")
+                     for t in tools) or "—"
+
+
+def show_compare(res, names):
+    """Kết quả thử: mỗi câu một bảng Trước / Sau (lượt cuối = câu thử); toàn bộ lượt (gồm ngữ cảnh phát lại) trong mục gập."""
+    st.caption(f"Thử lúc {res.get('at')} bởi {res.get('by') or '—'} · bản nháp {res.get('draft_prop')} v{res.get('draft_version')} "
+               f"(payload {res.get('draft_payload_sha')}) · nền: {'không hướng dẫn (như R0)' if res.get('base') == 'empty' else 'các hướng dẫn đã duyệt'}"
+               f" · B2-TT {'bật' if res.get('two_tier') else 'tắt'} · code {(res.get('code') or {}).get('status')} "
+               f"{(res.get('code') or {}).get('freeze')}")
+    if res.get("context"):
+        st.caption("Ngữ cảnh phát lại ở cả hai phiên: " + " | ".join(res["context"]))
+    st.caption(res.get("note") or "")
+
+    def nm(ids):
+        return ", ".join(names.get(i, i) for i in ids or []) or "—"
+
+    for i, tr in enumerate(res.get("trials") or []):
+        st.markdown(f"**Câu thử {i + 1}:** “{tr['text']}”")
+        cols = {}
+        for side in ("before", "after"):
+            s = tr[side]
+            last = (s.get("turns") or [{}])[-1] if s.get("turns") else {}
+            g = last.get("guidance") or {}
+            cols[side] = {"Tập hướng dẫn của phiên": nm(s.get("guides")),
+                          "Hướng dẫn được truy hồi (chọn)": nm(g.get("selected")) if g.get("status") != "disabled" else "tắt (tập rỗng)",
+                          "Đưa vào Jev": nm(g.get("supplied_to_planner")),
+                          "Hành động Jev chọn": " → ".join(last.get("actions") or []) or "—",
+                          "Công cụ được gọi": _tools_txt(last.get("tools") or []),
+                          "Câu trả lời cho khách": last.get("agent_text") or "—",
+                          "Thời gian phản hồi": f"{last.get('latency_ms')} ms (cả phiên {s.get('wall_ms')} ms)",
+                          "Lỗi": s.get("error") or "—"}
+        st.table([{"Cần xem": k, "Trước (không bản nháp)": cols["before"][k], "Sau (có bản nháp)": cols["after"][k]} for k in cols["before"]])
+        w = [t for side in ("before", "after") for t in tr[side].get("writes") or []]
+        if w:
+            st.warning(f"Phiên thử có {len(w)} lệnh ghi (tạo / sửa đơn, hẹn gọi lại, chuyển máy) — chỉ trong môi trường thử, không phải giao dịch thật.")
+        with st.expander(f"Toàn bộ lượt câu thử {i + 1} (gồm ngữ cảnh phát lại)"):
+            for side, lab in (("before", "Trước"), ("after", "Sau")):
+                st.markdown(f"**{lab}** · chế độ {tr[side].get('mode')}")
+                for t in tr[side].get("turns") or []:
+                    st.markdown(f"- {'(ngữ cảnh) ' if t.get('is_context') else ''}Khách: {t.get('customer_text')}  \n  Agent: {t.get('agent_text')}  \n"
+                                f"  hành động: {' → '.join(t.get('actions') or []) or '—'} · tool: {_tools_txt(t.get('tools') or [])} · "
+                                f"hướng dẫn đưa vào Jev: {nm((t.get('guidance') or {}).get('supplied_to_planner'))}")
+
+
+def sandbox_panel(p, by, names):
+    """18/11: so sánh trước / sau với Jev thật cho MỘT bản nháp (E.sandbox_run, tiến trình riêng). Bản nháp chỉ dùng trong phiên thử."""
+    pid, pl = p["id"], p["payload"]
+    if not st.checkbox("So sánh trước / sau với Jev thật", key=f"sbopen-{pid}"):
+        return
+    keys_ok = bool(BOOT.get("ok")) and all((BOOT.get("keys_present") or {}).values())
+    with st.container(border=True):
+        st.caption("Chạy luồng agent THẬT (bộ hiểu DeepSeek → truy hồi hướng dẫn → Jev chọn bước → tool → trả lời) hai phiên thử độc lập, "
+                   "cùng ngữ cảnh và cấu hình: TRƯỚC = tập nền, SAU = tập nền + bản nháp này. Tiến trình riêng, DB / mock / trace riêng: "
+                   "đơn tạo trong phiên thử không đụng cuộc gọi thật; bản nháp không được đóng gói hay kích hoạt.")
+        if not keys_ok:
+            st.warning("Cần khóa DeepSeek / TypeSafe và cấu hình khớp freeze (xem thanh bên) — chưa chạy được.")
+        trials = lines(st.text_area("Câu khách thử (mỗi dòng một câu, tối đa 5) — nên có cách nói khác và một câu KHÔNG liên quan để kiểm tác dụng phụ",
+                                    "\n".join((pl.get("examples") or [])[:2]), key=f"sb-{pid}-trials"))[:5]
+        ctxs = E.sandbox_contexts()
+        c1, c2 = st.columns([3, 1])
+        sid = c1.selectbox("Ngữ cảnh: phát lại lời khách của một cuộc gọi trên UI (tùy chọn)", ["—"] + sorted(ctxs), key=f"sb-{pid}-ctx")
+        ctx = []
+        if sid != "—":
+            turns = ctxs[sid]
+            upto = c2.number_input("Số lượt đầu", 1, min(6, len(turns)), min(6, len(turns)), key=f"sb-{pid}-upto")
+            ctx = [t for _, t in turns[: int(upto)]]
+            st.caption("Phát lại ở cả hai phiên: " + " | ".join(ctx))
+        b1, b2 = st.columns(2)
+        base = b1.radio("Nền so sánh (TRƯỚC)", ["empty", "approved"], horizontal=True, key=f"sb-{pid}-base",
+                        format_func=lambda x: "Không hướng dẫn (như R0)" if x == "empty" else "Các hướng dẫn đã duyệt")
+        tt = b2.checkbox("B2-TT bật", value=True, key=f"sb-{pid}-tt")
+        n_turns = len(trials) * 2 * (len(ctx) + 1)
+        st.caption(f"Sẽ chạy {len(trials)} câu × 2 phiên × {len(ctx) + 1} lượt = {n_turns} lượt agent với model thật.")
+        if st.button("So sánh trước / sau (Jev thật)", key=f"sbrun-{pid}", type="primary", disabled=not (by and keys_ok and trials)) \
+                and by and keys_ok and trials:
+            with st.spinner(f"đang chạy {n_turns} lượt agent thật trong tiến trình thử…"):
+                rc, log, res, _ = E.sandbox_run(E.sandbox_spec(p, base, trials, ctx, tt, by))
+            if rc != 0 or not res:
+                st.error(f"Phiên thử lỗi (rc {rc}):\n\n{log}")
+        hist = E.sandbox_history(pid)
+        if hist:
+            k = st.selectbox(f"Kết quả thử đã lưu ({len(hist)})", range(len(hist)), key=f"sb-{pid}-hist",
+                             format_func=lambda i: f"{hist[i].get('at')} · {hist[i].get('by') or '—'} · {len(hist[i].get('trials') or [])} câu")
+            show_compare(hist[k], names)
+
+
+def guidance_flow():
+    from core.config import settings
+    from improve import store as S
+    root, by = E.GUIDE_ROOT, st.session_state.get("reviewer", "")
+    pend, appr, rej = [E.guidance_props(s) for s in ("pending", "approved", "rejected")]
+    ga = E.guidance_active()
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Chờ duyệt", len(pend))
+    m2.metric("Đã duyệt", len(appr))
+    m3.metric("Đã loại", len(rej))
+    m4.metric("Gói đang bật", os.path.basename(ga["package"]) if ga.get("package") else "—")
+    st.caption("Hướng dẫn điều phối giúp Jev chọn cách xử lý: không phải lời nói với khách, không chứa giá, không cấp quyền giao dịch. "
+               "Chỉ hướng dẫn ĐÃ DUYỆT và ĐÃ ĐÓNG GÓI mới tới agent, và chỉ cho cuộc gọi mở sau khi kích hoạt.")
+    step = st.radio("Bước hướng dẫn", GSTEPS, horizontal=True, label_visibility="collapsed", key="g_step")
+    caps = E.guide_capabilities()
+
+    if step == GSTEPS[0]:
+        fbs = [json.loads(l) for l in open(E.FEEDBACK, encoding="utf-8") if l.strip()] if os.path.exists(E.FEEDBACK) else []
+        bad = [f for f in fbs if f.get("rating") == -1]
+        st.markdown(f"**Đánh giá của nhân viên:** {len(fbs)} lượt, {len(bad)} “Cần cải thiện”")
+        if bad:
+            st.dataframe([{"lúc": f.get("at"), "người": f.get("by"), "chế độ": f.get("mode"), "khách": f.get("customer_text"),
+                           "agent": f.get("agent_text"), "ghi chú": f.get("note")} for f in bad[-30:]], width="stretch")
+        st.caption("Bản nháp do trợ lý soạn ngoài UI từ feedback này và dev được phép đọc (tải ui_data.zip ở thanh bên để chuyển "
+                   "feedback), rồi nhập vào đây. Nhập chỉ đưa vào HÀNG CHỜ DUYỆT, chưa tới agent.")
+        files = sorted(f for f in os.listdir(root) if f.startswith("drafts") and f.endswith(".json")) if os.path.isdir(root) else []
+        up = st.file_uploader("Tệp nháp (JSON)", type=["json"], key="g_upload")
+        pick = st.selectbox("Hoặc bản nháp có sẵn trong kho", ["—"] + files, key="g_pick")
+        author = st.text_input("Người / model soạn nháp", "", key="g_author")
+        if st.button("Nhập vào hàng chờ duyệt", type="primary", disabled=not (author.strip() and (up is not None or pick != "—"))):
+            if up is not None:
+                data = up.getvalue()
+                os.makedirs(os.path.join(root, "imports"), exist_ok=True)
+                path = os.path.join(root, "imports", f"{hashlib.sha1(data).hexdigest()[:10]}_{os.path.basename(up.name)}")
+                with open(path, "wb") as fh:
+                    fh.write(data)
+            else:
+                path = os.path.join(root, pick)
+            rc, out = run_cmd(["import", "--root", root, "--drafts", path, "--author", author.strip()])
+            (st.success if rc == 0 else st.error)(out[-3000:])
+
+    elif step == GSTEPS[1]:
+        if not by:
+            st.info("Nhập tên nhân viên ở thanh bên để duyệt.")
+        st.caption("Duyệt TỪNG hướng dẫn sau khi đọc điều kiện, ngoại lệ và test. Loại phải ghi lý do. Duyệt chưa có hiệu lực: phải đóng "
+                   "gói và kích hoạt ở bước 3. Sửa nội dung → lưu thành phiên bản nháp mới (không sửa tại chỗ bản đã duyệt / đã đóng gói).")
+        if st.session_state.get("g_flash"):
+            st.success(st.session_state.pop("g_flash"))
+        everyone = [E.guide_dto(p) for p in pend + appr]
+        names = _names(pend, appr, rej)
+        from improve import guidance_edit as GE
+        for p in pend:
+            with st.container(border=True):
+                guide_card(p, caps)
+                errs = S.validate(p)
+                if errs:
+                    st.error("Không hợp lệ: " + "; ".join(errs))
+                tk = f"gt-{p['id']}"
+                if st.button("Chạy test của hướng dẫn này", key=f"run-{p['id']}", disabled=not p.get("tests")):
+                    st.session_state[tk] = E.run_guide_tests(p["id"], everyone, p.get("tests"))
+                res = st.session_state.get(tk)
+                if res:
+                    (st.success if all(r["pass"] for r in res) else st.warning)(
+                        f"{sum(r['pass'] for r in res)}/{len(res)} test đạt (trên kho chờ duyệt + đã duyệt)")
+                    st.dataframe([{"test": r["test"], "kỳ vọng": r["expect"], "được chọn": r["selected"], "đạt": r["pass"],
+                                   "hướng dẫn được chọn": ", ".join(r["chosen"]), "điểm": json.dumps(r["scores"])} for r in res],
+                                 width="stretch")
+                sandbox_panel(p, by, names)
+                edit_panel(p, by, root)
+                reason = st.text_input("Lý do (bắt buộc khi loại)", key=f"gr-{p['id']}")
+                a1, a2, _ = st.columns([2, 2, 6])
+                try:
+                    # điều kiện kiểm lại phía server: nút bị vô hiệu chỉ là ràng buộc phía trình duyệt
+                    if a1.button("Duyệt hướng dẫn này", key=f"ga-{p['id']}", disabled=not by or bool(errs), type="primary") \
+                            and by and not errs:
+                        _, sup = GE.approve(p["id"], by, reason, root=root)     # bản đã duyệt cũ cùng guide_id → Đã loại (thay thế)
+                        if sup:
+                            st.session_state["g_flash"] = f"Đã duyệt {p['id']}; bản cũ {', '.join(sup)} chuyển sang Đã loại (thay thế)."
+                        st.rerun()
+                    if a2.button("Loại", key=f"gx-{p['id']}", disabled=not (by and reason.strip())) and by and reason.strip():
+                        S.reject(p["id"], by, reason, root=root)
+                        st.rerun()
+                except S.ProposalError as e:
+                    st.error(str(e))
+        if not pend:
+            st.caption("Không có hướng dẫn chờ duyệt.")
+        st.markdown(f"**Đã duyệt ({len(appr)})** — sẽ vào gói đóng ở bước 3")
+        for p in appr:
+            with st.container(border=True):
+                rv = p.get("review") or {}
+                st.markdown(f"**{p['payload'].get('title')}** v{p['payload'].get('version')} ({p['id']}) — duyệt bởi {rv.get('by')} lúc "
+                            f"{rv.get('at')}: {rv.get('reason') or ''}")
+                if st.button("Đưa về chờ duyệt", key=f"go-{p['id']}", disabled=not by) and by:
+                    S.reopen(p["id"], by, "đưa về chờ duyệt từ UI", root=root)
+                    st.rerun()
+                edit_panel(p, by, root)
+        dup = GE.approved_duplicates(root)
+        if dup:
+            st.error(f"Nhiều phiên bản cùng hướng dẫn đang ở “Đã duyệt” {dup} — đóng gói sẽ bị từ chối; đưa bản cũ về chờ duyệt hoặc loại.")
+        if rej:
+            st.markdown(f"**Đã loại ({len(rej)})**")
+            for p in rej:
+                rv = p.get("review") or {}
+                st.caption(f"{p['payload'].get('title')} ({p['id']}) — {rv.get('by')}: {rv.get('reason')}")
+
+    elif step == GSTEPS[2]:
+        st.caption("Gói = bản đóng băng của MỌI hướng dẫn đang ở “Đã duyệt” (muốn bỏ một cái thì đưa về chờ duyệt trước). Gói bất biến: "
+                   "sửa nội dung → duyệt lại → gói mới. Kích hoạt chỉ áp dụng cho cuộc gọi mở sau; đo R0 / R1 truyền đường dẫn gói tường minh.")
+        c1, c2 = st.columns([2, 1])
+        name = c1.text_input("Tên gói mới", "", placeholder="vd r1", key="g_pkg_name")
+        if c2.button("Đóng gói hướng dẫn đã duyệt", disabled=not (by and name.strip() and appr)) and by and name.strip() and appr:
+            out = os.path.join(E.GUIDE_PKGS, name.strip())
+            rc, txt = run_cmd(["package", "--root", root, "--name", name.strip(), "--by", by, "--out", out])
+            (st.success if rc == 0 else st.error)(txt[-2000:])
+            if rc == 0:
+                st.session_state[f"reg-{name.strip()}"] = run_cmd(["regress", "--pkg", out])
+        pkgs = E.guidance_packages()
+        if not pkgs:
+            st.caption("Chưa có gói nào.")
+            return
+        sel = st.selectbox("Gói", range(len(pkgs)), key="g_pkg_sel",
+                           format_func=lambda i: f"{pkgs[i]['name']} · {pkgs[i]['meta'].get('n')} hướng dẫn · hash "
+                                                 f"{pkgs[i]['meta'].get('approved_hash')} · {pkgs[i]['meta'].get('by')} {pkgs[i]['meta'].get('at')}")
+        pk = pkgs[sel]
+        try:
+            st.markdown("**Trong gói:** " + "; ".join(g.get("title") or g["id"] for g in E.package_guides(pk["path"])))
+        except Exception as e:  # noqa: BLE001 — gói sai thì agent cũng từ chối mở phiên
+            st.error(f"Gói không nạp được (agent sẽ từ chối mở phiên): {e}")
+        if st.button("Chạy regress gói này"):
+            st.session_state[f"reg-{pk['name']}"] = run_cmd(["regress", "--pkg", pk["path"]])
+        reg = st.session_state.get(f"reg-{pk['name']}")
+        if reg:
+            (st.success if reg[0] == 0 else st.error)(("regress đạt" if reg[0] == 0 else "regress TRƯỢT") + "\n\n" + reg[1][-2000:])
+        reason = st.text_input("Lý do kích hoạt / quay lui", "", key="g_act_reason")
+        d1, d2, _ = st.columns([3, 2, 5])
+        if d1.button("Kích hoạt cho cuộc gọi mở sau", disabled=not by, type="primary") and by:
+            reg = run_cmd(["regress", "--pkg", pk["path"]])
+            st.session_state[f"reg-{pk['name']}"] = reg
+            if reg[0] != 0:
+                st.error("Regress trượt — không kích hoạt.")
+            else:
+                rc, txt = run_cmd(["activate", "--pkg", pk["path"], "--by", by, "--reason", reason, "--state", E.GUIDE_STATE])
+                (st.success if rc == 0 else st.error)(txt[-1500:])
+        if d2.button("Quay lui gói trước", disabled=not by) and by:
+            rc, txt = run_cmd(["rollback", "--by", by, "--reason", reason, "--state", E.GUIDE_STATE])
+            (st.success if rc == 0 else st.error)(txt[-1500:])
+        logp = os.path.join(E.GUIDE_STATE, "activation_log.jsonl")
+        if os.path.exists(logp):
+            st.markdown("**Nhật ký kích hoạt / quay lui**")
+            st.table([json.loads(l) for l in open(logp, encoding="utf-8") if l.strip()][-8:])
+
+    else:
+        from harness.understanding import ASKS
+        st.caption("Truy hồi thật trên một tập hướng dẫn, ngoài cuộc gọi, không gọi model: xem hướng dẫn nào được chọn hoặc bị áp nhầm. "
+                   f"Ngưỡng điểm hiện tại {settings.guidance_min_score} là giá trị TẠM, chưa hiệu chỉnh.")
+        pkgs = E.guidance_packages()
+        srcs = ["Kho: chờ duyệt + đã duyệt"] + [f"Gói {p['name']}" for p in pkgs]
+        src = st.selectbox("Tập hướng dẫn", range(len(srcs)), format_func=lambda i: srcs[i], key="g_try_src")
+        text = st.text_input("Khách nói", "", key="g_try_text")
+        c1, c2, c3 = st.columns(3)
+        asked = c1.selectbox("Nhân viên vừa hỏi (slot)", SLOTS_ASKED, format_func=lambda x: x or "—", key="g_try_slot")
+        asks = c2.multiselect("Khách hỏi về (asks)", sorted(ASKS), key="g_try_asks")
+        two = c3.checkbox("B2-TT bật", value=True, key="g_try_tt")
+        s1, s2 = st.columns(2)
+        sort = s1.selectbox("Tiêu chí tư vấn", ["none", "cheapest", "most_expensive"], key="g_try_sort")
+        span = s2.text_input("Nhóm hàng khách nêu", "", key="g_try_span")
+        if st.button("Thử truy hồi", type="primary", disabled=not text.strip()):
+            try:
+                guides = [E.guide_dto(p) for p in pend + appr] if src == 0 else E.package_guides(pkgs[src - 1]["path"])
+                consult = {"sort": sort, "category_span": span.strip() or None} if (sort != "none" or span.strip()) else None
+                tr = E.try_retrieval(guides, text, asked or None, asks, two, consult)["trace"]
+                names = {g["id"]: g.get("title") for g in guides}
+                st.markdown(f"**Trạng thái:** {tr.get('status')} · chọn {len(tr.get('selected') or [])} · token ước tính {tr.get('tokens_est')}")
+                if tr.get("candidates"):
+                    st.dataframe([{"hướng dẫn": names.get(c["id"], c["id"]), "điểm": c["score"],
+                                   "được chọn": c["id"] in (tr.get("selected") or []), "lý do lọc": (tr.get("filtered") or {}).get(c["id"], "")}
+                                  for c in tr["candidates"]], width="stretch")
+                else:
+                    st.caption("Không hướng dẫn nào khớp.")
+            except Exception as e:  # noqa: BLE001
+                st.error(f"{type(e).__name__}: {e}")
+
+
+with tab_improve:
+    if E.CANDIDATE:
+        guidance_flow()
+        st.divider()
+        if st.checkbox("Xem luồng FAQ cũ (đã dừng mở rộng)", key="show_faq"):
+            faq_flow()
+    else:
+        faq_flow()

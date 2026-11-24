@@ -36,18 +36,20 @@ python scripts/kaggle_job.py --cred "<kaggle.json>" push --job qwen-dev --sets d
 
 Chi tiết: [docs/CHAY-KAGGLE-SERVER.md](docs/CHAY-KAGGLE-SERVER.md).
 
-## 2A. Cấu hình chính hiện hành: B2-v52n (chốt 17/11/2026)
+## 2A. Cấu hình B2 và bản chốt v6p15
+
+**Cập nhật 24/11/2026:** `profiles/local.env`, `profiles/kaggle.env`, `profiles/server.env` và `.env.example` đã bật cờ bản chốt v6p15; các cờ mới trong code vẫn mặc định tắt. JSON UI B2 là cấu hình tham chiếu riêng, không tự đổi thành profile v6p15. Hướng dẫn mở dashboard mới từ đầu nằm ở **mục 5**. Phần dưới giữ thông tin và lệnh đối chiếu B2-v52n ngày 17/11.
 
 **R0 `integ-ui7c` đã có trong cây mã Git:** dùng `profiles/b2_integ_tt.json` để chạy đúng chế độ B2 hai tầng đã đo; profile mặc định vẫn là B2-v52n để không tự đổi hành vi khi nâng cấp. R0 để `PLANNER_GUIDANCE_DIR` và `IMPROVE_DIR` rỗng. Đường feedback → nháp DeepSeek Flash → người duyệt → gói guidance → đo R1 có trong `scripts/guidance_*.py`, `harness/guidance.py`, `improve/guidance_edit.py` và `ui/app_v2.py`; gói R1 chỉ nạp khi được chọn rõ, không tự kích hoạt.
 
 ```bash
 python scripts/with_profile.py profiles/b2_integ_tt.json -- python run_eval.py --scenarios test_set/public_sample --config full --router rules --generator qwen --extractor hybrid --out runs/r0-integ/full.jsonl
-UI_PROFILE=b2_integ_tt streamlit run ui/app_v2.py
+UI_PROFILE=b2_integ_tt streamlit run ui/dashboard.py --theme.base=light
 ```
 
 Nguồn là snapshot `runs/freeze/20261118-integ-ui7c`; kiểm tra SHA-256 trong snapshot khớp 284/284 file lúc ghép. `runs/` không lên Git, nên bản clone cần bộ kịch bản/dữ liệu đánh giá riêng để tái lập số dev92. R0 là bản tham chiếu tương đối: H13 còn các ca tạo đơn trái ý khách.
 
-**Cấu hình chính** là B2-v52n. Kiến trúc và env giống hệt B2-v51-A:
+**Bản tham chiếu B2-v52n ngày 17/11** có kiến trúc và env giống hệt B2-v51-A:
 - `ARCH=target`, `PLANNER_VARIANT=b2_jev`;
 - DeepSeek `deepseek-v4-flash` hiểu lời khách (tắt thinking);
 - Jev `jev-latest` chọn từng bước của planner;
@@ -203,239 +205,229 @@ bash scripts/data_pack.sh            # rồi tải _upload/*.tar.gz lên Drive t
 
 Server thuê thường xóa ổ đĩa khi tắt, nên bước cuối là bắt buộc nếu muốn giữ kết quả.
 
-## 5. Giao diện demo (UI)
+## 5. Dashboard: chạy từ đầu trên máy cá nhân và Kaggle
 
-UI Streamlit ở `ui/app.py` phục vụ demo của đề bài (C.6) và vòng cải tiến (C.5). UI tách khỏi core: chỉ gọi `CallSession` giống `run_eval.py`, không ghi tool thay agent. Bộ nhớ, feedback và trace của UI nằm ở `data/ui/` (ngoài Git), riêng với DB đo.
+Giao diện mới chạy bằng **`ui/dashboard.py`**; trên Kaggle dùng **`kaggle/ui_dashboard.py`**. Dashboard dùng lại engine và năm tab của `ui/app_v2.py`, thêm theme và biểu đồ từ report thật. Font được đóng gói trong `ui/assets/fonts/`. Tool thương mại vẫn là mock của BTC.
 
-### 5.1. Cài và mở
+| Cách chạy | Máy cá nhân | Kaggle | Dữ liệu UI |
+|---|---|---|---|
+| **Máy yếu: chạy toàn bộ trên Kaggle (5.1c)** | Chỉ mở trình duyệt | Chạy UI, agent và Qwen | Tải về trước khi tắt phiên |
+| **Giữ bộ nhớ tại máy: UI cá nhân + Qwen Kaggle (5.1 → 5.1b)** | Chạy Streamlit, agent và gọi DeepSeek/Jev qua API | Chỉ chạy Qwen GPU | Giữ tại máy cá nhân |
 
-UI không tải model nào về máy: DeepSeek và Jev gọi qua API, RAG dùng BM25, tool là mock của BTC. Riêng Qwen cần vLLM; trên máy không có GPU thì đặt `UI_QWEN=off`.
+**Chọn cấu hình:** `RUN_PROFILE=local|kaggle` nạp `profiles/<tên>.env` theo nơi chạy; các file env này đã có cờ v6p15. `UI_PROFILE` chọn một JSON trong `ui/engine.py`, ghi đè các biến có trong JSON đó. Các lệnh dưới dùng `b2_integ_tt` để mở luồng candidate có tư vấn hai tầng và duyệt hướng dẫn. JSON này hiện vẫn mang nhãn H13 Jev gate v6; **mở dashboard không đồng nghĩa tái lập đúng cấu hình đã đo của v6p15**. `b2_v52n`/`b2_v51a` là các profile đối chiếu cũ. Muốn đổi `UI_PROFILE`, dừng rồi khởi động lại Streamlit.
 
-PowerShell (Windows), tại thư mục repo:
+### 5.1. Chuẩn bị máy cá nhân từ đầu (Windows / PowerShell)
 
-```powershell
-venv\Scripts\python.exe -m pip install -r requirements-ui.txt   # = requirements.txt + streamlit
-$env:PYTHONIOENCODING = "utf-8"
-$env:UI_PROFILE = "b2_v52n"          # backend chính B2-v52n (đọc profiles/b2_v52n.json); "b2_v51a" = đối chiếu
-$env:UI_QWEN = "off"                 # máy không có vLLM → nhãn "khác cấu hình đo"
-venv\Scripts\python.exe -m streamlit run ui/app.py           # mở http://localhost:8501
-```
+**Bước 1 — chuẩn bị Python, Git và mã nguồn.** Cài Python 3 có `pip`/`venv` và Git, mở PowerShell mới, kiểm `py --version` và `git --version`.
 
-Bash (Linux / macOS / Git Bash):
-
-```bash
-pip install -r requirements-ui.txt
-UI_PROFILE=b2_v52n UI_QWEN=off streamlit run ui/app.py
-```
-
-- Khóa `DEEPSEEK_API_KEY` và `TYPESAFE_API_KEY` đọc từ `.env`. Thanh bên chỉ hiện có hoặc THIẾU, không hiện giá trị.
-- Máy có vLLM (đặt `QWEN_BASE_URL`) thì bỏ `UI_QWEN=off` để chạy đúng cấu hình đo. Không có GPU thì mượn GPU Kaggle cho Qwen, xem **mục 5.1b**.
-- Chỉ muốn xem giao diện, không có khóa: `UI_PROFILE=legacy_offline`. Profile này chạy pipeline cũ (rules + câu mẫu), UI ghi rõ **không phải B2**.
-- Chạy trên server: thêm `--server.address 0.0.0.0 --server.port 8501`, rồi chuyển cổng về máy (`ssh -L 8501:localhost:8501 <server>`).
-
-### 5.1b. UI ở máy cá nhân, Qwen chạy trên GPU Kaggle (đúng cấu hình đo)
-
-Máy cá nhân không chạy được vLLM. Cách này mượn GPU của Kaggle chỉ cho Qwen3-4B, còn UI, khóa DeepSeek / TypeSafe, bộ nhớ và feedback vẫn ở máy bạn. Script [kaggle/qwen_tunnel.py](kaggle/qwen_tunnel.py) làm các việc:
-- bật vLLM với đúng model của `profiles/b2_v52n.json` (giống b2_v51a);
-- khóa endpoint bằng một khóa ngẫu nhiên, mỗi lần chạy một khóa mới;
-- mở **quick tunnel cloudflared** (không cần tài khoản) ra một URL `https://….trycloudflare.com`;
-- kiểm gọi có khóa qua URL đó trả đúng model, gọi **không khóa** thì bị từ chối;
-- in hai dòng để bạn đặt ở máy.
-
-**Bước 1: trên Kaggle**
-1. Tạo notebook mới. Settings → **Accelerator: GPU T4**, **Internet: On** (tài khoản Kaggle phải xác minh số điện thoại mới bật được Internet).
-2. Đưa repo vào notebook bằng một trong hai cách:
-   - **Dataset do `kaggle_job.py` đóng gói:**
-     1. Ở máy, chạy `python scripts/kaggle_job.py --cred kaggle.json dataset`.
-     2. Trong notebook: Add Input → dataset `<user>/sudocode-repo`.
-     3. Chạy cell, sửa đường dẫn theo kết quả `!ls /kaggle/input` (một số tài khoản có thêm tầng `datasets/<user>/`):
-        ```python
-        !cp -r /kaggle/input/sudocode-repo/repo /kaggle/working/SudoCode
-        ```
-   - **`git clone`** nếu repo cho phép:
-     ```python
-     !git clone https://github.com/buidong941-ship-it/SudoCode.git /kaggle/working/SudoCode
-     ```
-3. Chạy cell sau và **để nguyên cho nó chạy**. Lần đầu của mỗi phiên mất vài phút để cài vLLM và tải model.
-   ```python
-   !cd /kaggle/working/SudoCode && python kaggle/qwen_tunnel.py
-   ```
-   Khi xong, cell in một khối "ĐẶT Ở MÁY CÁ NHÂN" gồm `QWEN_BASE_URL` (đuôi `/v1`) và `QWEN_API_KEY`.
-
-**Bước 2: trên máy cá nhân.** Dán hai dòng vừa in vào PowerShell, rồi mở UI như mục 5.1 nhưng **không** đặt `UI_QWEN=off`:
+Máy mới, clone bản đã commit **và push** lên GitHub:
 
 ```powershell
-$env:QWEN_BASE_URL = "https://<…>.trycloudflare.com/v1"     # dán từ output Kaggle
-$env:QWEN_API_KEY  = "<khóa in ra>"
-$env:PYTHONIOENCODING = "utf-8"; $env:UI_PROFILE = "b2_v52n"
+git clone https://github.com/buidong941-ship-it/SudoCode.git
+Set-Location SudoCode
+```
+
+Nếu đã có dự án trên máy thì bỏ bước clone, mở PowerShell tại gốc repo. Ví dụ:
+
+```powershell
+Set-Location 'D:\User\Documents\competition\SUDO CODE\copy_project'
+```
+
+**Bước 2 — tạo môi trường và cài UI.** Không cần kích hoạt venv, nên không vướng PowerShell Execution Policy:
+
+```powershell
+py -3 -m venv venv
+.\venv\Scripts\python.exe -m pip install --upgrade pip
+.\venv\Scripts\python.exe -m pip install -r requirements-ui.txt
+```
+
+`requirements-ui.txt` đã bao gồm dependency core. Không cài vLLM lên Windows trong luồng này: Qwen chạy ở Kaggle. Không cần tải `dataset/`, kết quả đánh giá hay model embedding để mở UI với BM25. Nếu máy quá ít RAM để cài dependency, dùng **5.1c**, chỉ mở trình duyệt tại máy cá nhân.
+
+**Bước 3 — điền khóa API.** Chỉ tạo `.env` nếu chưa có, không ghi đè cấu hình cũ:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+Điền giá trị thật vào hai dòng trong `.env`, lưu rồi đóng Notepad:
+
+```dotenv
+DEEPSEEK_API_KEY=<khóa DeepSeek của bạn>
+TYPESAFE_API_KEY=<khóa TypeSafe/Jev của bạn>
+```
+
+Tiếp tục **5.1b** để bật Qwen rồi mở UI. Giữ `.env` ngoài Git.
+
+### 5.1b. UI ở máy cá nhân, Qwen trên GPU Kaggle
+
+**Trên Kaggle:** tạo notebook Private, bật **Internet** và **GPU T4** (hoặc T4 x2), rồi chạy **cell 1 của mục 5.1c** để clone repo. Cách này không cần gắn khóa DeepSeek/Jev hay mật khẩu UI vào Kaggle, vì agent và UI nằm trên máy cá nhân.
+
+Chạy cell sau và giữ cell chạy trong lúc dùng UI:
+
+```python
+%cd /kaggle/working/SudoCode
+!python -u kaggle/qwen_tunnel.py
+```
+
+Script tự cài vLLM, tải `Qwen/Qwen3-4B`, mở endpoint qua tunnel có khóa. Chờ khối **ĐẶT Ở MÁY CÁ NHÂN** in ra URL có đuôi `/v1` và khóa. Không chia sẻ output chứa khóa này.
+
+**Trên máy cá nhân:** trong PowerShell tại gốc repo, dán URL/khóa từ Kaggle vào hai dòng đầu:
+
+```powershell
+$env:QWEN_BASE_URL = 'https://<tunnel-vua-in>.trycloudflare.com/v1'
+$env:QWEN_API_KEY = '<khoa-Qwen-vua-in>'
+$env:PYTHONIOENCODING = 'utf-8'
+$env:RUN_PROFILE = 'local'
+$env:UI_PROFILE = 'b2_integ_tt'
+$env:RAG_MODE = 'bm25'
+$env:TOOL_TRANSPORT = 'direct'
 Remove-Item Env:UI_QWEN -ErrorAction SilentlyContinue
-venv\Scripts\python.exe -m streamlit run ui/app.py
+.\venv\Scripts\python.exe -m streamlit run ui/dashboard.py --theme.base=light --server.address=127.0.0.1 --server.port=8501
 ```
 
-Thanh bên phải hiện **"B2-v52n (cấu hình chính 17/11), generator Qwen như cấu hình đo"** và dòng **"Code: freeze `runs/freeze/20261117-v52n-ui` · khớp 255 tệp"**. Code lệch freeze thì UI từ chối chạy.
+Mở **http://localhost:8501** trên trình duyệt. Giữ terminal Streamlit và cell Kaggle đang chạy. Lần sau không cần cài lại: bật Qwen, đặt **URL và khóa mới**, chạy lại khối lệnh trên. Dữ liệu UI vẫn ở máy cá nhân. Dừng UI bằng **Ctrl+C**, rồi dừng cell Qwen và Stop session trên Kaggle.
 
-**Lưu ý:**
-- **Khóa:**
-  - URL tunnel là công khai. Endpoint chỉ trả lời khi có khóa, và khóa chỉ hiện trong output của notebook.
-  - Không để notebook ở chế độ Public, không chia sẻ output, không commit khóa.
-  - Muốn tự chọn khóa thì đặt `QWEN_TUNNEL_KEY` trước khi chạy.
-- **Vòng đời:**
-  - Dừng cell (■) thì tắt cả tunnel lẫn vLLM.
-  - Phiên Kaggle tắt (hết giờ, để không quá lâu, hết quota GPU) thì URL chết. Chạy lại cell sẽ được **URL và khóa mới**, phải đặt lại ở máy.
-  - Quick tunnel của Cloudflare dành cho thử nghiệm, không cam kết thời gian sống.
-- **Độ trễ:** mỗi câu có Qwen đi thêm một vòng qua internet. TTFT trên UI kiểu này **không** so được với số đo trên Kaggle.
-- **Kiểm không cần phiên tương tác:** đặt `QWEN_TUNNEL_SELFTEST=1` thì script cài vLLM, mở tunnel, kiểm có khóa / không khóa, chat thử một câu rồi tự dừng. Ở chế độ này script không in khóa và URL. Nhóm dùng chế độ này để kiểm script bằng job GPU theo lô.
+**Không có Qwen:** `$env:UI_QWEN='off'` chỉ tắt Qwen compose; UI ghi nhãn khác cấu hình đo. Cờ này **không tắt toàn bộ backend Qwen** (profile vẫn có extractor Qwen), cũng không tắt DeepSeek/Jev, nên không coi đây là cách chạy hoàn toàn offline. `legacy_offline` là profile giao diện/pipeline cũ, không dùng làm bằng chứng chất lượng B2/v6p15. TTFT qua tunnel có thêm độ trễ mạng, không so trực tiếp với số đo trên Kaggle.
 
-### 5.1c. Chạy cả UI lẫn Qwen trên Kaggle, mở bằng link có mật khẩu (demo, quay video, người khác mở)
+### 5.1c. Chạy toàn bộ trên Kaggle — hướng dẫn từng cell notebook
 
-[kaggle/ui_tunnel.py](kaggle/ui_tunnel.py) chạy mọi thứ trên Kaggle. Qwen chỉ nghe ở cổng nội bộ của máy, không mở ra ngoài. Chỉ UI được mở qua tunnel, và **bắt buộc có mật khẩu**.
+Máy cá nhân chỉ cần trình duyệt. **Commit và push bản có dashboard lên GitHub trước khi clone**; commit riêng ở máy chưa làm Kaggle thấy code mới. Repo cần có `ui/dashboard.py`, `ui/assets/`, `.streamlit/config.toml` và `kaggle/ui_dashboard.py`.
 
-**Khi nào dùng cách nào:**
+**Chuẩn bị notebook:** tạo notebook Python **Private**, bật **Internet** và **Accelerator: GPU T4 x2** (hoặc T4). Hoàn tất xác minh tài khoản nếu Kaggle yêu cầu. Không chọn P100 cho launcher vLLM này.
 
-| | 5.1b: UI ở máy cá nhân | 5.1c: UI trên Kaggle |
-|---|---|---|
-| Cài đặt ở máy | Python + streamlit | Không cần gì, chỉ trình duyệt |
-| Độ trễ Qwen | Thêm một vòng qua internet | Qwen cùng máy với agent, sát lúc đo hơn |
-| Khóa API | `.env` ở máy bạn | Kaggle Secrets |
-| Ai mở được | Chỉ máy bạn | Ai có link **và** mật khẩu |
-| Dữ liệu UI (feedback, bộ nhớ, duyệt FAQ) | Giữ ở máy, dùng tiếp cho vòng C.5 | **Mất khi phiên tắt** nếu không tải về |
+**Tự thêm khóa qua Add-ons:** mở **Add-ons → Secrets → Add Secret**, tạo đúng tên sau, rồi **tích gắn cả ba secret cho notebook hiện tại**:
 
-**Các bước, làm đúng thứ tự:**
-
-**Bước 0: chuẩn bị (làm một lần)**
-1. Tài khoản Kaggle đã **xác minh số điện thoại** (Settings → Phone verification). Chưa xác minh thì không bật được Internet và GPU cho notebook.
-2. Đưa code lên Kaggle thành dataset. Chạy ở máy, tại thư mục repo:
-   ```bash
-   pip install kaggle
-   # kaggle.json: Kaggle → Settings → API → Create New Token
-   python scripts/kaggle_job.py --cred kaggle.json dataset      # tạo / cập nhật dataset riêng tư <user>/sudocode-repo
-   ```
-   Lệnh này đóng gói repo và bỏ `runs/`, `data/`, `.env`, khóa… Mỗi lần sửa code thì chạy lại để có version mới.
-
-   Vì bỏ `runs/`, dataset tạo bằng lệnh này không có tệp freeze. UI vẫn chạy nhưng ghi nhãn **"chưa kiểm hash code"**. Muốn UI kiểm code đúng freeze v52n, dùng dataset do job kiểm UI đẩy lên: job `v52nui-check-1117` kèm `runs/freeze/20261117-v52n-ui/code_sha256.txt` và config snapshot (17/11: `midzed/sudocode-repo`). Nhãn khi đó là **"Code: … khớp 255 tệp"**.
-
-   Repo GitHub cho phép clone thì có thể bỏ bước này và dùng `git clone` ở bước 3.
-
-**Bước 1: tạo notebook**
-1. Kaggle → **Create → New Notebook**.
-2. Khung bên phải → **Session options**:
-   - **Accelerator: GPU T4 x2** (hoặc T4);
-   - **Internet: On**;
-   - **Language: Python**.
-3. **Add Input** (khung bên phải) → tab **Your Work / Datasets** → chọn `sudocode-repo`.
-
-**Bước 2: gắn Secrets.** Menu **Add-ons → Secrets → Add Secret**, thêm ba secret, rồi **tích ô gắn (attach)** từng secret cho notebook này:
-
-| Label | Value |
+| Label — phải đúng tên | Value — tự điền trong cửa sổ Secrets |
 |---|---|
-| `DEEPSEEK_API_KEY` | khóa DeepSeek |
-| `TYPESAFE_API_KEY` | khóa TypeSafe (Jev) |
-| `UI_PASSWORD` | mật khẩu mở UI, ít nhất 8 ký tự, tự đặt |
+| `DEEPSEEK_API_KEY` | Khóa DeepSeek của bạn |
+| `TYPESAFE_API_KEY` | Khóa Jev/TypeSafe của bạn; không đặt tên `JEV_API_KEY` |
+| `UI_PASSWORD` | Mật khẩu mở UI tự đặt, ít nhất 8 ký tự |
 
-**Bước 3: đưa repo vào thư mục làm việc** (cell 1). Kaggle tự giải nén `repo.tar.gz` của dataset thành thư mục `repo`. Đường dẫn cụ thể khác nhau theo tài khoản, nên cell tự tìm:
+Khóa không ghi vào code cell, không đưa `.env` lên GitHub. Mật khẩu bảo vệ link UI công khai do tunnel tạo ra.
 
-```python
-import glob, os, shutil
-src = sorted(p for p in glob.glob("/kaggle/input/**/repo", recursive=True) if os.path.isfile(os.path.join(p, "run_eval.py")))
-assert src, "không thấy repo trong /kaggle/input — đã Add Input dataset sudocode-repo chưa?"
-shutil.copytree(src[0], "/kaggle/working/SudoCode", dirs_exist_ok=True)
-print("repo:", src[0], "→ /kaggle/working/SudoCode")
-```
-
-Nếu dùng GitHub thay dataset:
+**Cell 1 — clone repo và kiểm đúng source** (phiên mới, chạy một lần):
 
 ```python
-!git clone https://github.com/buidong941-ship-it/SudoCode.git /kaggle/working/SudoCode
+%cd /kaggle/working
+!git clone https://github.com/buidong941-ship-it/SudoCode.git SudoCode
+%cd /kaggle/working/SudoCode
+
+from pathlib import Path
+for name in ('ui/dashboard.py', 'ui/assets/dashboard.css',
+             'ui/assets/fonts/BeVietnamPro-Regular.ttf',
+             '.streamlit/config.toml', 'kaggle/ui_dashboard.py'):
+    assert Path(name).is_file(), f'Thiếu {name}: kiểm lại nhánh và việc push code.'
+!git log -1 --oneline
 ```
 
-**Bước 4: kiểm GPU và Secrets** (cell 2; chỉ in có / thiếu, không in giá trị):
+Clone lấy nhánh mặc định của repo. Nếu bạn push lên nhánh khác, thêm `--branch <ten-nhanh>` sau `git clone`. Đối chiếu dòng commit in ra với bản vừa push. Repo riêng tư cần quyền đọc GitHub; không dán token vào cell hay URL clone lưu trong notebook.
+
+**Cell 2 — nạp Secrets vào môi trường, chỉ in trạng thái:**
+
+```python
+import os
+from kaggle_secrets import UserSecretsClient
+
+client = UserSecretsClient()
+for name in ('DEEPSEEK_API_KEY', 'TYPESAFE_API_KEY', 'UI_PASSWORD'):
+    os.environ[name] = client.get_secret(name)
+    assert os.environ[name], f'{name} đang trống; thêm và gắn lại secret.'
+    print(name, 'đã nạp')
+assert len(os.environ['UI_PASSWORD']) >= 8, 'UI_PASSWORD cần ít nhất 8 ký tự.'
+```
+
+Nếu cell báo thiếu/quyền truy cập secret, quay lại Add-ons → Secrets và tích gắn cho notebook này, rồi chạy lại **cell 2**. Không dùng `print(os.environ)` hoặc in giá trị các khóa. Launcher cũng có cơ chế đọc Secrets; cell này giúp phát hiện thiếu khóa trước khi chờ cài/tải model.
+
+**Cell 3 — kiểm GPU:**
 
 ```python
 !nvidia-smi -L
-from kaggle_secrets import UserSecretsClient
-s = UserSecretsClient()
-for k in ("DEEPSEEK_API_KEY", "TYPESAFE_API_KEY", "UI_PASSWORD"):
-    try:
-        print(k, "có" if s.get_secret(k) else "THIẾU")
-    except Exception:
-        print(k, "THIẾU — chưa thêm hoặc chưa tích gắn cho notebook này")
 ```
 
-Cần thấy ít nhất một dòng `GPU 0: Tesla T4` và cả ba secret đều **có**.
+Cần thấy GPU T4. Nếu chưa có GPU, đổi Accelerator rồi Restart session và chạy lại từ cell 1; dữ liệu thư mục làm việc có thể không còn sau khi đổi phiên.
 
-**Bước 5: chạy UI** (cell 3). **Không cần cell cài đặt riêng.** Script tự làm, theo thứ tự:
-1. `pip install -r requirements-ui.txt` (đã gồm `requirements.txt` + streamlit);
-2. cài vLLM vào venv riêng `/tmp/vllm-venv`;
-3. vLLM tự tải trọng số `Qwen/Qwen3-4B` từ Hugging Face (khoảng 8 GB, không cần token) rồi nạp lên GPU;
-4. tự tải cloudflared.
-
-Vì vậy notebook bắt buộc phải bật **Internet**. Cell này **chạy liên tục**, đừng dừng trong lúc dùng UI:
+**Cell 4 — chọn profile và chạy dashboard:**
 
 ```python
-!cd /kaggle/working/SudoCode && python kaggle/ui_tunnel.py
+%cd /kaggle/working/SudoCode
+import os
+os.environ['UI_PROFILE'] = 'b2_integ_tt'
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+!python -u kaggle/ui_dashboard.py
 ```
 
-Thứ tự các dòng sẽ thấy (lần đầu của mỗi phiên mất khoảng 5–7 phút):
+**Không cần cell `pip install` riêng.** Launcher tự cài `requirements-ui.txt`, tạo venv vLLM riêng `/tmp/vllm-venv` (Python 3.12 theo `scripts/setup_env.sh`), tải Qwen3-4B và cloudflared, rồi bật UI. DeepSeek/Jev dùng khóa đã nạp từ Secrets; Qwen chạy nội bộ trên GPU. Lần đầu mỗi phiên có thể mất nhiều phút. **Giữ cell 4 chạy**, không Interrupt trong lúc dùng UI.
+
+Khi sẵn sàng, output có:
 
 ```text
-[qwen_tunnel …] khóa API: DEEPSEEK_API_KEY có, TYPESAFE_API_KEY có
-[qwen_tunnel …] $ python -m pip install -q -r requirements-ui.txt
-[qwen_tunnel …] model Qwen/Qwen3-4B (theo profiles/b2_v52n.json), cổng 8000, khóa không (chỉ nội bộ)
-[qwen_tunnel …] $ SETUP_HARNESS=0 SETUP_VLLM=1 bash scripts/setup_env.sh      ← cài vLLM, ~1–2 phút
-[qwen_tunnel …] $ bash scripts/serve_llm.sh start                             ← nạp Qwen3-4B, ~2 phút
-[qwen_tunnel …] vLLM sẵn sàng
-[qwen_tunnel …] UI sẵn sàng nội bộ
-[qwen_tunnel …] UI mở được qua URL công khai (trang yêu cầu mật khẩu UI_PASSWORD)
-
+UI sẵn sàng nội bộ
+UI mở được qua URL công khai (trang yêu cầu mật khẩu UI_PASSWORD)
 ================ MỞ UI ================
-Link: https://<ngẫu-nhiên>.trycloudflare.com
+Link: https://<ngau-nhien>.trycloudflare.com
 ```
 
-**Bước 6: dùng UI**
-1. Mở **Link** bằng trình duyệt, ở máy nào cũng được, rồi nhập mật khẩu `UI_PASSWORD`.
-2. Kiểm thanh bên: ô xanh **"B2-v52n (cấu hình chính 17/11), generator Qwen như cấu hình đo"**, dòng code **khớp 255 tệp**, cả hai khóa API đều **có**.
-3. Nhập **Tên nhân viên / người duyệt** ở thanh bên (bắt buộc để like / dislike và duyệt FAQ).
-4. Demo nhanh: tab **Demo C.6** → chọn **2** → **Chạy demo từ đầu**. Hoặc tự gọi: tab **Cuộc gọi** → **Bắt đầu cuộc gọi mới** → gõ lời khách → **Kết thúc cuộc gọi** → gọi lần hai cùng SĐT để xem Call Brief.
+**Mở UI:** bấm **Link** trong output cell 4 trên trình duyệt máy cá nhân, nhập giá trị `UI_PASSWORD` bạn đã đặt trong Secrets. Không mở `localhost:8501` trên máy cá nhân cho cách này: UI đang nằm trên Kaggle. Chạy `kaggle/ui_tunnel.py` sẽ mở bản UI cũ; cần dùng đúng `kaggle/ui_dashboard.py`.
 
-**Bước 7: lưu dữ liệu rồi tắt** (làm trước khi đóng tab Kaggle)
-1. Trong UI: thanh bên → **Chuẩn bị gói dữ liệu UI để tải về** → **Tải ui_data.zip**.
+**Thử luồng chính:**
 
-   Hoặc, sau khi dừng cell 3, chạy một cell mới, rồi tải `ui_data.zip` ở khung **Output** (`/kaggle/working`):
-   ```python
-   import shutil; shutil.make_archive("/kaggle/working/ui_data", "zip", "/kaggle/working/ui_data")
-   ```
-2. Dừng cell 3 (nút ■ / Interrupt). Script tắt tunnel, UI và vLLM.
-3. **Session options → Stop session** để không tốn quota GPU.
+1. Kiểm thanh bên báo sẵn sàng, hai khóa API có, đúng profile; mở thông tin kỹ thuật để xem cảnh báo cấu hình/hash nếu có.
+2. Nhập **Tên nhân viên**, **Khách demo**, chọn **Có bộ nhớ**. Với candidate, chọn **Tư vấn hai tầng (B2-TT)** trước khi mở cuộc gọi; để gói hướng dẫn tắt khi chưa có gói đã duyệt.
+3. Tab **Cuộc gọi** → **Bắt đầu cuộc gọi mới** → nhập lời khách → **Kết thúc cuộc gọi**. Gọi lần hai cùng SĐT/namespace để xem **Call Brief**. Hoặc tab **Demo C.6** → **Chạy demo từ đầu**.
+4. Clone sạch không có `runs/`, nên tab **Chỉ số** có thể trống. Cần report phù hợp để hiện số đo; dashboard không tự tạo số liệu thay thế.
 
-**Khi có lỗi**
+**Lưu trước khi tắt:** kết thúc cuộc gọi đang mở, thanh bên → **Chuẩn bị gói dữ liệu UI để tải về** → **Tải ui_data.zip**. Dữ liệu ở `/kaggle/working/ui_data`; phiên mới không tự khôi phục dữ liệu phiên cũ. Chỉ chia sẻ link/mật khẩu cho người được phép thao tác dữ liệu demo chung.
 
-| Thông báo | Cách xử lý |
+**Cell 5 — dự phòng tải dữ liệu** (chỉ chạy sau khi đã dừng cell 4, nếu không tải được qua UI):
+
+```python
+import shutil
+shutil.make_archive('/kaggle/working/ui_data', 'zip', '/kaggle/working/ui_data')
+```
+
+Tải `/kaggle/working/ui_data.zip` ở khung Output. Dừng cell launcher bằng **■ / Interrupt**, rồi **Stop session** để ngừng dùng GPU. Link chỉ sống trong phiên hiện tại; chạy lại có link mới.
+
+**Lần chạy sau / cập nhật code:** phiên Kaggle mới thì chạy lại từ cell 1. Nếu repo vẫn còn, dừng launcher trước, chạy `!git -C /kaggle/working/SudoCode pull --ff-only`, kiểm commit rồi chạy lại cell 2–4. Sau khi đổi Secrets, chạy lại cell 2 và khởi động lại launcher; tiến trình UI đang chạy không tự nhận khóa mới.
+
+**Lỗi thường gặp**
+
+| Hiện tượng | Cách xử lý |
 |---|---|
-| `thiếu UI_PASSWORD (≥ 8 ký tự)` / `thiếu khóa API` | Bước 2: thêm secret **và tích gắn** cho notebook, rồi chạy lại cell 3 |
-| `không thấy GPU` | Session options → Accelerator GPU, rồi **Restart session** |
-| `cloudflared không cấp được URL` | Internet của notebook chưa bật (cần xác minh SĐT) |
-| `Streamlit đã thoát` / UI trắng | Xem `/kaggle/working/streamlit.log` |
-| `vLLM đã thoát` / `vLLM chưa sẵn sàng` | Xem `/kaggle/working/vllm_tunnel.log` |
-| Link không mở được sau một thời gian | Phiên Kaggle đã tắt hoặc tunnel đã dừng: chạy lại cell 3 để có link mới |
+| Thiếu file dashboard / mở giao diện cũ | Kiểm commit/nhánh đã push và lệnh entrypoint ở cell 4 |
+| `No module named streamlit` ở máy cá nhân | Cài `requirements-ui.txt` bằng đúng `venv\Scripts\python.exe` như mục 5.1 |
+| Cổng 8501 đã dùng | Dừng Streamlit cũ hoặc đổi `--server.port=8502`, mở `http://localhost:8502` |
+| Không thấy Secrets / thiếu khóa | Thêm đúng label và tích gắn; chạy lại cell 2 rồi khởi động lại cell 4 |
+| `UI_PASSWORD` quá ngắn | Sửa secret thành ít nhất 8 ký tự rồi nạp/chạy lại |
+| Nút mở cuộc gọi bị khóa / `code lệch freeze` | Dùng source, JSON profile và freeze cùng phiên bản; không bỏ kiểm hash hay chép freeze cũ vào source mới |
+| Nhãn `chưa kiểm hash code` | Không có `code_sha256.txt` ở freeze mà JSON chỉ định; UI cho chạy nhưng chưa xác minh đúng code đã đo |
+| Qwen timeout khi UI ở máy cá nhân | Cell Qwen phải còn chạy; đặt lại URL đuôi `/v1` và khóa mới, khởi động lại Streamlit |
+| vLLM lỗi / không thấy GPU | Chọn GPU T4, bật Internet, Restart session; đọc log vLLM |
+| UI trắng / Streamlit thoát / không có link | Xem log sau khi dừng cell 4 bằng cell bên dưới |
+| Link hết hoạt động | Kiểm cell launcher và phiên Kaggle; chạy lại để lấy link mới |
+| Lỗi tiếng Việt trên Windows | Đặt `PYTHONIOENCODING=utf-8` trước khi khởi động như lệnh mẫu |
 
-Xem log ngay trong notebook bằng `!tail -50 /kaggle/working/streamlit.log`, đổi tên tệp theo log cần xem.
+**Cell xem log khi lỗi** (dừng cell launcher trước để có thể chạy cell khác):
 
-**Lưu ý:**
-- Link công khai: ai có link mà thiếu mật khẩu thì không thấy gì ngoài ô nhập mật khẩu. Đừng gửi mật khẩu chung với link, và đổi mật khẩu sau buổi demo.
-- Dừng cell (■) thì tắt UI, tunnel và vLLM. Phiên Kaggle tắt thì link chết; chạy lại sẽ có link mới.
-- Kiểm bằng job theo lô: đặt `UI_TUNNEL_SELFTEST=1`, script dùng mật khẩu ngẫu nhiên, không cần khóa API, không in link hay mật khẩu. Cổng mật khẩu có test riêng: `tests/ui_password_check.py`.
+```python
+!tail -50 /kaggle/working/streamlit.log
+!tail -50 /kaggle/working/vllm_tunnel.log
+```
+
 
 ### 5.2. Kiểm khởi động (thanh bên trái)
 
 Profile được chọn một lần cho cả tiến trình qua `UI_PROFILE`, không đổi giữa phiên. Lúc mở, UI kiểm:
-- `ARCH=target` và `PLANNER_VARIANT=b2_jev`;
-- model, ngân sách planner và các cờ hợp đồng khớp `profiles/b2_v52n.json`;
-- code khớp freeze `runs/freeze/20261117-v52n-ui` (có tệp freeze thì kiểm; lệch → từ chối);
-- nếu máy có snapshot `runs/snapshots/20261117-b2-v52n/config.json`, profile phải khớp snapshot.
 
-Lệch ở bất kỳ điểm nào thì thanh bên báo đỏ và nút **Bắt đầu cuộc gọi mới** bị khóa.
+- `ARCH=target` và `PLANNER_VARIANT=b2_jev`;
+- model, ngân sách planner và các cờ hợp đồng khớp JSON của `UI_PROFILE` đã chọn;
+- với `b2_v52n` hoặc `b2_integ_tt`, nếu có `code_sha256.txt` tại đường dẫn `freeze` trong JSON thì kiểm hash; lệch → từ chối. Thiếu tệp freeze → ghi nhãn chưa kiểm hash;
+- nếu profile có snapshot đã đo trên máy, JSON phải khớp snapshot đó. `b2_v51a` chỉ cảnh báo khi lệch hash code theo hành vi cũ.
+
+Lỗi kiểm cấu hình hoặc hash thuộc diện từ chối thì thanh bên báo đỏ và nút **Bắt đầu cuộc gọi mới** bị khóa.
 
 Thanh bên còn có:
+
 - **Chuẩn bị gói dữ liệu UI để tải về**: đóng `ui_data.zip` (bộ nhớ, feedback, trace, kho duyệt FAQ, trạng thái gói) để tải về;
 - **Chế độ** `full` / `baseline_no_memory`: mỗi chế độ có engine, namespace (`ui:<profile>:<chế độ>:<tên>`) và phiên riêng;
 - **Tên khách demo**: mỗi tên là một namespace bộ nhớ riêng;
@@ -472,8 +464,11 @@ Thanh bên còn có:
 ### 5.5. Kiểm thử UI (chạy trên Kaggle CPU, không cần khóa)
 
 ```bash
-python tests/ui_b2_check.py   # B2: kiểm khởi động, on_emit, chống gọi lại, namespace, feedback, nạp / đổi / quay lui gói FAQ
-python tests/ui_check.py      # pipeline cũ (legacy_offline): kịch bản C.6 + AppTest (nếu đã cài streamlit)
+python tests/ui_dashboard_check.py  # dashboard mới: mật khẩu, 5 tab, gọi lại, feedback, biểu đồ report
+python tests/ui_v2_check.py         # luồng UI v2 dùng chung với dashboard
+python tests/ui_password_check.py   # cổng mật khẩu
+python tests/ui_b2_check.py         # khởi động B2, namespace, nạp / đổi / quay lui gói FAQ
+python tests/ui_check.py            # pipeline cũ legacy_offline
 ```
 
 ## 6. Cơ chế cải tiến (`improve/`)
@@ -555,7 +550,7 @@ python run_eval.py --scenarios <bộ> --config full --router jev --generator qwe
   trên cùng vLLM và chặn client thật. Số đo khi đó phải ghi là "Jev giả lập". Cấu hình này không gọi DeepSeek.
 - Quyền (D60): số điện thoại khách tự đọc chỉ là số liên hệ, không mở hay gộp hồ sơ CRM. Danh tính lấy theo caller ID/zalo_id/fb_id
   của kênh. Đây không phải xác thực mạnh: không có OTP.
-- Reset trước demo: nút **Xoá bộ nhớ khách này** hoặc **Chạy demo từ đầu** trong `ui/app.py` (mục 5). Khi chạy dòng lệnh, đặt
+- Reset trước demo: nút **Xoá bộ nhớ khách này** hoặc **Chạy demo từ đầu** trong `ui/dashboard.py` (mục 5). Khi chạy dòng lệnh, đặt
   `DATABASE_URL=sqlite:///<file mới>` để mỗi lần chạy có bộ nhớ riêng.
 - Bản đóng băng: `runs/snapshots/20261110-target-r0/`. Gói C.5 (`IMPROVE_DIR=improve`) đã duyệt nhưng **tắt** vì đo R1 không hơn R0.
 - Số đo V3 dev (Jev giả lập): baseline → đích RQR 69,6 → 0 (giảm 100%), TSR 70,4 → 98,8, HR giá&KM 10,3 → 8,9 (chưa đạt ≤ 5).
