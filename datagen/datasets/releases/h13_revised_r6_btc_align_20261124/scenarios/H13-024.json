@@ -1,0 +1,77 @@
+{
+  "scenario_id": "H13-024",
+  "level": "M2",
+  "persona": "khach_do_du_hoi_nguoi_nha",
+  "hard_case": "h13_hoi_yeu_cau",
+  "customer_phone": "0900117682",
+  "customer_name": "Bích",
+  "honorific": "cô",
+  "notes": "Khách từ chối hẹn → không schedule.callback. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-15",
+      "customer_goal": "hoi gio lam viec, tu choi hen goi lai",
+      "customer_turns": [
+        "Cho cô hỏi cái Joie Pact giá bao nhiêu với em.",
+        "Mà tổng đài mở tới mấy giờ vậy em, tối có ai bắt máy không?",
+        "Ừ cô biết giờ rồi, em khỏi gọi lại nha, cô tự liên hệ."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-MB-STR1",
+        "price_quoted_vnd": 3490000
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "schedule.callback"
+        ],
+        "must_say_any": [
+          "21 giờ",
+          "21h",
+          "21:00",
+          "9 giờ tối",
+          "9h tối"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3490000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F05n-hoi-gio-lam-roi-hen-hay-khong",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N078",
+    "synthetic_customer": true,
+    "address": "185 Trần Phú, Nha Trang, Khánh Hòa",
+    "dates": {
+      "call_1": "2026-10-15"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N078",
+      "p": "SKU-MB-STR1",
+      "d1": "2026-10-15"
+    },
+    "template_family": "H13-F05",
+    "group": "hoi_yeu_cau",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho cô hỏi giá Joie Pact với.",
+        "Tổng đài mở tới mấy giờ thế em, buổi tối có ai nghe máy không?",
+        "Ừ biết giờ rồi, em không cần gọi lại đâu, cô tự liên hệ nhé."
+      ]
+    }
+  }
+}

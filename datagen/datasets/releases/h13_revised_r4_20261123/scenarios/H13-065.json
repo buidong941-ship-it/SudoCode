@@ -1,0 +1,90 @@
+{
+  "scenario_id": "H13-065",
+  "level": "M2",
+  "persona": "khach_da_kenh_fb_hotline",
+  "hard_case": "h13_da_kenh",
+  "customer_phone": "0942927415",
+  "customer_name": "Huy",
+  "honorific": "anh",
+  "notes": "Khách mới, tự để SĐT trong chat Fanpage → hotline nối được, chốt SKU-AF-XM. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "channel": "chat_fanpage",
+      "channel_identity": "fb.huy.720",
+      "customer_goal": "hoi gia qua fanpage, de lai sdt",
+      "customer_turns": [
+        "Ad cho mình hỏi giá Xiaomi 4.5L với ạ",
+        "Ok để mai mình gọi hotline đặt, số mình 0942927415 nha ad."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-XM",
+        "price_quoted_vnd": 1590000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 1,
+      "customer_goal": "chot mau da hoi qua fanpage",
+      "customer_turns": [
+        "Em ơi, anh là người nhắn Fanpage bên em hỏi giá bữa trước nè, có để lại số này đó. Chốt cho anh cái mẫu đó luôn đi.",
+        "Gửi về 29 Nguyễn Trãi, Thanh Xuân, Hà Nội, COD nhé."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-XM",
+          "price_vnd": 1590000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F17p-fanpage-chua-lien-ket-roi-hotline",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N242",
+    "synthetic_customer": true,
+    "address": "29 Nguyễn Trãi, Thanh Xuân, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-20",
+      "call_2": "2026-10-21"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N242",
+      "p": "SKU-AF-XM",
+      "d1": "2026-10-20",
+      "gap": 1
+    },
+    "template_family": "H13-F17",
+    "group": "da_kenh_danh_tinh",
+    "polarity": "pos",
+    "naturalized": {
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_2": [
+        "Em ơi anh là người nhắn Fanpage hỏi giá hôm trước, có để số này. Chốt cho anh mẫu đó luôn.",
+        "Địa chỉ 29 Nguyễn Trãi, Thanh Xuân, Hà Nội, COD nhé."
+      ]
+    }
+  }
+}

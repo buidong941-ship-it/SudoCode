@@ -1,0 +1,129 @@
+[
+  {
+    "scenario": "H13-037",
+    "call": "call_1",
+    "old": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "new": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-JK-WND-L-BE"
+        }
+      }
+    },
+    "basis": "BTC schemas/tools.schema.json order.update action exchange_size + new_variant_sku; reference_eval args_match là expected ⊆ actual (tham số riêng line_sku không làm trượt)"
+  },
+  {
+    "scenario": "H13-038",
+    "call": "call_1",
+    "old": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-40-DEN",
+          "price_vnd": 890000
+        },
+        "also_ordered": [
+          "SKU-SN-CAS-40-DEN",
+          "SKU-WF-UF"
+        ],
+        "total_match_vnd": 4180000
+      }
+    },
+    "new": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-CAS-40-DEN"
+        }
+      }
+    },
+    "basis": "BTC schemas/tools.schema.json order.update action exchange_size + new_variant_sku; reference_eval args_match là expected ⊆ actual (tham số riêng line_sku không làm trượt)"
+  },
+  {
+    "scenario": "H13-039",
+    "call": "call_1",
+    "old": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-42-TRANG",
+          "price_vnd": 890000
+        },
+        "also_ordered": [
+          "SKU-SN-CAS-42-TRANG",
+          "SKU-AP-MINI"
+        ],
+        "total_match_vnd": 3080000
+      }
+    },
+    "new": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-CAS-42-TRANG"
+        }
+      }
+    },
+    "basis": "BTC schemas/tools.schema.json order.update action exchange_size + new_variant_sku; reference_eval args_match là expected ⊆ actual (tham số riêng line_sku không làm trượt)"
+  },
+  {
+    "scenario": "H13-040",
+    "call": "call_1",
+    "old": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-TRK-41-XAM",
+          "price_vnd": 1990000
+        },
+        "also_ordered": [
+          "SKU-SN-TRK-41-XAM",
+          "SKU-AF-XM"
+        ],
+        "total_match_vnd": 3580000
+      }
+    },
+    "new": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-TRK-41-XAM"
+        }
+      }
+    },
+    "basis": "BTC schemas/tools.schema.json order.update action exchange_size + new_variant_sku; reference_eval args_match là expected ⊆ actual (tham số riêng line_sku không làm trượt)"
+  },
+  {
+    "scenario": "H13-003",
+    "call": "call_2",
+    "source": "r6",
+    "basis": "BTC mock _eta tính lúc order.create, update_address không tính lại → nhận cả hai ngày"
+  },
+  {
+    "scenario": "H13-004",
+    "call": "call_2",
+    "source": "r6",
+    "basis": "BTC mock _eta tính lúc order.create, update_address không tính lại → nhận cả hai ngày"
+  }
+]

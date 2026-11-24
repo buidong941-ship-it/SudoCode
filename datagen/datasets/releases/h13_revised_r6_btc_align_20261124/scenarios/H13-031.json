@@ -1,0 +1,105 @@
+{
+  "scenario_id": "H13-031",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0984956339",
+  "customer_name": "Long",
+  "honorific": "anh",
+  "notes": "Màu SKU-SN-TRK-41-TRANG hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-31",
+      "customer_goal": "hoi gia bien the",
+      "customer_turns": [
+        "Em ơi đôi HikePro size 41 màu đen giá sao em, còn hàng không?",
+        "Ừ để anh nghĩ thêm rồi đặt sau nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-TRK",
+        "variant_sku": "SKU-SN-TRK-41-DEN",
+        "price_quoted_vnd": 1990000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1990000,
+        "in_stock": true
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 4,
+      "customer_goal": "doi sang mau het hang, khong lay mau cu",
+      "customer_turns": [
+        "Em thêm đôi HikePro size 41 màu đen vào giỏ nháp giúp anh, chưa đặt hàng nha.",
+        "À mà thôi đổi sang màu trắng giúp anh, vẫn size 41. Màu trắng mà hết thì thôi anh không lấy nữa đâu.",
+        "Ừ thế để lúc nào có hàng anh đặt sau vậy."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "hết hàng",
+          "hết màu",
+          "không còn hàng",
+          "tạm hết",
+          "đã hết",
+          "không còn màu"
+        ]
+      },
+      "expected_outcome": "tu_choi"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F07n-doi-mau-truoc-khi-du-thong-tin",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N107",
+    "synthetic_customer": true,
+    "address": "190 Trần Hưng Đạo, TP Nam Định, Nam Định",
+    "dates": {
+      "call_1": "2026-10-31",
+      "call_2": "2026-11-04"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N107",
+      "p": "SKU-SN-TRK-41-DEN",
+      "col": "trang",
+      "d1": "2026-10-31",
+      "gap": 4
+    },
+    "template_family": "H13-F07",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi HikePro size 41 màu đen giá bao nhiêu em, còn hàng không?",
+        "Ừ để anh suy nghĩ rồi đặt sau."
+      ],
+      "call_2": [
+        "Anh lấy HikePro size 41 màu đen hôm trước em báo nha, giao về 190 Trần Hưng Đạo, TP Nam Định, Nam Định.",
+        "À mà đổi sang màu trắng giùm anh, vẫn size 41. Màu trắng mà hết thì thôi anh không lấy nữa đâu.",
+        "Ừ vậy để khi nào có hàng anh đặt sau."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "draft cart; new color conditional on stock; no order if unavailable"
+  }
+}

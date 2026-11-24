@@ -372,6 +372,12 @@ class Resolver:
             tot += self.final(s, call, basket=[x for j, x in enumerate(skus) if j != i], **kw)
         return tot
 
+    def quote_order(self, skus, call):
+        """Báo giá đơn nhiều dòng bằng pricing.quote_order của mock BTC (11/2026): mỗi SKU một đơn vị."""
+        cust = self.cur.get("cust")
+        return self.mt.pricing_quote_order([{"sku": s, "qty": 1} for s in skus], on=self._on(call),
+                                           customer_phone=cust.phone if cust else None, address=cust.address if cust else None)
+
     def new_order_id(self):
         while True:
             oid = f"OD{self.rng.randint(100000, 999999)}"
@@ -390,7 +396,7 @@ class Resolver:
             customers=self.customers, products=self.products, product=self.product, variant_of=self.variant_of, next_size=self.next_size,
             q=self.q, final=self.final, disc=self.disc, best_promo=self.best_promo, promos=self.promos, promo=self.promo,
             promo_end=self.promo_end, promo_active=self.promo_active, promo_label=self.promo_label, inv=self.inv, in_stock=self.in_stock,
-            restock=self.restock, eta=self.eta, basket_total=self.basket_total, new_order_id=self.new_order_id, mock_order_id=self.mock_order_id, new_digits=self.new_digits,
+            restock=self.restock, eta=self.eta, basket_total=self.basket_total, quote_order=self.quote_order, new_order_id=self.new_order_id, mock_order_id=self.mock_order_id, new_digits=self.new_digits,
             import_price=lambda s: self.import_price.get(s), money_regex=money_regex, price_forms=price_forms,
             add=add, diff=diff, days=days, ddmm=ddmm, weekday=weekday, region_days=region_days, vnd=vnd, k=k, trieu=trieu,
             trieu_words=trieu_words, num_words=num_words, spoken=spoken, teen=teen, strip_accents=strip_accents,

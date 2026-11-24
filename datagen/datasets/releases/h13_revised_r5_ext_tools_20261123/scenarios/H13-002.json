@@ -1,0 +1,105 @@
+{
+  "scenario_id": "H13-002",
+  "level": "M2",
+  "persona": "khach_da_kenh_fb_hotline",
+  "hard_case": "h13_da_kenh",
+  "customer_phone": "0925822018",
+  "customer_name": "Quỳnh",
+  "honorific": "chị",
+  "notes": "Khách CRM có fb_id; đơn OD600001 giao dự kiến 2026-11-04. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-30",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Alo em hả, chị muốn lấy cái Warmly, size L, màu xanh navy á.",
+        "Em gửi về 130 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương nha, chừng nào nhận chị đưa tiền mặt."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-DWN",
+        "variant_sku": "SKU-JK-DWN-L-NAVY",
+        "price_quoted_vnd": 1490000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "130 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-DWN-L-NAVY",
+          "price_vnd": 1490000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 2,
+      "channel": "chat_fanpage",
+      "channel_identity": "fb.quỳnh.783",
+      "customer_goal": "hoi ngay giao qua fanpage",
+      "customer_turns": [
+        "Shop ơi đơn Warmly mình đặt qua tổng đài hôm 30/10 khi nào giao tới ạ?",
+        "Ok shop, cảm ơn nha."
+      ],
+      "must_carry_over": [
+        "order_id"
+      ],
+      "must_not_ask": [
+        "order_id",
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "04/11",
+          "4/11",
+          "ngày 4 tháng 11",
+          "4 tháng 11"
+        ]
+      },
+      "ground_truth_facts": {
+        "estimated_delivery": "2026-11-04"
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F16-tong-dai-dat-roi-fanpage-hoi-don",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "C040",
+    "synthetic_customer": false,
+    "address": "130 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương",
+    "dates": {
+      "call_1": "2026-10-30",
+      "call_2": "2026-11-01"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "C040",
+      "p": "SKU-JK-DWN-L-NAVY",
+      "d1": "2026-10-30",
+      "gap": 2
+    },
+    "template_family": "H13-F16",
+    "group": "da_kenh_danh_tinh",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho chị Warmly size L màu xanh navy nhé.",
+        "Giao về 130 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương, nhận hàng chị trả tiền mặt."
+      ]
+    }
+  }
+}

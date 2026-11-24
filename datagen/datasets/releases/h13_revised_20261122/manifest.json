@@ -1,0 +1,196 @@
+{
+  "release_id": "h13_revised_20261122",
+  "version": "r2-fixture-revision",
+  "created": "2026-11-22",
+  "provenance": "Team-authored fixture revision of previously exposed H13; not BTC data and not a holdout.",
+  "status": "Kaggle fixture validation complete (86/86; 0 errors, 0 warnings); no agent run; not for candidate selection",
+  "source": "runs/h13_final/suite (locked 84-case H13; see AUDIT/SOURCE_SUITE_MANIFEST.json)",
+  "counts": {
+    "scenarios": 86,
+    "calls": 162,
+    "customer_turns": 346
+  },
+  "scenario_dir": "scenarios",
+  "audit_dir": "AUDIT",
+  "changes": {
+    "dialogue_revisions": [
+      "H13-029",
+      "H13-030",
+      "H13-031",
+      "H13-032"
+    ],
+    "clarification_phrase_cases": [
+      "H13-047",
+      "H13-048",
+      "H13-067",
+      "H13-068"
+    ],
+    "scalar_price_removed": [
+      {
+        "scenario_id": "H13-025",
+        "call": "call_1",
+        "old_price_vnd": 3990000
+      },
+      {
+        "scenario_id": "H13-026",
+        "call": "call_1",
+        "old_price_vnd": 2190000
+      },
+      {
+        "scenario_id": "H13-027",
+        "call": "call_1",
+        "old_price_vnd": 1890000
+      },
+      {
+        "scenario_id": "H13-028",
+        "call": "call_1",
+        "old_price_vnd": 590000
+      },
+      {
+        "scenario_id": "H13-045",
+        "call": "call_1",
+        "old_price_vnd": 590000
+      },
+      {
+        "scenario_id": "H13-046",
+        "call": "call_1",
+        "old_price_vnd": 4290000
+      },
+      {
+        "scenario_id": "H13-047",
+        "call": "call_1",
+        "old_price_vnd": 1590000
+      },
+      {
+        "scenario_id": "H13-048",
+        "call": "call_1",
+        "old_price_vnd": 3290000
+      }
+    ],
+    "new_cases": [
+      "H13-085",
+      "H13-086"
+    ]
+  },
+  "scenario_sha256": {
+    "H13-001": "6b9d13f2915ae8b9cc58a4f0ab5810a41608b8c608fbde90e114bb1aa9e84b78",
+    "H13-002": "3795882aeee6a2cbdce02e528026c65474997d0a75e548c649b7d44c0a5460cd",
+    "H13-003": "546f261abfda7f136d87fba8d8d660131f0aeca5436cacdd060e6c7cb90ff067",
+    "H13-004": "acc0ac41621ade1b8669232d7233b953b6612cbdc421bcebf5d90bfdbe218e38",
+    "H13-005": "0987ef141d74733319e19660f355d067740cf577554b220cb23f65f0d0d6403e",
+    "H13-006": "574791c09e52919ab8142136f815fd2c4f8f5844d1bbaeef826a482c08cab90c",
+    "H13-007": "bfae0ff27eb8d66e76bfdb07a6b17ce9a34757a8cdac602812f66a72efefa186",
+    "H13-008": "90aa098770d75860d3497ead5159a1b27c394b68a69348b9a56879278cab2e6d",
+    "H13-009": "ec129eb6d60ab9c3bea06a5766d79c51891664b741018b1170b7272a85171665",
+    "H13-010": "fdc56e94be103ce4e11e544c5938855652e93c484e6249d948dd68fd6ac314b5",
+    "H13-011": "c97d70825d036acfd879f6d5dc8d4b488dcc6f6bcf1021a0bd67bb25b2242eea",
+    "H13-012": "56eab3584677004ba33c275f2690a1afac58d88002c2f4e570300891311d4d83",
+    "H13-013": "4b7a4fb714a489476f8541a59f8dfb4e59b79222296fa053f39f37c42024791f",
+    "H13-014": "7d4ac8cca6c1a9d8c6fd5cf28069215c6c713c44913ab87e5bbcae636e3c557b",
+    "H13-015": "63761699600a27464540179be1a908c4c41844faa3cca502182c1ad0d47f0527",
+    "H13-016": "c101a5564870e1607cf353075fce1b87af456d8fa57374883e45f40f24533c78",
+    "H13-017": "87d9c8fa9765e3bd79602118841af7276b25cdae280ade06f88cc1bd4335ae75",
+    "H13-018": "d9103de9f093848f827bb4040bd515c196affb56cdbafff71e8d412797c21638",
+    "H13-019": "097b5f347640f37fa55bac940178888b5ad61dc99910ce3790a6c0cd7e4fab30",
+    "H13-020": "23aa9f16d3922ee73d3647ff2f4618286003f7f41f6a07707bcfd8d945d4470e",
+    "H13-021": "7e14e6b4c6004922bcce0fe986c15027d35ca1443eb16187fd62e26089e81e0c",
+    "H13-022": "6e2c1c3af87d754bec4f11ee807596187cb978c53cbd2412998fd632fd38b300",
+    "H13-023": "61e063bb9241696f5441d5ded2d49827a4e168d61d07883f5a0d77c9bbe84fd9",
+    "H13-024": "68c50c14367026de13cfe45ba38311a4a6ab30bf1390c467de740e89611e067e",
+    "H13-025": "a23a77512025eb0a20e56434cd9464bfc40ba9628cb8e57b42e4e8027a2484f5",
+    "H13-026": "b1173e6b1057d516c5afcbf2e3450f943404656edcd52eb64fa2adf5fab583aa",
+    "H13-027": "15c0998921553bc08848ba7d97b14ffb782808312ae0258e4560b8e0505bdd91",
+    "H13-028": "5ad1e059ee1c329cf91917ee3e5e32c36b5c1f384821556976863de21b1a4d09",
+    "H13-029": "eedc759b2568b9371477458f25efdc2938240209e56c71d2ad227ec8a08a4a7d",
+    "H13-030": "d7f98d2be306c545d5e9fd913d89d6ae800ed30bad8f895be3611e6582c90873",
+    "H13-031": "0bad44b337dbbf080fedd2e4272d3424f52b18bfe5b057b43c23158fbd9c0b95",
+    "H13-032": "735b92775619fd40e1daef6f71adb46029a7cb94ed12a7a128a1815bc11bf651",
+    "H13-033": "a68feb055a2bb4a4c8cf39cfccaa9225c622fd4281f4fd5e6ceadfd97fbba2fb",
+    "H13-034": "cd7851a0bb458f4be416303bef099646ce1ff6b24e31f580d0a64cee0ae4f7e0",
+    "H13-035": "ce75fe3acfe4f6941cb07a9b9f19a09095717379c4bbeb919fd47dc60c58776f",
+    "H13-036": "b1328439a917cb7ba04e3d94a4fefd0ce2713f88e1e5053a641658bb4bc09300",
+    "H13-037": "098be9d7b3ddf6626ad3607383dde070a2d93625305aea0ed81f590b2b2e97af",
+    "H13-038": "1a5bd3ee85c1b10d1a306b2cc62014844880093f76bad76712d2b5cfd7dc93c0",
+    "H13-039": "c1997e1ce9715b1643db5f9a1bd23884549b1dbdfde22a2c8cc29c559f5ef29d",
+    "H13-040": "ef6eab7601aee69166690952c4a110bbba6f7b53258e6dba9c053f0a52d63fef",
+    "H13-041": "b62854ee0e7b8ec28e0f35901b4c373ec11c4ab7850c1ff9cd0672d28756bdc1",
+    "H13-042": "a8f676f0747586b0b2338a12257964dd28db97a3374122264e80941bdebd12ab",
+    "H13-043": "d29f2f6669eff9621683a6185ce54a17ccf98f67f981ddd813fcaa8faf276e5c",
+    "H13-044": "8e8d295c4629bb72fb8919338f18eccf54910e9b090298f9d2ee5bf8f4f998d4",
+    "H13-045": "ce6508fdf6ed0304d782463af88e812df922658b1fdc9e01134a90aaab43edd7",
+    "H13-046": "95f00acd5757bb76f437e0ba4a6ccffab1e348980bdbb585e4264511999ba3e4",
+    "H13-047": "ea6733332689b75161d1c8084081eda1afa4a34a009280df64990484e0089e3d",
+    "H13-048": "5834e5fb91c32a3ec46aaf454965b039ace09254e644fc7b9f719bddc33c6ae0",
+    "H13-049": "dc49e1eb3994bab1bdafc67752d0fa8f36f392f7a4260b9f57822a8d4ffb1243",
+    "H13-050": "374c02c8bca961ed5e8b1ff1f3e99474c0344bc890aba2d15f27d97c85659f7a",
+    "H13-051": "fb17fa8d9a826d53de546789c2215df4789c5cda91c8981392da73d16ff55ce6",
+    "H13-052": "a00312ba85a50a684ebecdaaf377597df1575801761f4f8e53fa6f6fbdd6d80a",
+    "H13-053": "6b95a3c9c396853ac8d5d4e8621cc79ead0e527ca307a0e289965427806d11f2",
+    "H13-054": "2c41ac5f2d938877630222b9ec517dcade6c90c199f919242f7153a3410b2b28",
+    "H13-055": "a12b404d3beaff35303a3af2e5df9757cac083f847969a92c43b75cc9b3cec4c",
+    "H13-056": "b51ffabbf1a495f5e09cc37e7832e242f24270bd5e1393f98d92bf49516a6ea3",
+    "H13-057": "c3f632d8c7f5f41962512eb4608243f8f0995defa5c7cc075424debdb4be5a45",
+    "H13-058": "9fb9f231672e1784457ed527c548b7d28282b527adfd3dd446e8d417bcd7cc4b",
+    "H13-059": "7e2dd9cfb90f23cf380a5f351babc8cd0bb50412048525b26a0d8ff2ada78d07",
+    "H13-060": "e00e09cce436423484ca899fc40ba92176125deacac05c0763c4c0f5e3e654f7",
+    "H13-061": "6c89c68e6b65f8f02a9c84c8f4345f5fe8450b0ef449dd46162b4c2730944279",
+    "H13-062": "7d1c3ca33c74540cf2fbbbe31e85e03bef033ae479100a44d82c62883672d2f3",
+    "H13-063": "bd8049a690a96d4712c6445c7d7c195e889ed0b7ead620a968cc8c22299583e6",
+    "H13-064": "c563e28bc528d6ba3696829b1ef707096f2547da1436ed24715ecb848949923b",
+    "H13-065": "f610a25b22f1f5038e67a147c6f97cfef9a1fe6c4a9b07c1dd1599677fc729b9",
+    "H13-066": "5ff3346475ba3cbcc03762973a0f9191ff0ff93b8f01107245ad7fcaf6ea4616",
+    "H13-067": "430d5c7177151a6b59c5883aa77942af5ca5afa81a9e9477cb23ae05396e0cf9",
+    "H13-068": "17a40b5e0e6aad84c9080526e9e1a15022be751f9a5fc30c50f8d54fb7774fde",
+    "H13-069": "244730e89a03e3c4d4e17494823bce60bbc768dc3e850d182dccb5db8a6b936d",
+    "H13-070": "736b6ef9802c4aac479975ae5d8d2aea4ed78b9e6fae19390ebee3750586c1f6",
+    "H13-071": "0f72a7aaf846646dd35bdf30ee7a1a5a856e513da261fa6c0716d5ce7b68ce75",
+    "H13-072": "69dcf973c1d33a7e5e0c64dd117d3666b67484097e7938f917b4ac2e0c04e19e",
+    "H13-073": "f322f12f6c526f5322b86a7e45d621dcccc9ef49948b0dda99235682151c4319",
+    "H13-074": "84c8d748647d9a1dbf6fad3797b559259ab844b4fe6afa247800a54eaa9ad69d",
+    "H13-075": "3f0cb427c824ce2629301468e1b806c8a45b51bbfaca521ad92d23aabc9e6925",
+    "H13-076": "636b8d40321415f5e7dca4e421f7a76e9c2be425b6d936414f7ac52c8efb9713",
+    "H13-077": "ae1d87998b322de962de0d234392df11ff96dd365ec71e3c64bd1e0e0f87724d",
+    "H13-078": "353aec713527d5af18160d0522f057c9247d8a0175cb69349c5bc6fcc51ee521",
+    "H13-079": "baab24906cbf4121d05da206c896338bab2c6ed41f821c5f6029b55001397986",
+    "H13-080": "8114ef99ffccadfa96709244b605d656630b8af3b1bfdc8a98effe7214dedbc5",
+    "H13-081": "e9a4f01c40929c2e7e9fef0b4c572c2cf301ffc9acc8ddab4bafc1d4e741788d",
+    "H13-082": "e7a27a6f372af41de669880eabf3ff6639e453fd1271ff47846bd429881f7a7a",
+    "H13-083": "e46246bb87001edd8595b2f9c537caf6767a6dc2486e757f6266eafb94207cdd",
+    "H13-084": "62fec6bf180e1f71ab2001eb2496f79aebc881cb386465243ea901e821519043",
+    "H13-085": "f6280b0c2f3e2d087d87707f35b01f70f2aeb2415e42f0e5831ea9fd7ed2ca07",
+    "H13-086": "f2d6b729e52f2049373c0b2f81e60aa7bacc33b27eaed92b3c449c09e753811c"
+  },
+  "audit_sha256": {
+    "CASE_DECISIONS.json": "4ab9accfeb2bb77e4db82a0a10e1357138fff75e8d0b135bb8a0b8f62774f37d",
+    "CLARIFICATION_REVIEW.md": "908a6b81c416081a54d7bcf6ab851150abf643af67ec57130492dc65ad625488",
+    "RELEASE_NOTES.md": "95f60560d2db4f0b19d489351c523071be3ce893ea076b816d78aef1cf0d53ce",
+    "SOURCE_LOCK.json": "a60859c29bee9a4ea3d29b18143564081df01c9819d665e12af46f0160586d6c",
+    "SOURCE_SUITE_MANIFEST.json": "391f42c4a506a6a1c2455a74030b8be2258a848380e06fbfcd5420b0ba83fa02",
+    "SUPPLEMENTAL_TRUTH.jsonl": "5dd634d2e83799f443554202e5313326fb895c91ecb25c2fe34f25ccde5e4f50"
+  },
+  "kaggle_validation": {
+    "kernel": "midzid/sudocode-h13-revised-fixture-validation",
+    "version": 2,
+    "result": "complete",
+    "report": "runs/kaggle/h13-revised-fixture-validation/out/h13_revised_validation.json",
+    "report_sha256": "eea07ced1ffbdf7b16a487a193e10e82bddd3492e01a4a56d2959ca4789d10da",
+    "errors": 0,
+    "warnings": 0,
+    "scenarios": 86,
+    "calls": 162,
+    "customer_turns": 346,
+    "informational_rows": [
+      {
+        "scenario_id": "H13-086",
+        "issues": [
+          {
+            "level": "INFO",
+            "where": "call_2",
+            "code": "brief_extra",
+            "msg": "brief_must_contain có trường ngoài required của handoff_brief.schema: ['escalation_reason_detail']"
+          }
+        ]
+      }
+    ]
+  }
+}

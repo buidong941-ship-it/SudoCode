@@ -1,0 +1,111 @@
+{
+  "scenario_id": "H13-063",
+  "level": "M2",
+  "persona": "khach_hoi_nhieu_khong_mua",
+  "hard_case": "h13_nho_qua_phien",
+  "customer_phone": "0933207698",
+  "customer_name": "Khang",
+  "honorific": "anh",
+  "notes": "Khách hỏi giá giùm người khác → báo 2.190.000đ, không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-02",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi, lấy cho anh cái AirPure Mini nghen.",
+        "Gửi về 94 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu, nhận hàng anh trả tiền mặt."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AP-MINI",
+        "price_quoted_vnd": 2190000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "94 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AP-MINI",
+          "price_vnd": 2190000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2190000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 9,
+      "customer_goal": "hoi gia giup nguoi khac, khong mua",
+      "customer_turns": [
+        "Em ơi, thằng bạn anh hỏi cái AirPure Mini anh mua bữa trước giờ giá bao nhiêu, anh hỏi giùm nó thôi nghen.",
+        "Ừ để anh nói lại với nó, anh không mua thêm đâu."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "2 triệu 190",
+          "2,190,000",
+          "2.190.000",
+          "2190000",
+          "2190k",
+          "2tr190"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2190000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F15n-dong-y-cu-khong-thanh-dong-y-moi",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N233",
+    "synthetic_customer": true,
+    "address": "94 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu",
+    "dates": {
+      "call_1": "2026-10-02",
+      "call_2": "2026-10-11"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N233",
+      "p": "SKU-AP-MINI",
+      "d1": "2026-10-02",
+      "gap": 9
+    },
+    "template_family": "H13-F15",
+    "group": "nho_qua_phien",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho anh AirPure Mini nhé.",
+        "Giao về 94 Ba Cu, TP Vũng Tàu, Bà Rịa - Vũng Tàu, nhận hàng anh trả tiền mặt."
+      ],
+      "call_2": [
+        "Em ơi bạn anh hỏi cái AirPure Mini anh mua lần trước giờ giá bao nhiêu, anh hỏi giùm thôi nha.",
+        "Ừ để anh báo lại bạn, anh không mua thêm đâu."
+      ]
+    }
+  }
+}

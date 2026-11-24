@@ -1,0 +1,113 @@
+{
+  "scenario_id": "H13-029",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0957191850",
+  "customer_name": "Sơn",
+  "honorific": "anh",
+  "notes": "Đổi SKU-JK-DWN-L-NAVY → SKU-JK-DWN-L-BE (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-DWN-L-BE. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-12",
+      "customer_goal": "hoi gia bien the",
+      "customer_turns": [
+        "Em ơi, Warmly size L màu xanh navy còn không em, giá sao?",
+        "Ok, để anh tính thêm nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-DWN",
+        "variant_sku": "SKU-JK-DWN-L-NAVY",
+        "price_quoted_vnd": 1490000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "doi mau truoc khi chot",
+      "customer_turns": [
+        "Em ơi, cho anh để Warmly size L màu xanh navy vào giỏ nháp trước nhé; chưa lên đơn. Giao về 109 Quang Trung, Hà Đông, Hà Nội.",
+        "À khoan em, anh đổi ý, lấy màu be thôi, không lấy xanh navy nữa, size vẫn L.",
+        "Thanh toán COD em nhé."
+      ],
+      "facts_established": {
+        "variant_sku": "SKU-JK-DWN-L-BE"
+      },
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-DWN-L-BE",
+          "price_vnd": 1490000
+        },
+        "also_ordered": [
+          "SKU-JK-DWN-L-BE"
+        ],
+        "total_match_vnd": 1490000
+      },
+      "memory_expectation": {
+        "variant_sku": "SKU-JK-DWN-L-BE",
+        "superseded": "SKU-JK-DWN-L-NAVY"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F07p-doi-mau-truoc-khi-du-thong-tin",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N099",
+    "synthetic_customer": true,
+    "address": "109 Quang Trung, Hà Đông, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-12",
+      "call_2": "2026-10-15"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N099",
+      "p": "SKU-JK-DWN-L-NAVY",
+      "col": "be",
+      "d1": "2026-10-12",
+      "gap": 3
+    },
+    "template_family": "H13-F07",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho anh hỏi Warmly size L màu xanh navy còn không, giá nhiêu em?",
+        "Ok để anh tính đã nha."
+      ],
+      "call_2": [
+        "Em ơi chốt Warmly size L màu xanh navy cho anh, giao về 109 Quang Trung, Hà Đông, Hà Nội nhé.",
+        "Khoan em, anh đổi ý, lấy màu be chứ không lấy màu xanh navy nữa, size giữ L.",
+        "Thanh toán COD nha em."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "variant changed before checkout; order only after final confirmation"
+  }
+}

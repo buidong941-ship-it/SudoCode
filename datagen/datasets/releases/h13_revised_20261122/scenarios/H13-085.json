@@ -1,0 +1,93 @@
+{
+  "scenario_id": "H13-085",
+  "level": "M2",
+  "persona": "khach_da_mua_doi_size",
+  "hard_case": "h13_sua_don_da_tao",
+  "customer_phone": "0918500000",
+  "customer_name": "Nam",
+  "honorific": "anh",
+  "notes": "??i s?n ph?m sau khi ??n ?? ???c t?o: ph?i c?p nh?t ??ng ??n b?ng order.update, kh?ng t?o ??n thay th?. B? m?i c?a ??i, t?ch ri?ng kh?i H13 ?? kh?a; order_id ???c seed b?ng lu?ng facts_established hi?n c?.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-12",
+      "customer_goal": "chot don SKU-JK-DWN-L-NAVY",
+      "customer_turns": [
+        "Em ??t gi?p anh Warmly size L m?u xanh navy nh?.",
+        "Giao v? 109 Quang Trung, H? ??ng, H? N?i, thanh to?n COD nh? em."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-DWN",
+        "variant_sku": "SKU-JK-DWN-L-NAVY",
+        "price_quoted_vnd": 1490000,
+        "order_id": "H13ORD085",
+        "payment": "COD",
+        "address": "109 Quang Trung, H? ??ng, H? N?i",
+        "size": "L",
+        "color": "navy"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-DWN-L-NAVY",
+          "price_vnd": 1490000
+        },
+        "also_ordered": [
+          "SKU-JK-DWN-L-NAVY"
+        ],
+        "total_match_vnd": 1490000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "doi mau don Warmly da tao",
+      "customer_turns": [
+        "Anh mu?n ??i ??n Warmly size L xanh navy sang m?u be, size gi? nguy?n.",
+        "? em l?m th? t?c ??i m?u be cho anh nh?."
+      ],
+      "must_carry_over": [
+        "order_id",
+        "variant_sku",
+        "size",
+        "color"
+      ],
+      "must_not_ask": [
+        "product_advised",
+        "order_id",
+        "size"
+      ],
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "order_id": "H13ORD085",
+          "action": "exchange_product",
+          "new_variant_sku": "SKU-JK-DWN-L-BE"
+        }
+      },
+      "ground_truth_facts": {
+        "in_stock": true
+      }
+    }
+  },
+  "_meta": {
+    "template_id": "H13-REVISED-POSTORDER",
+    "instance": 0,
+    "seed": 20261122,
+    "split": "known_diagnostic",
+    "customer_id": "H13N085",
+    "synthetic_customer": true,
+    "address": "109 Quang Trung, H? ??ng, H? N?i",
+    "dates": {
+      "call_1": "2026-10-12",
+      "call_2": "2026-10-14"
+    },
+    "template_family": "H13-REVISED-POSTORDER",
+    "group": "sua_don_da_tao",
+    "polarity": "pos",
+    "fixture_revision": "h13_revised_20261122"
+  }
+}

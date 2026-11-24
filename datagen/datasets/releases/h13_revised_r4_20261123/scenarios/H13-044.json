@@ -1,0 +1,146 @@
+{
+  "scenario_id": "H13-044",
+  "level": "M2",
+  "persona": "khach_da_mua_doi_size",
+  "hard_case": "h13_nhieu_don",
+  "customer_phone": "0901677121",
+  "customer_name": "Yến",
+  "honorific": "chị",
+  "notes": "Tham chiếu mơ hồ giữa OD600001 và OD600002 → phải làm rõ, không order.update. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-29",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi lấy cho chị đôi Urban Classic size 40, màu đen nhé.",
+        "Gửi về 23 Minh Khai, Hai Bà Trưng, Hà Nội, nhận hàng chị trả tiền mặt."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-40-DEN",
+        "price_quoted_vnd": 890000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "23 Minh Khai, Hai Bà Trưng, Hà Nội"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-40-DEN",
+          "price_vnd": 890000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "dat don thu hai",
+      "customer_turns": [
+        "Em ơi chị đặt thêm một đôi HikePro size 41 màu xám nữa nhé, chị đi làm.",
+        "Gửi chỗ cũ, nhận hàng chị trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-TRK",
+        "variant_sku": "SKU-SN-TRK-41-XAM",
+        "price_quoted_vnd": 1990000,
+        "order_id": "OD600002"
+      },
+      "must_not_ask": [
+        "address"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-TRK-41-XAM",
+          "price_vnd": 1990000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1990000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_3": {
+      "days_later": 4,
+      "customer_goal": "doi size nhung khong noi doi nao",
+      "customer_turns": [
+        "Em ơi, đôi giày chị đặt bên mình hơi chật, đổi lên một size giúp chị nhé.",
+        "Ừ thôi, để chị xem lại hóa đơn đã rồi gọi lại em sau."
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.update"
+        ],
+        "must_say_any": [
+          "mẫu nào",
+          "cái nào",
+          "loại nào",
+          "sản phẩm nào",
+          "dòng nào",
+          "đôi nào",
+          "đơn nào"
+        ]
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F10n-chon-giua-hai-don-giay",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N158",
+    "synthetic_customer": true,
+    "address": "23 Minh Khai, Hai Bà Trưng, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-29",
+      "call_2": "2026-10-31",
+      "call_3": "2026-11-04"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N158",
+      "p": "SKU-SN-CAS-40-DEN",
+      "r": "SKU-SN-TRK-41-XAM",
+      "d1": "2026-10-29",
+      "g1": 2,
+      "g2": 4
+    },
+    "template_family": "H13-F10",
+    "group": "nhieu_san_pham_don",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ],
+      "call_3": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho chị Urban Classic size 40 màu đen nhé.",
+        "Giao về 23 Minh Khai, Hai Bà Trưng, Hà Nội, nhận hàng chị trả tiền mặt."
+      ],
+      "call_2": [
+        "Em ơi chị đặt thêm một đôi HikePro size 41 màu xám nữa nha, chị mang đi làm.",
+        "Giao chỗ cũ, trả tiền khi nhận."
+      ],
+      "call_3": [
+        "Em ơi đôi giày chị đặt bên em bị chật, đổi giúp chị lên một size nha.",
+        "Ờ để chị coi lại hóa đơn rồi gọi lại em sau."
+      ]
+    }
+  }
+}

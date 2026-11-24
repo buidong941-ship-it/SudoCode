@@ -1,0 +1,70 @@
+{
+  "scenario_id": "H13-082",
+  "level": "M2",
+  "persona": "khach_hoi_nhieu_khong_mua",
+  "hard_case": "h13_kha_nang_tra_loi",
+  "customer_phone": "0995844478",
+  "customer_name": "Bích",
+  "honorific": "cô",
+  "notes": "Tên mẫu qua ASR khớp duy nhất SKU-AF-6L → báo giá 3.990.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-01",
+      "input_mode": "asr_transcript",
+      "customer_goal": "hoi gia bang ten mau doc qua dien thoai",
+      "customer_turns": [
+        "Alo em ơi, cái nồi chiên Philips bên em bán bao nhiêu tiền vậy?",
+        "Ừ để cô tính rồi gọi lại."
+      ],
+      "customer_turns_asr": [
+        "alo em ơi cái nồi chiên phi líp bên em bán bao nhiêu tiền vậy",
+        "ừ để cô tính rồi gọi lại"
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-6L",
+        "price_quoted_vnd": 3990000
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "3 triệu 990",
+          "3,990,000",
+          "3.990.000",
+          "3990000",
+          "3990k",
+          "3tr990"
+        ],
+        "must_not_call_tools": [
+          "order.create"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F21p-ten-mau-asr-ro-hay-mo-ho",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N312",
+    "synthetic_customer": true,
+    "address": "144 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương",
+    "dates": {
+      "call_1": "2026-11-01"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N312",
+      "p": "SKU-AF-6L",
+      "d1": "2026-11-01"
+    },
+    "template_family": "H13-F21",
+    "group": "kha_nang_tra_loi",
+    "polarity": "pos",
+    "naturalized": {},
+    "template_turns": {}
+  }
+}

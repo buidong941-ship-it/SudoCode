@@ -1,0 +1,81 @@
+{
+  "scenario_id": "H13-086",
+  "level": "M2",
+  "persona": "khach_da_mua_doi_size",
+  "hard_case": "h13_sua_don_da_tao",
+  "customer_phone": "0918600000",
+  "customer_name": "Hà",
+  "honorific": "chị",
+  "notes": "Hủy đơn sau khi tạo: mock không có action hủy; chỉ handoff là hoàn tất hợp lệ, không giả định order.update(return) là hủy. Bộ mới của đội, tách riêng khỏi H13 đã khóa; order_id được seed bằng luồng facts_established hiện có.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-12",
+      "customer_goal": "chot don SKU-AP-MINI",
+      "customer_turns": [
+        "Chị đặt một AirPure Mini giúp chị nha.",
+        "Giao về 28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, thanh toán COD nhé em."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AP-MINI",
+        "price_quoted_vnd": 2190000,
+        "order_id": "H13ORD086",
+        "payment": "COD",
+        "address": "28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AP-MINI",
+          "price_vnd": 2190000
+        },
+        "also_ordered": [
+          "SKU-AP-MINI"
+        ],
+        "total_match_vnd": 2190000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2190000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "huy don da tao nhung tool khong ho tro huy",
+      "customer_turns": [
+        "Chị đổi ý rồi, chị muốn hủy đơn AirPure Mini vừa đặt.",
+        "Em chuyển người hỗ trợ giúp chị xác nhận yêu cầu hủy đơn nhé."
+      ],
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ],
+        "must_say_any": [
+          "chuyển người hỗ trợ",
+          "chuyển nhân viên",
+          "xác nhận yêu cầu hủy"
+        ]
+      }
+    }
+  },
+  "_meta": {
+    "template_id": "H13-REVISED-POSTORDER",
+    "instance": 0,
+    "seed": 20261122,
+    "split": "known_diagnostic",
+    "customer_id": "H13N086",
+    "synthetic_customer": true,
+    "address": "28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk",
+    "dates": {
+      "call_1": "2026-10-12",
+      "call_2": "2026-10-14"
+    },
+    "template_family": "H13-REVISED-POSTORDER",
+    "group": "sua_don_da_tao",
+    "polarity": "pos",
+    "fixture_revision": "h13_revised_20261122"
+  }
+}

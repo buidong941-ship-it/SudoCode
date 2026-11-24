@@ -1,0 +1,70 @@
+{
+  "scenario_id": "H13-078",
+  "level": "M2",
+  "persona": "khach_hoi_ngoai_tai_lieu",
+  "hard_case": "h13_kha_nang_tra_loi",
+  "customer_phone": "0903332954",
+  "customer_name": "Yến",
+  "honorific": "chị",
+  "notes": "Thuộc tính có nguồn (spec) + thuộc tính không có nguồn (FAQ-03/FAQ-13/spec) trong cùng lượt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-25",
+      "customer_goal": "hai cau hoi thuoc tinh: mot co nguon, mot khong co",
+      "customer_turns": [
+        "Em ơi, máy lọc nước Kangaroo 10 lõi một giờ lọc được bao nhiêu lít vậy? À mà lõi lọc của nó sản xuất ở nước nào em?",
+        "Ừ, cảm ơn em, để chị tính."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-RO10"
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "12 lít",
+          "12 l"
+        ],
+        "agent_must_say": "không có thông tin",
+        "must_not_call_tools": [
+          "order.create"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 6890000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F20-thuoc-tinh-co-va-khong-co-nguon",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N293",
+    "synthetic_customer": true,
+    "address": "34 Nguyễn Thị Thập, Quận 7, TP HCM",
+    "dates": {
+      "call_1": "2026-10-25"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N293",
+      "d1": "2026-10-25"
+    },
+    "template_family": "H13-F20",
+    "group": "kha_nang_tra_loi",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi máy lọc nước Kangaroo 10 lõi lọc được bao nhiêu lít một giờ? Mà lõi lọc của nó sản xuất ở nước nào vậy em?",
+        "Ừ cảm ơn em, để chị tính."
+      ]
+    }
+  }
+}

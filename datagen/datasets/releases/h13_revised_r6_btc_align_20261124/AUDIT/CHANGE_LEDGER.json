@@ -1,0 +1,201 @@
+[
+  {
+    "scenario": "H13-003",
+    "call": "call_2",
+    "before": {
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "22/10",
+          "22/10",
+          "ngày 22 tháng 10",
+          "22 tháng 10"
+        ]
+      },
+      "ground_truth_facts": {
+        "estimated_delivery": "2026-10-22"
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "after": {
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "22/10",
+          "ngày 22 tháng 10",
+          "22 tháng 10",
+          "24/10",
+          "ngày 24 tháng 10",
+          "24 tháng 10"
+        ]
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "why": "BTC eval/mock_tools.py: estimated_delivery chỉ tính trong order.create theo address truyền lúc tạo (_eta); order.update update_address không lưu địa chỉ, không tính lại ngày. Khách đặt ở lượt 1, đọc địa chỉ ở lượt 2: tạo đơn ngay (như SAMPLE-03 của BTC) → mock trả 2026-10-24; chờ có địa chỉ → 2026-10-22. Cả hai đều là đầu ra của mock nên chấp nhận cả hai; bỏ estimated_delivery khỏi ground_truth_facts vì giá trị đúng phụ thuộc đường tạo đơn (một giá trị cố định sẽ chấm sai một trong hai).",
+    "customer_turns_unchanged": true,
+    "sha256_before": "546f261abfda7f136d87fba8d8d660131f0aeca5436cacdd060e6c7cb90ff067",
+    "sha256_after": "39a1c4f595c1995214d26843f3400ad4a79116164ca7482dc0910fd87e0dad1f"
+  },
+  {
+    "scenario": "H13-004",
+    "call": "call_2",
+    "before": {
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "24/10",
+          "24/10",
+          "ngày 24 tháng 10",
+          "24 tháng 10"
+        ]
+      },
+      "ground_truth_facts": {
+        "estimated_delivery": "2026-10-24"
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "after": {
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "24/10",
+          "ngày 24 tháng 10",
+          "24 tháng 10",
+          "28/10",
+          "ngày 28 tháng 10",
+          "28 tháng 10"
+        ]
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "why": "BTC eval/mock_tools.py: estimated_delivery chỉ tính trong order.create theo address truyền lúc tạo (_eta); order.update update_address không lưu địa chỉ, không tính lại ngày. Khách đặt ở lượt 1, đọc địa chỉ ở lượt 2: tạo đơn ngay (như SAMPLE-03 của BTC) → mock trả 2026-10-28; chờ có địa chỉ → 2026-10-24. Cả hai đều là đầu ra của mock nên chấp nhận cả hai; bỏ estimated_delivery khỏi ground_truth_facts vì giá trị đúng phụ thuộc đường tạo đơn (một giá trị cố định sẽ chấm sai một trong hai).",
+    "customer_turns_unchanged": true,
+    "sha256_before": "acc0ac41621ade1b8669232d7233b953b6612cbdc421bcebf5d90bfdbe218e38",
+    "sha256_after": "692b496aa9eacf6eafeebb5142b157a5112fff3f139cfdb482afb0cb3c845267"
+  },
+  {
+    "scenario": "H13-038",
+    "call": "call_1",
+    "before": {
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-40-DEN",
+          "price_vnd": 890000
+        },
+        "also_ordered": [
+          "SKU-SN-CAS-40-DEN",
+          "SKU-WF-UF"
+        ],
+        "total_match_vnd": 4180000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "total_vnd": 4180000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "after": {
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "action": "change_variant",
+          "new_variant_sku": "SKU-SN-CAS-40-DEN"
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "total_vnd": 4180000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "why": "Nhất quán với H13-037 r5: khách đặt 2 món ở lượt 1 (tạo đơn ngay theo mẫu BTC), lượt 2 đổi biến thể một món → order.update_line change_variant. reference_eval chỉ cộng also_ordered/total_match_vnd trên order.create nên bỏ hai trường này (tổng sau đổi kiểm bằng check riêng như 037).",
+    "customer_turns_unchanged": true,
+    "sha256_before": "1a5bd3ee85c1b10d1a306b2cc62014844880093f76bad76712d2b5cfd7dc93c0",
+    "sha256_after": "0db0a1b771d1add885a789269ac1d8ac67bb2c2287623f4312e9e6f1c1361afe"
+  },
+  {
+    "scenario": "H13-039",
+    "call": "call_1",
+    "before": {
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-42-TRANG",
+          "price_vnd": 890000
+        },
+        "also_ordered": [
+          "SKU-SN-CAS-42-TRANG",
+          "SKU-AP-MINI"
+        ],
+        "total_match_vnd": 3080000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "total_vnd": 3080000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "after": {
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "action": "change_variant",
+          "new_variant_sku": "SKU-SN-CAS-42-TRANG"
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "total_vnd": 3080000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "why": "Nhất quán với H13-037 r5: khách đặt 2 món ở lượt 1 (tạo đơn ngay theo mẫu BTC), lượt 2 đổi biến thể một món → order.update_line change_variant. reference_eval chỉ cộng also_ordered/total_match_vnd trên order.create nên bỏ hai trường này (tổng sau đổi kiểm bằng check riêng như 037).",
+    "customer_turns_unchanged": true,
+    "sha256_before": "c1997e1ce9715b1643db5f9a1bd23884549b1dbdfde22a2c8cc29c559f5ef29d",
+    "sha256_after": "d7bda7edeed3ea4f98ee82d2c5612f9c70ecdfb40d50b9e3f2f918eba1dbc6e0"
+  },
+  {
+    "scenario": "H13-040",
+    "call": "call_1",
+    "before": {
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-TRK-41-XAM",
+          "price_vnd": 1990000
+        },
+        "also_ordered": [
+          "SKU-SN-TRK-41-XAM",
+          "SKU-AF-XM"
+        ],
+        "total_match_vnd": 3580000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1990000,
+        "total_vnd": 3580000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "after": {
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "action": "change_variant",
+          "new_variant_sku": "SKU-SN-TRK-41-XAM"
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1990000,
+        "total_vnd": 3580000
+      },
+      "expected_outcome": "chot_don"
+    },
+    "why": "Nhất quán với H13-037 r5: khách đặt 2 món ở lượt 1 (tạo đơn ngay theo mẫu BTC), lượt 2 đổi biến thể một món → order.update_line change_variant. reference_eval chỉ cộng also_ordered/total_match_vnd trên order.create nên bỏ hai trường này (tổng sau đổi kiểm bằng check riêng như 037).",
+    "customer_turns_unchanged": true,
+    "sha256_before": "ef6eab7601aee69166690952c4a110bbba6f7b53258e6dba9c053f0a52d63fef",
+    "sha256_after": "edf5a3803d80cb8b9f38c3d0b3386444ba601e6d6a9c82c8bc9c6c4de527d9b6"
+  }
+]

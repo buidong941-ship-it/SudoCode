@@ -1,0 +1,80 @@
+{
+  "scenario_id": "H13-021",
+  "level": "M2",
+  "persona": "khach_do_du_hoi_nguoi_nha",
+  "hard_case": "h13_hoi_yeu_cau",
+  "customer_phone": "0956937929",
+  "customer_name": "Hùng",
+  "honorific": "anh",
+  "notes": "Hỏi giờ tổng đài (08:00–21:00) rồi yêu cầu hẹn 2026-10-22T19:00 → schedule.callback đúng giờ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "customer_goal": "hoi gio lam viec roi hen goi lai",
+      "customer_turns": [
+        "Em ơi cái Lock&Lock 4L giá bao nhiêu em?",
+        "Mà tổng đài bên em làm tới mấy giờ vậy, tối gọi có ai nghe không em?",
+        "Vậy em gọi lại cho anh lúc 7 giờ tối thứ năm, ngày 22/10 nha, lúc đó anh hỏi người nhà xong rồi."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-4L",
+        "price_quoted_vnd": 1890000,
+        "callback_time": "2026-10-22T19:00"
+      },
+      "success_if": {
+        "tool_called": "schedule.callback",
+        "args_match": {
+          "callback_at": "2026-10-22T19:00"
+        },
+        "must_say_any": [
+          "21 giờ",
+          "21h",
+          "21:00",
+          "9 giờ tối",
+          "9h tối"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1890000
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F05p-hoi-gio-lam-roi-hen-hay-khong",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N066",
+    "synthetic_customer": true,
+    "address": "150 Võ Văn Ngân, Thủ Đức, TP HCM",
+    "dates": {
+      "call_1": "2026-10-20"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N066",
+      "p": "SKU-AF-4L",
+      "d1": "2026-10-20",
+      "dcb": 2,
+      "hh": 19
+    },
+    "template_family": "H13-F05",
+    "group": "hoi_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi Lock&Lock 4L giá bao nhiêu em?",
+        "Bên em tổng đài làm tới mấy giờ, tối có gọi được không em?",
+        "Vậy 7 giờ tối thứ năm ngày 22/10 em gọi lại cho anh nha, lúc đó anh hỏi người nhà xong rồi."
+      ]
+    }
+  }
+}

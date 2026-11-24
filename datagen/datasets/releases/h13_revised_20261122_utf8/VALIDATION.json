@@ -1,0 +1,58 @@
+{
+  "kernel": "midzid/sudocode-h13-utf8-fixture-validation",
+  "version": 1,
+  "status": "FIXTURE_VALIDATED_WITH_ADDRESS_WARNINGS_AGENT_NOT_RUN",
+  "integrity": {
+    "status": "PASS",
+    "counts": {
+      "scenarios": 86,
+      "calls": 162,
+      "customer_turns": 346
+    },
+    "repaired_fields": 85,
+    "source_corrupted_scenarios": [
+      "H13-025",
+      "H13-026",
+      "H13-027",
+      "H13-028",
+      "H13-029",
+      "H13-030",
+      "H13-031",
+      "H13-032",
+      "H13-045",
+      "H13-046",
+      "H13-047",
+      "H13-048",
+      "H13-067",
+      "H13-068",
+      "H13-085",
+      "H13-086"
+    ],
+    "source_corrupted_runtime_scenarios": [
+      "H13-029",
+      "H13-030",
+      "H13-031",
+      "H13-032",
+      "H13-047",
+      "H13-048",
+      "H13-067",
+      "H13-068",
+      "H13-085",
+      "H13-086"
+    ],
+    "errors": [],
+    "manifest_sha256": "e56f6978134ce86d33368990cc71d9f80f70b12cbf77b4234f6c85fe42581139",
+    "protected_btc_files": 13
+  },
+  "structure_errors": 0,
+  "structure_warnings": 2,
+  "warning_details": [
+    "địa chỉ '28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk' dùng cho 2 khách khác nhau: ['0918600000', '0941474347']",
+    "địa chỉ '109 Quang Trung, Hà Đông, Hà Nội' dùng cho 2 khách khác nhau: ['0918500000', '0957191850']"
+  ],
+  "reports": {
+    "runs/kaggle/h13-utf8-fixture-validation/out/h13_utf8_integrity.json": "bee836b74ca1fd041c07831de172944dc7293a49af315debec184e1db4003f13",
+    "runs/kaggle/h13-utf8-fixture-validation/out/h13_utf8_validation.json": "3b5c33874e92b750a8a3790deba12cd41ac1c0684f14cfa68479daa617d6f226"
+  },
+  "scope_note": "The tested manifest hash is recorded by the integrity report. Only validation metadata and documentation were finalized after that run; scenario bytes are unchanged."
+}

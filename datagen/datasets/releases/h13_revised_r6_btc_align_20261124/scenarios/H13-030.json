@@ -1,0 +1,113 @@
+{
+  "scenario_id": "H13-030",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0941304147",
+  "customer_name": "Sơn",
+  "honorific": "anh",
+  "notes": "Đổi SKU-JK-WND-S-NAVY → SKU-JK-WND-S-DEN (còn hàng) trước khi đủ thông tin: chỉ đặt SKU-JK-WND-S-DEN. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: variant changed before checkout; order only after final confirmation.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-29",
+      "customer_goal": "hoi gia bien the",
+      "customer_turns": [
+        "Em ơi cái Windbreak size S màu xanh navy giá bao nhiêu, còn hàng không em?",
+        "Ừ để anh nghĩ thêm rồi anh đặt sau."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-WND",
+        "variant_sku": "SKU-JK-WND-S-NAVY",
+        "price_quoted_vnd": 690000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 690000,
+        "in_stock": true
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 4,
+      "customer_goal": "doi mau truoc khi chot",
+      "customer_turns": [
+        "Anh cho Windbreak size S màu xanh navy vào giỏ nháp trước, chưa lên đơn nha.",
+        "À mà thôi, đổi qua màu đen giùm anh, vẫn size S, chứ màu xanh navy anh thấy không hợp lắm.",
+        "Giao về 92 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương, nhận hàng anh trả tiền."
+      ],
+      "facts_established": {
+        "variant_sku": "SKU-JK-WND-S-DEN"
+      },
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-WND-S-DEN",
+          "price_vnd": 690000
+        },
+        "also_ordered": [
+          "SKU-JK-WND-S-DEN"
+        ],
+        "total_match_vnd": 690000
+      },
+      "memory_expectation": {
+        "variant_sku": "SKU-JK-WND-S-DEN",
+        "superseded": "SKU-JK-WND-S-NAVY"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 690000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F07p-doi-mau-truoc-khi-du-thong-tin",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N101",
+    "synthetic_customer": true,
+    "address": "92 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương",
+    "dates": {
+      "call_1": "2026-10-29",
+      "call_2": "2026-11-02"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N101",
+      "p": "SKU-JK-WND-S-NAVY",
+      "col": "den",
+      "d1": "2026-10-29",
+      "gap": 4
+    },
+    "template_family": "H13-F07",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi Windbreak size S màu xanh navy giá bao nhiêu em, còn hàng không?",
+        "Ừ để anh suy nghĩ rồi đặt sau."
+      ],
+      "call_2": [
+        "Anh lấy Windbreak size S màu xanh navy hôm trước em báo nha.",
+        "À mà thôi, đổi sang màu đen giùm anh, vẫn size S, màu xanh navy không hợp lắm.",
+        "Giao về 92 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương, anh trả tiền khi nhận."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "variant changed before checkout; order only after final confirmation"
+  }
+}

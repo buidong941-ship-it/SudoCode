@@ -1,0 +1,163 @@
+[
+  {
+    "scenario": "H13-025",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-6L",
+          "price_vnd": 3990000
+        },
+        "also_ordered": [
+          "SKU-AF-6L"
+        ],
+        "total_match_vnd": 3990000
+      }
+    },
+    "after": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "9f3f0d192cf369c760825b9770f51f488b5063bf4bca1a43377cd653c7aac42b",
+    "sha256_after": "a2def04ca9122e1f336c92da0818c458cd420190fd8671ff656ed690e55d20e5",
+    "reason": "Theo mẫu BTC (SAMPLE-01/02/04/05: 'lên đơn' → order.create ngay lượt đó, không cần khách nói thanh toán), agent tạo đơn nhiều món ở lượt chốt đầu là đúng; lời bỏ/đổi một món đến SAU khi đơn đã tạo. Tool BTC (order.update) không sửa riêng một dòng và không hủy → kết quả đúng với tool chuẩn là chuyển nhân viên kèm brief. Fixture cũ đòi tổng order.create = một món, không đạt được bằng hành vi đúng chuẩn BTC."
+  },
+  {
+    "scenario": "H13-026",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AP-MINI",
+          "price_vnd": 2190000
+        },
+        "also_ordered": [
+          "SKU-AP-MINI"
+        ],
+        "total_match_vnd": 2190000
+      }
+    },
+    "after": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "751e425d7f8136d6b0bc80bc718492ea00f58dc278651f3c9d14da3c043c3ca9",
+    "sha256_after": "5a63f36f2bf1fe977bf49655bf5b5550a6d168555431c87b93459693746644ec",
+    "reason": "Theo mẫu BTC (SAMPLE-01/02/04/05: 'lên đơn' → order.create ngay lượt đó, không cần khách nói thanh toán), agent tạo đơn nhiều món ở lượt chốt đầu là đúng; lời bỏ/đổi một món đến SAU khi đơn đã tạo. Tool BTC (order.update) không sửa riêng một dòng và không hủy → kết quả đúng với tool chuẩn là chuyển nhân viên kèm brief. Fixture cũ đòi tổng order.create = một món, không đạt được bằng hành vi đúng chuẩn BTC."
+  },
+  {
+    "scenario": "H13-027",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-MB-STER",
+          "price_vnd": 1890000
+        },
+        "also_ordered": [
+          "SKU-MB-STER"
+        ],
+        "total_match_vnd": 1890000
+      }
+    },
+    "after": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "ae7cf137ecf872cd36a062cd0a17829f4755dbe43af41b040f5be24ece373972",
+    "sha256_after": "c139a0fc5447f35884aeb6b2d7bf6733f6eedee2879890db937c655908f46e80",
+    "reason": "Theo mẫu BTC (SAMPLE-01/02/04/05: 'lên đơn' → order.create ngay lượt đó, không cần khách nói thanh toán), agent tạo đơn nhiều món ở lượt chốt đầu là đúng; lời bỏ/đổi một món đến SAU khi đơn đã tạo. Tool BTC (order.update) không sửa riêng một dòng và không hủy → kết quả đúng với tool chuẩn là chuyển nhân viên kèm brief. Fixture cũ đòi tổng order.create = một món, không đạt được bằng hành vi đúng chuẩn BTC."
+  },
+  {
+    "scenario": "H13-028",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-FAN-SEN",
+          "price_vnd": 590000
+        },
+        "also_ordered": [
+          "SKU-FAN-SEN"
+        ],
+        "total_match_vnd": 590000
+      }
+    },
+    "after": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "9ec01c45e2d85786b75610e9158101d8c93677f4246498e4c2437c1d38ac8cf9",
+    "sha256_after": "9656f875c4f56cf061b0eb3d0ffeddb1fd4824aee7423a0d41b54d4fa8b8aaeb",
+    "reason": "Theo mẫu BTC (SAMPLE-01/02/04/05: 'lên đơn' → order.create ngay lượt đó, không cần khách nói thanh toán), agent tạo đơn nhiều món ở lượt chốt đầu là đúng; lời bỏ/đổi một món đến SAU khi đơn đã tạo. Tool BTC (order.update) không sửa riêng một dòng và không hủy → kết quả đúng với tool chuẩn là chuyển nhân viên kèm brief. Fixture cũ đòi tổng order.create = một món, không đạt được bằng hành vi đúng chuẩn BTC."
+  },
+  {
+    "scenario": "H13-037",
+    "call": "call_1",
+    "before": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-WND-L-BE",
+          "price_vnd": 690000
+        },
+        "also_ordered": [
+          "SKU-JK-WND-L-BE",
+          "SKU-MB-MON"
+        ],
+        "total_match_vnd": 1180000
+      }
+    },
+    "after": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "098be9d7b3ddf6626ad3607383dde070a2d93625305aea0ed81f590b2b2e97af",
+    "sha256_after": "c2a6b39dfbf29daffc629b8f3c83b113226e6107920071acde2feb50d199d10c",
+    "reason": "Theo mẫu BTC (SAMPLE-01/02/04/05: 'lên đơn' → order.create ngay lượt đó, không cần khách nói thanh toán), agent tạo đơn nhiều món ở lượt chốt đầu là đúng; lời bỏ/đổi một món đến SAU khi đơn đã tạo. Tool BTC (order.update) không sửa riêng một dòng và không hủy → kết quả đúng với tool chuẩn là chuyển nhân viên kèm brief. Fixture cũ đòi tổng order.create = một món, không đạt được bằng hành vi đúng chuẩn BTC."
+  }
+]

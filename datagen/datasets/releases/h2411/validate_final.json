@@ -1,0 +1,441 @@
+{
+  "errors": 0,
+  "warnings": 0,
+  "scenarios": [
+    {
+      "scenario_id": "H24-001",
+      "file": "/kaggle/working/final/holdout/H24-001.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-002",
+      "file": "/kaggle/working/final/holdout/H24-002.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-003",
+      "file": "/kaggle/working/final/holdout/H24-003.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-004",
+      "file": "/kaggle/working/final/holdout/H24-004.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-005",
+      "file": "/kaggle/working/final/holdout/H24-005.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-006",
+      "file": "/kaggle/working/final/holdout/H24-006.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-007",
+      "file": "/kaggle/working/final/holdout/H24-007.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-008",
+      "file": "/kaggle/working/final/holdout/H24-008.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-009",
+      "file": "/kaggle/working/final/holdout/H24-009.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-010",
+      "file": "/kaggle/working/final/holdout/H24-010.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-011",
+      "file": "/kaggle/working/final/holdout/H24-011.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-012",
+      "file": "/kaggle/working/final/holdout/H24-012.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-013",
+      "file": "/kaggle/working/final/holdout/H24-013.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-014",
+      "file": "/kaggle/working/final/holdout/H24-014.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-015",
+      "file": "/kaggle/working/final/holdout/H24-015.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-016",
+      "file": "/kaggle/working/final/holdout/H24-016.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-017",
+      "file": "/kaggle/working/final/holdout/H24-017.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-018",
+      "file": "/kaggle/working/final/holdout/H24-018.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-019",
+      "file": "/kaggle/working/final/holdout/H24-019.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-020",
+      "file": "/kaggle/working/final/holdout/H24-020.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-021",
+      "file": "/kaggle/working/final/holdout/H24-021.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-022",
+      "file": "/kaggle/working/final/holdout/H24-022.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-023",
+      "file": "/kaggle/working/final/holdout/H24-023.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-024",
+      "file": "/kaggle/working/final/holdout/H24-024.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-025",
+      "file": "/kaggle/working/final/holdout/H24-025.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-026",
+      "file": "/kaggle/working/final/holdout/H24-026.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-027",
+      "file": "/kaggle/working/final/holdout/H24-027.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-028",
+      "file": "/kaggle/working/final/holdout/H24-028.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-029",
+      "file": "/kaggle/working/final/holdout/H24-029.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-030",
+      "file": "/kaggle/working/final/holdout/H24-030.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-031",
+      "file": "/kaggle/working/final/holdout/H24-031.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-032",
+      "file": "/kaggle/working/final/holdout/H24-032.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-033",
+      "file": "/kaggle/working/final/holdout/H24-033.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-034",
+      "file": "/kaggle/working/final/holdout/H24-034.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-035",
+      "file": "/kaggle/working/final/holdout/H24-035.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-036",
+      "file": "/kaggle/working/final/holdout/H24-036.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-037",
+      "file": "/kaggle/working/final/holdout/H24-037.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-038",
+      "file": "/kaggle/working/final/holdout/H24-038.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-039",
+      "file": "/kaggle/working/final/holdout/H24-039.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-040",
+      "file": "/kaggle/working/final/holdout/H24-040.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-041",
+      "file": "/kaggle/working/final/holdout/H24-041.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-042",
+      "file": "/kaggle/working/final/holdout/H24-042.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-043",
+      "file": "/kaggle/working/final/holdout/H24-043.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-044",
+      "file": "/kaggle/working/final/holdout/H24-044.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-045",
+      "file": "/kaggle/working/final/holdout/H24-045.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-046",
+      "file": "/kaggle/working/final/holdout/H24-046.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_2",
+          "code": "gt_unchecked",
+          "msg": "không tự kiểm được: ['return_window_days', 'policy_version']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-047",
+      "file": "/kaggle/working/final/holdout/H24-047.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_2",
+          "code": "gt_unchecked",
+          "msg": "không tự kiểm được: ['return_window_days', 'policy_version']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-048",
+      "file": "/kaggle/working/final/holdout/H24-048.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_2",
+          "code": "gt_unchecked",
+          "msg": "không tự kiểm được: ['return_window_days', 'policy_version']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-049",
+      "file": "/kaggle/working/final/holdout/H24-049.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-050",
+      "file": "/kaggle/working/final/holdout/H24-050.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-051",
+      "file": "/kaggle/working/final/holdout/H24-051.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-052",
+      "file": "/kaggle/working/final/holdout/H24-052.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-053",
+      "file": "/kaggle/working/final/holdout/H24-053.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-054",
+      "file": "/kaggle/working/final/holdout/H24-054.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-055",
+      "file": "/kaggle/working/final/holdout/H24-055.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_2",
+          "code": "gt_unchecked",
+          "msg": "không tự kiểm được: ['restock_expected']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-056",
+      "file": "/kaggle/working/final/holdout/H24-056.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-057",
+      "file": "/kaggle/working/final/holdout/H24-057.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_2",
+          "code": "gt_unchecked",
+          "msg": "không tự kiểm được: ['restock_expected']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-058",
+      "file": "/kaggle/working/final/holdout/H24-058.json",
+      "issues": []
+    },
+    {
+      "scenario_id": "H24-059",
+      "file": "/kaggle/working/final/holdout/H24-059.json",
+      "issues": [
+        {
+          "level": "INFO",
+          "where": "call_1",
+          "code": "brief_extra",
+          "msg": "brief_must_contain có trường ngoài required của handoff_brief.schema: ['escalation_reason_detail']"
+        }
+      ]
+    },
+    {
+      "scenario_id": "H24-060",
+      "file": "/kaggle/working/final/holdout/H24-060.json",
+      "issues": []
+    }
+  ],
+  "global": {
+    "errors": [],
+    "warnings": []
+  },
+  "coverage": {
+    "totals": {
+      "scenarios": 60,
+      "calls": 124,
+      "hard": 60,
+      "turns": 316,
+      "multi_channel_customers": 6
+    },
+    "hard_case": {
+      "3_kenh_bao_gia_lech": 3,
+      "3_phien_thong_tin_thay_doi": 3,
+      "hoi_ai_hay_nguoi_xoa_du_lieu": 3,
+      "khach_doi_y_giua_chung": 3,
+      "thong_tin_mau_thuan_phien_truoc": 3,
+      "doi_khuyen_mai_het_han": 3,
+      "hoi_thong_tin_khong_co_trong_tai_lieu": 3,
+      "chung_sdt_memory_poisoning": 3,
+      "quay_lai_sau_8_thang": 3,
+      "km_loai_tru_size": 3,
+      "asr_loi_va_teencode": 3,
+      "pii_cccd_stk": 3,
+      "ep_gia_do_gia_nhap": 3,
+      "nhieu_mon_vuot_cod_ngan_sach": 3,
+      "doi_san_pham_hoan_chenh_lech": 3,
+      "phien_ban_chinh_sach_cu": 3,
+      "hen_goi_lai_ngay_nghi": 3,
+      "binh_luan_gia_doi_thu": 3,
+      "het_hang_luc_khach_quyet": 3,
+      "don_nhieu_dong_quote_order": 1,
+      "bo_mon_sau_khi_tao_don": 1,
+      "doi_size_don_vua_tao": 1
+    },
+    "persona": {
+      "khach_da_kenh_mau_thuan": 6,
+      "khach_da_kenh_fb_hotline": 3,
+      "khach_hoi_nhieu_khong_mua": 3,
+      "khach_so_gia": 21,
+      "khach_hoi_ngoai_tai_lieu": 3,
+      "hai_nguoi_chung_sdt": 3,
+      "khach_quay_lai_sau_8_thang": 3,
+      "khach_mua_nhieu_mon": 4,
+      "khach_da_mua_doi_size": 7,
+      "khach_do_du_hoi_nguoi_nha": 7
+    },
+    "level": {
+      "M2": 60
+    },
+    "split": {
+      "holdout": 60
+    },
+    "channel": {
+      "chat_fanpage": 7,
+      "zalo_oa": 6,
+      "hotline": 111
+    },
+    "input_mode": {
+      "text": 118,
+      "chat_teencode": 4,
+      "asr_transcript": 2
+    },
+    "outcome": {
+      "hen_goi_lai": 58,
+      "chot_don": 59,
+      "tu_choi": 6,
+      "chuyen_may": 1
+    },
+    "tool_called": {
+      "(không chấm)": 12,
+      "pricing.get_quote": 12,
+      "order.create": 59,
+      "order.update": 10,
+      "order.status": 12,
+      "None": 12,
+      "schedule.callback": 3,
+      "inventory.check": 3,
+      "handoff.transfer": 1
+    },
+    "category": {
+      "thoi-trang/giay": 16,
+      "me-be": 25,
+      "gia-dung/may-loc-nuoc": 13,
+      "gia-dung/noi-chien": 11,
+      "gia-dung/quat": 3,
+      "gia-dung/may-loc-khong-khi": 21,
+      "gia-dung/phu-kien": 2,
+      "thoi-trang/ao-khoac": 1
+    }
+  },
+  "diff": []
+}

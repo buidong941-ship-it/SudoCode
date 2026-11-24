@@ -1,0 +1,119 @@
+{
+  "scenario_id": "H13-074",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_chinh_sach_nguon",
+  "customer_phone": "0947179468",
+  "customer_name": "Hằng",
+  "honorific": "cô",
+  "notes": "Phiên 1 (2026-11-03): không tiết lộ 11-11; phiên 2 (2026-11-11): áp 11-11, giá 5.516.500đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-03",
+      "customer_goal": "hoi khuyen mai chua bat dau",
+      "customer_turns": [
+        "Em ơi cho cô hỏi Samsung AX40 giờ đang bán giá bao nhiêu.",
+        "Mấy hôm nữa 11/11 có sale gì không em, được bao nhiêu phần trăm?",
+        "Thôi để cô tính thêm mấy hôm."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SS-AX40",
+        "price_quoted_vnd": 6490000
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "6 triệu 490",
+          "6,490,000",
+          "6.490.000",
+          "6490000",
+          "6490k",
+          "6tr490"
+        ],
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "forbidden_claims": [
+          "15%",
+          "15 phần trăm",
+          "mười lăm phần trăm"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 6490000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 8,
+      "customer_goal": "goi lai ngay khuyen mai dang chay, chot",
+      "customer_turns": [
+        "Alo em, Samsung AX40 hôm nay bán bao nhiêu thế? Được giảm thì chốt luôn cho cô.",
+        "Gửi về 90 Minh Khai, Hai Bà Trưng, Hà Nội, nhận hàng cô trả tiền."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SS-AX40",
+          "price_vnd": 5516500
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 5516500,
+        "promo_11-11_active": true
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F19-km-chua-bat-dau-roi-dang-chay",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N280",
+    "synthetic_customer": true,
+    "address": "90 Minh Khai, Hai Bà Trưng, Hà Nội",
+    "dates": {
+      "call_1": "2026-11-03",
+      "call_2": "2026-11-11"
+    },
+    "choices": {
+      "vi": 3,
+      "cust": "N280",
+      "p": "SKU-SS-AX40",
+      "d1": "2026-11-03",
+      "d2": "2026-11-11"
+    },
+    "template_family": "H13-F19",
+    "group": "chinh_sach_nguon",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho cô hỏi giá Samsung AX40 hiện tại.",
+        "Mấy hôm nữa 11/11 có sale không em, được bao nhiêu phần trăm?",
+        "Thôi để cô tính thêm vài bữa."
+      ],
+      "call_2": [
+        "Alo em, Samsung AX40 hôm nay bán giá bao nhiêu? Được giảm thì chốt cho cô.",
+        "Địa chỉ 90 Minh Khai, Hai Bà Trưng, Hà Nội, thanh toán khi nhận hàng."
+      ]
+    }
+  }
+}

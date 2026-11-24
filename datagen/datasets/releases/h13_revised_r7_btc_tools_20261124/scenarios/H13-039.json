@@ -1,0 +1,78 @@
+{
+  "scenario_id": "H13-039",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_gio_so_luong",
+  "customer_phone": "0979827572",
+  "customer_name": "Hùng",
+  "honorific": "anh",
+  "notes": "Giỏ: SKU-SN-CAS-42-TRANG (thay SKU-SN-CAS-41-TRANG) + SKU-AP-MINI; tổng 3.080.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-28",
+      "customer_goal": "gio hai mon, doi size mot mon truoc khi chot",
+      "customer_turns": [
+        "Ờ em, anh đặt Máy lọc không khí AirPure Mini với đôi Urban Classic size 41 màu trắng nghe.",
+        "À khoan, đôi giày đổi giúp anh lên size 42, size 41 bỏ đi.",
+        "Giao về 83 Trần Phú, Nha Trang, Khánh Hòa, nhận hàng anh trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-42-TRANG",
+        "price_quoted_vnd": 890000
+      },
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-CAS-42-TRANG"
+        }
+      },
+      "memory_expectation": {
+        "variant_sku": "SKU-SN-CAS-42-TRANG",
+        "superseded": "SKU-SN-CAS-41-TRANG"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "total_vnd": 3080000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F09-thay-size-trong-gio-hai-mon",
+    "instance": 2,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N139",
+    "synthetic_customer": true,
+    "address": "83 Trần Phú, Nha Trang, Khánh Hòa",
+    "dates": {
+      "call_1": "2026-10-28"
+    },
+    "choices": {
+      "vi": 3,
+      "cust": "N139",
+      "p": "SKU-SN-CAS-41-TRANG",
+      "b": "SKU-AP-MINI",
+      "d1": "2026-10-28"
+    },
+    "template_family": "H13-F09",
+    "group": "gio_so_luong",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho anh đặt Máy lọc không khí AirPure Mini và Urban Classic size 41 màu trắng nhé.",
+        "Ấy đổi giúp anh đôi giày sang size 42, size 41 bỏ đi.",
+        "Gửi về 83 Trần Phú, Nha Trang, Khánh Hòa, thanh toán lúc nhận hàng."
+      ]
+    }
+  }
+}

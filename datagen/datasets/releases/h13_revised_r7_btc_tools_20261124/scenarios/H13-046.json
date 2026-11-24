@@ -1,0 +1,102 @@
+{
+  "scenario_id": "H13-046",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_nhieu_don",
+  "customer_phone": "0967577765",
+  "customer_name": "Liên",
+  "honorific": "cô",
+  "notes": "'Cái rẻ hơn' = SKU-MB-PUMP1 (4.290.000đ) so với SKU-MB-PUMP2 (5.990.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-13",
+      "customer_goal": "hoi gia hai mau",
+      "customer_turns": [
+        "Em ơi cho cô hỏi giá cái Medela Swing Maxi với cái Spectra S1 nghen.",
+        "Ừ rồi để cô nghĩ thêm, bữa khác cô gọi."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-MB-PUMP1",
+        "price_quoted_vnd": 4290000,
+        "other_product": "SKU-MB-PUMP2"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "chon mau re hon trong hai mau da bao",
+      "customer_turns": [
+        "Em ơi, hai cái máy bữa trước đó, cô lấy cái nào giá thấp hơn, lên đơn giùm cô nghen.",
+        "Gửi về 15 Phạm Văn Thuận, Biên Hòa, Đồng Nai, COD nha em."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-MB-PUMP1",
+          "price_vnd": 4290000
+        },
+        "also_ordered": [
+          "SKU-MB-PUMP1"
+        ],
+        "total_match_vnd": 4290000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 4290000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F11p-tham-chieu-mau-re-hon",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N165",
+    "synthetic_customer": true,
+    "address": "15 Phạm Văn Thuận, Biên Hòa, Đồng Nai",
+    "dates": {
+      "call_1": "2026-10-13",
+      "call_2": "2026-10-15"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N165",
+      "a": "SKU-MB-PUMP1",
+      "b": "SKU-MB-PUMP2",
+      "d1": "2026-10-13",
+      "gap": 2
+    },
+    "template_family": "H13-F11",
+    "group": "nhieu_san_pham_don",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho cô hỏi giá Medela Swing Maxi và Spectra S1 nhé.",
+        "Rồi cô suy nghĩ thêm, hôm khác cô gọi."
+      ],
+      "call_2": [
+        "Em ơi hai mẫu hôm trước đó, cô chọn cái giá thấp hơn, lên đơn giùm cô.",
+        "Địa chỉ 15 Phạm Văn Thuận, Biên Hòa, Đồng Nai, COD em nhé."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "replace ambiguous scalar call-level price truth with item-level supplemental truth; no agent claims changed"
+  }
+}

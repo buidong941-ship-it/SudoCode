@@ -1,0 +1,67 @@
+{
+  "scenario_id": "H13-083",
+  "level": "M2",
+  "persona": "khach_hoi_nhieu_khong_mua",
+  "hard_case": "h13_kha_nang_tra_loi",
+  "customer_phone": "0972133972",
+  "customer_name": "Quân",
+  "honorific": "anh",
+  "notes": "Tên mẫu mơ hồ (giày chạy bộ RunLite) → làm rõ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-25",
+      "input_mode": "asr_transcript",
+      "customer_goal": "hoi gia ten mau mo ho",
+      "customer_turns": [
+        "À em, anh hỏi giá giày chạy bộ RunLite chút.",
+        "Rồi, cảm ơn em nha."
+      ],
+      "customer_turns_asr": [
+        "à em anh hỏi giá giày chạy bộ ran lai chút",
+        "rồi cảm ơn em nha"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "mẫu nào",
+          "loại nào",
+          "dòng nào",
+          "bản nào",
+          "model nào",
+          "hai mẫu",
+          "2 mẫu",
+          "các mẫu",
+          "mấy mẫu",
+          "những mẫu"
+        ]
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F21n-ten-mau-asr-ro-hay-mo-ho",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N316",
+    "synthetic_customer": true,
+    "address": "99 Trần Hưng Đạo, TP Nam Định, Nam Định",
+    "dates": {
+      "call_1": "2026-10-25"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N316",
+      "fz": "giày chạy bộ RunLite",
+      "d1": "2026-10-25"
+    },
+    "template_family": "H13-F21",
+    "group": "kha_nang_tra_loi",
+    "polarity": "neg",
+    "naturalized": {},
+    "template_turns": {}
+  }
+}

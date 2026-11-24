@@ -1,0 +1,106 @@
+{
+  "scenario_id": "H13-067",
+  "level": "M2",
+  "persona": "khach_da_kenh_fb_hotline",
+  "hard_case": "h13_da_kenh",
+  "customer_phone": "0946730218",
+  "customer_name": "Đức",
+  "honorific": "anh",
+  "notes": "Không có định danh chung giữa chat và hotline → không được dùng bộ nhớ chat để chốt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22 chấp nhận thêm cách hỏi làm rõ trực tiếp; vẫn cấm tạo đơn khi mẫu/định danh chưa rõ.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-13",
+      "channel": "chat_fanpage",
+      "channel_identity": "fb.duc.781",
+      "customer_goal": "hoi gia qua fanpage, khong de sdt",
+      "customer_turns": [
+        "Ad cho mình hỏi giá UF Sunhouse với ạ",
+        "Dạ để mình suy nghĩ rồi gọi hotline sau."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-WF-UF",
+        "price_quoted_vnd": 3290000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3290000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "doi chot mau tu kenh chua lien ket",
+      "customer_turns": [
+        "Em ơi, bữa trước anh có chat với bên em rồi, giờ chốt giùm anh cái mẫu đó nhé.",
+        "Ờ thôi để anh mở tin nhắn coi lại rồi báo em sau."
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "mẫu nào",
+          "sản phẩm nào",
+          "tên sản phẩm",
+          "tên mẫu",
+          "chưa thấy",
+          "không thấy",
+          "chưa tìm thấy",
+          "không tìm thấy",
+          "cái nào",
+          "loại nào",
+          "cụ thể mẫu nào",
+          "cụ thể là mẫu nào",
+          "tên mẫu cụ thể",
+          "tên mẫu nào",
+          "tên sản phẩm nào",
+          "sản phẩm cụ thể nào",
+          "chị đang nhắc mẫu nào",
+          "anh đang nhắc mẫu nào",
+          "chị muốn hỏi mẫu nào",
+          "anh muốn hỏi mẫu nào",
+          "cho chị biết tên máy",
+          "cho anh biết tên máy"
+        ]
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F17n-fanpage-chua-lien-ket-roi-hotline",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N249",
+    "synthetic_customer": true,
+    "address": "88 Đại lộ Bình Dương, Thủ Dầu Một, Bình Dương",
+    "dates": {
+      "call_1": "2026-10-13",
+      "call_2": "2026-10-15"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N249",
+      "p": "SKU-WF-UF",
+      "d1": "2026-10-13",
+      "gap": 2
+    },
+    "template_family": "H13-F17",
+    "group": "da_kenh_danh_tinh",
+    "polarity": "neg",
+    "naturalized": {
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_2": [
+        "Em ơi anh chat với bên em hôm trước rồi, giờ chốt cái mẫu đó cho anh nhé.",
+        "Thôi để anh mở tin nhắn coi lại rồi báo em."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "accept equivalent direct clarification wording; preserve no-order constraint"
+  }
+}

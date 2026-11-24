@@ -1,0 +1,105 @@
+{
+  "scenario_id": "H13-026",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0941474347",
+  "customer_name": "Trang",
+  "honorific": "chị",
+  "notes": "Rút SKU-AF-6L, giữ SKU-AP-MINI: tổng đơn phải đúng 2.190.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-01",
+      "customer_goal": "hoi gia hai mon",
+      "customer_turns": [
+        "Em ơi, AirPure Mini với Philips 6.2L mỗi cái bao nhiêu vậy em?",
+        "Ừ, để chị tính thêm đã nghen."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AP-MINI",
+        "price_quoted_vnd": 2190000,
+        "other_product": "SKU-AF-6L"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 1,
+      "customer_goal": "dat hai mon roi rut mot mon",
+      "customer_turns": [
+        "Alo em, chị gọi lại nè, lấy cho chị cả AirPure Mini với Philips 6.2L luôn nha.",
+        "À mà thôi, Philips 6.2L thì khỏi đi em, nhà chị cái cũ còn xài được. Lấy AirPure Mini thôi.",
+        "Gửi về 28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, nhận hàng chị trả tiền mặt."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AP-MINI",
+          "price_vnd": 2190000
+        },
+        "also_ordered": [
+          "SKU-AP-MINI"
+        ],
+        "total_match_vnd": 2190000
+      },
+      "memory_expectation": {
+        "product_advised": "SKU-AP-MINI"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2190000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F06-rut-mot-giu-mot",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N085",
+    "synthetic_customer": true,
+    "address": "28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk",
+    "dates": {
+      "call_1": "2026-11-01",
+      "call_2": "2026-11-02"
+    },
+    "choices": {
+      "vi": 2,
+      "cust": "N085",
+      "a": "SKU-AP-MINI",
+      "b": "SKU-AF-6L",
+      "d1": "2026-11-01",
+      "gap": 1
+    },
+    "template_family": "H13-F06",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi cho chị hỏi AirPure Mini với Philips 6.2L mỗi cái giá bao nhiêu?",
+        "Ừ để chị cân nhắc thêm nha."
+      ],
+      "call_2": [
+        "Chị gọi lại nè, lấy cho chị cả AirPure Mini với Philips 6.2L luôn nha em.",
+        "À thôi, Philips 6.2L khỏi đi em, nhà chị còn cái cũ dùng được. Chỉ lấy AirPure Mini thôi.",
+        "Giao về 28 Lê Duẩn, Buôn Ma Thuột, Đắk Lắk, chị trả tiền mặt khi nhận."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "replace ambiguous scalar call-level price truth with item-level supplemental truth; no agent claims changed"
+  }
+}

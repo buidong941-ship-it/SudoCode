@@ -1,0 +1,102 @@
+{
+  "scenario_id": "H13-008",
+  "level": "M2",
+  "persona": "khach_do_du_hoi_nguoi_nha",
+  "hard_case": "h13_nhieu_y_cung_luot",
+  "customer_phone": "0980393759",
+  "customer_name": "Liên",
+  "honorific": "cô",
+  "notes": "Phiên 2 gộp yêu cầu chốt + địa chỉ + câu hỏi bảo hành 12 tháng trong một lượt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-02",
+      "customer_goal": "hoi gia, hen hoi nguoi nha",
+      "customer_turns": [
+        "Alo em ơi, cái Moaz Bebe bên em giờ bán giá bao nhiêu đó?",
+        "Thôi để tối cô hỏi mấy đứa trong nhà rồi tính, mai cô gọi lại sau nghen."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-MB-STER",
+        "price_quoted_vnd": 1890000,
+        "blocker": "hoi y nguoi nha"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1890000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "chot don kem hoi bao hanh va dia chi trong cung luot",
+      "customer_turns": [
+        "Em ơi cái Moaz Bebe bữa trước đó, bảo hành mấy năm vậy em? À mà cô chốt lấy rồi nha, giao về 130 Nguyễn Văn Linh, Hải Châu, Đà Nẵng giùm cô.",
+        "Nhận hàng rồi cô trả tiền nghe em."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-MB-STER",
+          "price_vnd": 1890000
+        },
+        "must_say_any": [
+          "12 tháng",
+          "1 năm"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1890000,
+        "warranty_months": 12
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F01-chot-kem-hoi-bao-hanh",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N016",
+    "synthetic_customer": true,
+    "address": "130 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+    "dates": {
+      "call_1": "2026-11-02",
+      "call_2": "2026-11-04"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N016",
+      "p": "SKU-MB-STER",
+      "d1": "2026-11-02",
+      "gap": 2
+    },
+    "template_family": "H13-F01",
+    "group": "nhieu_y_cung_luot",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Alo, Moaz Bebe hiện bên em bán giá nhiêu em?",
+        "Thôi để tối cô hỏi ý người nhà rồi tính, cô gọi lại sau."
+      ],
+      "call_2": [
+        "Em ơi cái Moaz Bebe hôm trước bảo hành mấy năm thế? À cô quyết lấy rồi đấy, giao về 130 Nguyễn Văn Linh, Hải Châu, Đà Nẵng nhé.",
+        "Thanh toán khi nhận hàng em nhé."
+      ]
+    }
+  }
+}

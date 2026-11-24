@@ -1,0 +1,147 @@
+{
+  "scenario_id": "H13-016",
+  "level": "M2",
+  "persona": "khach_da_mua_doi_size",
+  "hard_case": "h13_hoi_yeu_cau",
+  "customer_phone": "0969886204",
+  "customer_name": "Trang",
+  "honorific": "chị",
+  "notes": "Phiên 3: đổi lần 2 tính phí 30.000đ/chiều; khách rút yêu cầu nếu có phí → không gọi order.update. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-07",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi, chị lấy đôi Urban Classic màu trắng, size 40 nhé.",
+        "Giao về 15 Nguyễn Trãi, Thanh Xuân, Hà Nội, nhận hàng chị trả tiền mặt nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-40-TRANG",
+        "price_quoted_vnd": 890000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "15 Nguyễn Trãi, Thanh Xuân, Hà Nội"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-40-TRANG",
+          "price_vnd": 890000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "doi size lan 1",
+      "customer_turns": [
+        "Em ơi, đôi giày chị nhận rồi mà đi chật quá, em đổi giúp chị sang size 41 nhé.",
+        "Ừ, cảm ơn em."
+      ],
+      "facts_established": {
+        "variant_sku": "SKU-SN-CAS-41-TRANG"
+      },
+      "must_not_ask": [
+        "order_id"
+      ],
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "order_id": "OD600001",
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-CAS-41-TRANG"
+        }
+      },
+      "ground_truth_facts": {
+        "new_size_in_stock": true,
+        "exchange_fee_vnd": 0
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_3": {
+      "days_later": 2,
+      "customer_goal": "hoi phi doi lan 2, co phi thi thoi",
+      "customer_turns": [
+        "Em ơi, đôi size 41 đổi rồi mà chị đi vẫn chưa vừa lắm, chị định đổi tiếp sang size 42. Mà lần đổi thứ hai thì có mất phí không em?",
+        "Thế mất phí thì thôi, chị giữ đôi size 41 luôn, không đổi nữa đâu."
+      ],
+      "must_not_ask": [
+        "order_id"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.update"
+        ],
+        "must_say_any": [
+          "30.000",
+          "30k",
+          "30 nghìn",
+          "ba mươi nghìn",
+          "60.000",
+          "60k",
+          "60 nghìn"
+        ]
+      },
+      "expected_outcome": "tu_choi"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F03n-doi-size-neu-mien-phi",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N047",
+    "synthetic_customer": true,
+    "address": "15 Nguyễn Trãi, Thanh Xuân, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-07",
+      "call_2": "2026-10-10",
+      "call_3": "2026-10-12"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N047",
+      "p": "SKU-SN-CAS-40-TRANG",
+      "d1": "2026-10-07",
+      "g1": 3,
+      "g2": 2
+    },
+    "template_family": "H13-F03",
+    "group": "hoi_yeu_cau",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ],
+      "call_3": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho chị Urban Classic size 40 màu trắng nhé.",
+        "Giao về 15 Nguyễn Trãi, Thanh Xuân, Hà Nội, nhận hàng chị trả tiền mặt."
+      ],
+      "call_2": [
+        "Em ơi đôi giày chị nhận rồi mà chật quá, đổi giúp chị sang size 41 nha.",
+        "Ừ cảm ơn em."
+      ],
+      "call_3": [
+        "Em ơi size 41 đổi rồi mà vẫn chưa vừa, chị tính đổi tiếp sang size 42. Lần đổi thứ hai này có mất phí không em?",
+        "Mất phí thì thôi, chị giữ size 41 luôn, không đổi nữa đâu."
+      ]
+    }
+  }
+}

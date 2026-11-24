@@ -1,0 +1,147 @@
+{
+  "scenario_id": "H13-015",
+  "level": "M2",
+  "persona": "khach_da_mua_doi_size",
+  "hard_case": "h13_hoi_yeu_cau",
+  "customer_phone": "0916900170",
+  "customer_name": "Trang",
+  "honorific": "chị",
+  "notes": "Phiên 3: đổi lần 2 tính phí 30.000đ/chiều; khách rút yêu cầu nếu có phí → không gọi order.update. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-19",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi, chị lấy đôi Urban Classic size 39 màu đen nghen.",
+        "Gửi về 16 Phan Xích Long, Phú Nhuận, TP HCM, giao tới thì chị trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-39-DEN",
+        "price_quoted_vnd": 890000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "16 Phan Xích Long, Phú Nhuận, TP HCM"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-39-DEN",
+          "price_vnd": 890000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 4,
+      "customer_goal": "doi size lan 1",
+      "customer_turns": [
+        "Alo em, đôi size 39 chị mang không vừa, em đổi giùm chị lên size 40, màu vẫn vậy nha.",
+        "Ừ được rồi em."
+      ],
+      "facts_established": {
+        "variant_sku": "SKU-SN-CAS-40-DEN"
+      },
+      "must_not_ask": [
+        "order_id"
+      ],
+      "success_if": {
+        "tool_called": "order.update",
+        "args_match": {
+          "order_id": "OD600001",
+          "action": "exchange_size",
+          "new_variant_sku": "SKU-SN-CAS-40-DEN"
+        }
+      },
+      "ground_truth_facts": {
+        "new_size_in_stock": true,
+        "exchange_fee_vnd": 0
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_3": {
+      "days_later": 1,
+      "customer_goal": "hoi phi doi lan 2, co phi thi thoi",
+      "customer_turns": [
+        "Alo em, chị nè, giờ chị lại muốn đổi qua size 41 á, mà lần này có còn miễn phí không hay phải trả tiền?",
+        "Ờ có phí thì thôi, chị không đổi nữa đâu, cứ để vậy đi em."
+      ],
+      "must_not_ask": [
+        "order_id"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.update"
+        ],
+        "must_say_any": [
+          "30.000",
+          "30k",
+          "30 nghìn",
+          "ba mươi nghìn",
+          "60.000",
+          "60k",
+          "60 nghìn"
+        ]
+      },
+      "expected_outcome": "tu_choi"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F03n-doi-size-neu-mien-phi",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N043",
+    "synthetic_customer": true,
+    "address": "16 Phan Xích Long, Phú Nhuận, TP HCM",
+    "dates": {
+      "call_1": "2026-10-19",
+      "call_2": "2026-10-23",
+      "call_3": "2026-10-24"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N043",
+      "p": "SKU-SN-CAS-39-DEN",
+      "d1": "2026-10-19",
+      "g1": 4,
+      "g2": 1
+    },
+    "template_family": "H13-F03",
+    "group": "hoi_yeu_cau",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ],
+      "call_3": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Chị đặt Urban Classic size 39 màu đen nha em.",
+        "Địa chỉ 16 Phan Xích Long, Phú Nhuận, TP HCM, thanh toán khi nhận hàng giúp chị."
+      ],
+      "call_2": [
+        "Alo em, size 39 chị mang không vừa, em đổi qua size 40 cùng màu giùm chị.",
+        "Được rồi em."
+      ],
+      "call_3": [
+        "Alo em, chị lại muốn đổi qua size 41, mà lần này còn miễn phí không hay tốn tiền?",
+        "Vậy có phí thì chị không đổi nữa, để vậy được rồi em."
+      ]
+    }
+  }
+}

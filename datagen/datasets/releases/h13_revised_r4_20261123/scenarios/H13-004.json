@@ -1,0 +1,105 @@
+{
+  "scenario_id": "H13-004",
+  "level": "M2",
+  "persona": "khach_da_kenh_fb_hotline",
+  "hard_case": "h13_da_kenh",
+  "customer_phone": "0994157718",
+  "customer_name": "Tiến",
+  "honorific": "anh",
+  "notes": "Khách CRM có fb_id; đơn OD600001 giao dự kiến 2026-10-24. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-22",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "À em, cho anh đặt cái Warmly màu be, size M nha.",
+        "Gửi về 185 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng, anh trả tiền khi shipper giao tới nghe."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-DWN",
+        "variant_sku": "SKU-JK-DWN-M-BE",
+        "price_quoted_vnd": 1490000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "185 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-JK-DWN-M-BE",
+          "price_vnd": 1490000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 1,
+      "channel": "chat_fanpage",
+      "channel_identity": "fb.tiến.352",
+      "customer_goal": "hoi ngay giao qua fanpage",
+      "customer_turns": [
+        "Ad ơi mình có đặt Warmly qua hotline mấy hôm trước, cho mình hỏi bao giờ nhận được hàng?",
+        "Dạ cảm ơn ad."
+      ],
+      "must_carry_over": [
+        "order_id"
+      ],
+      "must_not_ask": [
+        "order_id",
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.status",
+        "must_say_any": [
+          "24/10",
+          "24/10",
+          "ngày 24 tháng 10",
+          "24 tháng 10"
+        ]
+      },
+      "ground_truth_facts": {
+        "estimated_delivery": "2026-10-24"
+      },
+      "expected_outcome": "hen_goi_lai"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F16-tong-dai-dat-roi-fanpage-hoi-don",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "C043",
+    "synthetic_customer": false,
+    "address": "185 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng",
+    "dates": {
+      "call_1": "2026-10-22",
+      "call_2": "2026-10-23"
+    },
+    "choices": {
+      "vi": 3,
+      "cust": "C043",
+      "p": "SKU-JK-DWN-M-BE",
+      "d1": "2026-10-22",
+      "gap": 1
+    },
+    "template_family": "H13-F16",
+    "group": "da_kenh_danh_tinh",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Anh đặt Warmly size M màu be nha em.",
+        "Địa chỉ 185 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng, thanh toán khi nhận hàng giúp anh."
+      ]
+    }
+  }
+}

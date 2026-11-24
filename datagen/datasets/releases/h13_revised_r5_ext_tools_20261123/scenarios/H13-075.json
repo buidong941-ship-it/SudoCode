@@ -1,0 +1,119 @@
+{
+  "scenario_id": "H13-075",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_chinh_sach_nguon",
+  "customer_phone": "0977121586",
+  "customer_name": "Hà",
+  "honorific": "chị",
+  "notes": "Phiên 1 (2026-11-07): không tiết lộ 11-11; phiên 2 (2026-11-12): áp 11-11, giá 1.861.500đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-07",
+      "customer_goal": "hoi khuyen mai chua bat dau",
+      "customer_turns": [
+        "Em ơi cái AirPure Mini giá bao nhiêu vậy em?",
+        "Nghe nói sắp tới 11/11 bên em giảm sâu lắm hả? Giảm nhiêu phần trăm vậy em, chị đợi được á.",
+        "Ờ vậy để chị tính thêm."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AP-MINI",
+        "price_quoted_vnd": 2190000
+      },
+      "success_if": {
+        "tool_called": null,
+        "must_say_any": [
+          "2 triệu 190",
+          "2,190,000",
+          "2.190.000",
+          "2190000",
+          "2190k",
+          "2tr190"
+        ],
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "forbidden_claims": [
+          "15%",
+          "15 phần trăm",
+          "mười lăm phần trăm"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 2190000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 5,
+      "customer_goal": "goi lai ngay khuyen mai dang chay, chot",
+      "customer_turns": [
+        "Em ơi, hôm nay AirPure Mini có chương trình gì không em? Có giảm thì chị lấy luôn.",
+        "Giao về 159 Nguyễn Văn Linh, Hải Châu, Đà Nẵng, nhận hàng chị trả tiền nghe."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AP-MINI",
+          "price_vnd": 1861500
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1861500,
+        "promo_11-11_active": true
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F19-km-chua-bat-dau-roi-dang-chay",
+    "instance": 2,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N284",
+    "synthetic_customer": true,
+    "address": "159 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+    "dates": {
+      "call_1": "2026-11-07",
+      "call_2": "2026-11-12"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N284",
+      "p": "SKU-AP-MINI",
+      "d1": "2026-11-07",
+      "d2": "2026-11-12"
+    },
+    "template_family": "H13-F19",
+    "group": "chinh_sach_nguon",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi AirPure Mini giá bao nhiêu vậy?",
+        "Nghe nói sắp 11/11 bên em giảm mạnh lắm hả? Giảm bao nhiêu phần trăm em, chị đợi được.",
+        "Ừ vậy để chị cân nhắc thêm."
+      ],
+      "call_2": [
+        "Em ơi hôm nay có chương trình gì cho AirPure Mini không? Có giảm thì chị lấy luôn.",
+        "Giao về 159 Nguyễn Văn Linh, Hải Châu, Đà Nẵng, chị trả tiền khi nhận nha."
+      ]
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "scenario_id": "H13-027",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0925262135",
+  "customer_name": "Vy",
+  "honorific": "chị",
+  "notes": "Rút SKU-FAN-SEN, giữ SKU-MB-STER: tổng đơn phải đúng 1.890.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-20",
+      "customer_goal": "hoi gia hai mon",
+      "customer_turns": [
+        "Em ơi Moaz Bebe với Senko TS16, mỗi cái bao nhiêu tiền vậy em?",
+        "Ờ để chị cân nhắc thêm nghen."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-MB-STER",
+        "price_quoted_vnd": 1890000,
+        "other_product": "SKU-FAN-SEN"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 4,
+      "customer_goal": "dat hai mon roi rut mot mon",
+      "customer_turns": [
+        "Chị gọi lại đây em, lấy cho chị cả Moaz Bebe với Senko TS16 nha.",
+        "Ờ mà thôi, Senko TS16 khỏi đi em, nhà chị còn cái cũ xài được. Chị lấy mỗi Moaz Bebe thôi.",
+        "Gửi về 182 Võ Văn Ngân, Thủ Đức, TP HCM, nhận hàng chị trả tiền mặt nha."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "sku": "SKU-FAN-SEN",
+          "action": "remove"
+        }
+      },
+      "memory_expectation": {
+        "product_advised": "SKU-MB-STER"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1890000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F06-rut-mot-giu-mot",
+    "instance": 2,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N092",
+    "synthetic_customer": true,
+    "address": "182 Võ Văn Ngân, Thủ Đức, TP HCM",
+    "dates": {
+      "call_1": "2026-10-20",
+      "call_2": "2026-10-24"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N092",
+      "a": "SKU-MB-STER",
+      "b": "SKU-FAN-SEN",
+      "d1": "2026-10-20",
+      "gap": 4
+    },
+    "template_family": "H13-F06",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi cho chị hỏi Moaz Bebe với Senko TS16 mỗi cái giá bao nhiêu?",
+        "Ừ để chị cân nhắc thêm nha."
+      ],
+      "call_2": [
+        "Chị gọi lại nè, lấy cho chị cả Moaz Bebe với Senko TS16 luôn nha em.",
+        "À thôi, Senko TS16 khỏi đi em, nhà chị còn cái cũ dùng được. Chỉ lấy Moaz Bebe thôi.",
+        "Giao về 182 Võ Văn Ngân, Thủ Đức, TP HCM, chị trả tiền mặt khi nhận."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "replace ambiguous scalar call-level price truth with item-level supplemental truth; no agent claims changed"
+  }
+}

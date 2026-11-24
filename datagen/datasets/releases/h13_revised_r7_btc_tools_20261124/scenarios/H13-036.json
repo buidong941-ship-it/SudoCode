@@ -1,0 +1,109 @@
+{
+  "scenario_id": "H13-036",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_gio_so_luong",
+  "customer_phone": "0926012800",
+  "customer_name": "Long",
+  "honorific": "anh",
+  "notes": "Đặt thêm SKU-SN-SOCK (149.000đ) thành đơn mới, địa chỉ cũ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-16",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi anh đặt đôi Urban Classic size 41 màu xám nha.",
+        "Gửi về 18 Phan Đình Phùng, Quy Nhơn, Bình Định, nhận hàng anh trả tiền nghen."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-41-XAM",
+        "price_quoted_vnd": 890000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "18 Phan Đình Phùng, Quy Nhơn, Bình Định"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-41-XAM",
+          "price_vnd": 890000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "dat them phu kien, giao cho cu",
+      "customer_turns": [
+        "Alo, em ơi anh muốn lấy thêm một Tất thể thao RunLite (3 đôi), gửi về địa chỉ lần trước đó nghen.",
+        "Thanh toán như đơn trước luôn, COD nha em."
+      ],
+      "must_carry_over": [
+        "address"
+      ],
+      "must_not_ask": [
+        "address",
+        "payment"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-SOCK",
+          "price_vnd": 149000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 149000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F08-dat-them-phu-kien-sau-don-cu",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N126",
+    "synthetic_customer": true,
+    "address": "18 Phan Đình Phùng, Quy Nhơn, Bình Định",
+    "dates": {
+      "call_1": "2026-10-16",
+      "call_2": "2026-10-19"
+    },
+    "choices": {
+      "vi": 3,
+      "cust": "N126",
+      "p": "SKU-SN-CAS-41-XAM",
+      "d1": "2026-10-16",
+      "gap": 3
+    },
+    "template_family": "H13-F08",
+    "group": "gio_so_luong",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Anh đặt Urban Classic size 41 màu xám nha em.",
+        "Địa chỉ 18 Phan Đình Phùng, Quy Nhơn, Bình Định, thanh toán khi nhận hàng giúp anh."
+      ],
+      "call_2": [
+        "Alo, anh muốn đặt thêm một Tất thể thao RunLite (3 đôi) em ơi, giao về địa chỉ lần trước đó.",
+        "Thanh toán như đơn trước, COD nhé."
+      ]
+    }
+  }
+}

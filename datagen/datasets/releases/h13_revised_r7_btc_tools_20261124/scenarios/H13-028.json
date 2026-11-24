@@ -1,0 +1,101 @@
+{
+  "scenario_id": "H13-028",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0914237572",
+  "customer_name": "Vy",
+  "honorific": "chị",
+  "notes": "Rút SKU-FAN-DC1, giữ SKU-FAN-SEN: tổng đơn phải đúng 590.000đ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR giá cho call_1 được đối chiếu theo từng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl vì call có hai sản phẩm và evaluator BTC chỉ nhận một price_vnd/call.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-19",
+      "customer_goal": "hoi gia hai mon",
+      "customer_turns": [
+        "Chị đang coi Senko TS16 với cả DC inverter Panasonic F-409, em báo giá giúp chị hai cái với.",
+        "Ừ rồi, để chị nghĩ thêm đã."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-FAN-SEN",
+        "price_quoted_vnd": 590000,
+        "other_product": "SKU-FAN-DC1"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 5,
+      "customer_goal": "dat hai mon roi rut mot mon",
+      "customer_turns": [
+        "Em lên đơn cho chị Senko TS16 với DC inverter Panasonic F-409 nhé, gửi về 85 Quang Trung, TP Vinh, Nghệ An.",
+        "Ơ khoan đã, bỏ DC inverter Panasonic F-409 ra giúp chị, chỉ lấy Senko TS16 thôi.",
+        "Nhận hàng thì chị trả tiền em nhé."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      },
+      "memory_expectation": {
+        "product_advised": "SKU-FAN-SEN"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 590000
+      },
+      "expected_outcome": "chuyen_may"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F06-rut-mot-giu-mot",
+    "instance": 3,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N093",
+    "synthetic_customer": true,
+    "address": "85 Quang Trung, TP Vinh, Nghệ An",
+    "dates": {
+      "call_1": "2026-10-19",
+      "call_2": "2026-10-24"
+    },
+    "choices": {
+      "vi": 3,
+      "cust": "N093",
+      "a": "SKU-FAN-SEN",
+      "b": "SKU-FAN-DC1",
+      "d1": "2026-10-19",
+      "gap": 5
+    },
+    "template_family": "H13-F06",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Chị đang xem Senko TS16 và DC inverter Panasonic F-409, em báo giá giúp chị cả hai.",
+        "Rồi, chị suy nghĩ thêm đã."
+      ],
+      "call_2": [
+        "Em lên đơn giúp chị Senko TS16 và DC inverter Panasonic F-409 nhé, giao về 85 Quang Trung, TP Vinh, Nghệ An.",
+        "Ấy khoan, bỏ DC inverter Panasonic F-409 ra giùm chị, chỉ giữ Senko TS16 thôi.",
+        "Thanh toán khi nhận hàng em nha."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "replace ambiguous scalar call-level price truth with item-level supplemental truth; no agent claims changed"
+  }
+}

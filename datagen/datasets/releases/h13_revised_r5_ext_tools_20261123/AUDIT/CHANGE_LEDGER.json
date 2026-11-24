@@ -1,0 +1,165 @@
+[
+  {
+    "scenario": "H13-025",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "sku": "SKU-MB-STER",
+          "action": "remove"
+        }
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "a2def04ca9122e1f336c92da0818c458cd420190fd8671ff656ed690e55d20e5",
+    "sha256_after": "c177e188e0963674b3f73d6fce6e9dd1b14aee1db48e0ee6418c74f2f6955412"
+  },
+  {
+    "scenario": "H13-026",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "sku": "SKU-AF-6L",
+          "action": "remove"
+        }
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "5a63f36f2bf1fe977bf49655bf5b5550a6d168555431c87b93459693746644ec",
+    "sha256_after": "7d83247613e50967f0d7601695809dec5139d8d754b8abd9d0433e02047e59ca"
+  },
+  {
+    "scenario": "H13-027",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "sku": "SKU-FAN-SEN",
+          "action": "remove"
+        }
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "c139a0fc5447f35884aeb6b2d7bf6733f6eedee2879890db937c655908f46e80",
+    "sha256_after": "1cf8eb68aea1d5b5b3334b6fac541981f932a6f60b728c28843040fa22284b10"
+  },
+  {
+    "scenario": "H13-028",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "sku": "SKU-FAN-DC1",
+          "action": "remove"
+        }
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "9656f875c4f56cf061b0eb3d0ffeddb1fd4824aee7423a0d41b54d4fa8b8aaeb",
+    "sha256_after": "9e66ea9c5db11f4ed8d83aa1e50f49195c920fbb23c4a74ec68db84c66d48dc1"
+  },
+  {
+    "scenario": "H13-037",
+    "call": "call_1",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "chot_don",
+      "success_if": {
+        "tool_called": "order.update_line",
+        "args_match": {
+          "action": "change_variant",
+          "new_variant_sku": "SKU-JK-WND-L-BE"
+        }
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "c2a6b39dfbf29daffc629b8f3c83b113226e6107920071acde2feb50d199d10c",
+    "sha256_after": "4e124fc772a6a0ea878048b11348fa176682aceda474ad9154e8c25d295b4120"
+  },
+  {
+    "scenario": "H13-086",
+    "call": "call_2",
+    "before": {
+      "expected_outcome": "chuyen_may",
+      "success_if": {
+        "tool_called": "handoff.transfer",
+        "brief_must_contain": [
+          "escalation_reason_detail",
+          "next_action"
+        ],
+        "must_say_any": [
+          "chuyển người hỗ trợ",
+          "chuyển nhân viên",
+          "xác nhận yêu cầu hủy"
+        ]
+      }
+    },
+    "after": {
+      "expected_outcome": "tu_choi",
+      "success_if": {
+        "tool_called": "order.cancel"
+      }
+    },
+    "customer_turns_unchanged": true,
+    "sha256_before": "75d11d58a809e353876a154f1cf1b51330cd132e8cc9bcab6bac674ee747c5a4",
+    "sha256_after": "354fab6b85496a576891ecd3fc7f51bc38a3c1521922a1e2b35de2671b3f4297"
+  }
+]

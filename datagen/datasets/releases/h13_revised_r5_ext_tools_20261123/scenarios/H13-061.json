@@ -1,0 +1,109 @@
+{
+  "scenario_id": "H13-061",
+  "level": "M2",
+  "persona": "khach_hoi_nhieu_khong_mua",
+  "hard_case": "h13_nho_qua_phien",
+  "customer_phone": "0928003221",
+  "customer_name": "Hùng",
+  "honorific": "anh",
+  "notes": "Khách yêu cầu mua lại → tạo đơn mới với sản phẩm/địa chỉ/thanh toán đã nhớ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-18",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi anh đặt cái Xiaomi 4.5L nghen.",
+        "Gửi về 197 Quang Trung, Gò Vấp, TP HCM, nhận hàng anh trả tiền."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-XM",
+        "price_quoted_vnd": 1590000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "197 Quang Trung, Gò Vấp, TP HCM"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-XM",
+          "price_vnd": 1590000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 13,
+      "customer_goal": "mua lai giong don cu",
+      "customer_turns": [
+        "Alo em, anh đặt lại một cái Xiaomi 4.5L y chang đơn trước nghen, địa chỉ với thanh toán như cũ luôn.",
+        "Ừ được rồi em."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised",
+        "address",
+        "payment"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-XM",
+          "price_vnd": 1590000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1590000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F15p-dong-y-cu-khong-thanh-dong-y-moi",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N228",
+    "synthetic_customer": true,
+    "address": "197 Quang Trung, Gò Vấp, TP HCM",
+    "dates": {
+      "call_1": "2026-10-18",
+      "call_2": "2026-10-31"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N228",
+      "p": "SKU-AF-XM",
+      "d1": "2026-10-18",
+      "gap": 13
+    },
+    "template_family": "H13-F15",
+    "group": "nho_qua_phien",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Anh đặt Xiaomi 4.5L nha em.",
+        "Địa chỉ 197 Quang Trung, Gò Vấp, TP HCM, thanh toán khi nhận hàng giúp anh."
+      ],
+      "call_2": [
+        "Alo, anh đặt lại một Xiaomi 4.5L giống đơn trước nhé em, địa chỉ với thanh toán như cũ.",
+        "Được rồi em."
+      ]
+    }
+  }
+}

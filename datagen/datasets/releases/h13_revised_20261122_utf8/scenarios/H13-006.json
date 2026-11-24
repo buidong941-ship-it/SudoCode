@@ -1,0 +1,102 @@
+{
+  "scenario_id": "H13-006",
+  "level": "M2",
+  "persona": "khach_do_du_hoi_nguoi_nha",
+  "hard_case": "h13_nhieu_y_cung_luot",
+  "customer_phone": "0904735288",
+  "customer_name": "Lan",
+  "honorific": "chị",
+  "notes": "Phiên 2 gộp yêu cầu chốt + địa chỉ + câu hỏi bảo hành 12 tháng trong một lượt. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-11-01",
+      "customer_goal": "hoi gia, hen hoi nguoi nha",
+      "customer_turns": [
+        "Em ơi chị hỏi xíu, Philips 6.2L bên mình bán sao vậy em?",
+        "Ờ… để chị hỏi lại người nhà coi sao đã, bữa nào chị gọi lại nha."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-6L",
+        "price_quoted_vnd": 3990000,
+        "blocker": "hoi y nguoi nha"
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "chot don kem hoi bao hanh va dia chi trong cung luot",
+      "customer_turns": [
+        "Alo em, chị nè, vụ Philips 6.2L hôm bữa đó, nhà chị ưng rồi. Em lên đơn giao về 58 Nguyễn Thị Thập, Quận 7, TP HCM giùm chị, à mà nó bảo hành bao lâu vậy em?",
+        "Ừ được, tiền mặt chị trả lúc nhận nghen."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-6L",
+          "price_vnd": 3990000
+        },
+        "must_say_any": [
+          "12 tháng",
+          "1 năm"
+        ]
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000,
+        "warranty_months": 12
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F01-chot-kem-hoi-bao-hanh",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N005",
+    "synthetic_customer": true,
+    "address": "58 Nguyễn Thị Thập, Quận 7, TP HCM",
+    "dates": {
+      "call_1": "2026-11-01",
+      "call_2": "2026-11-04"
+    },
+    "choices": {
+      "vi": 2,
+      "cust": "N005",
+      "p": "SKU-AF-6L",
+      "d1": "2026-11-01",
+      "gap": 3
+    },
+    "template_family": "H13-F01",
+    "group": "nhieu_y_cung_luot",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi cho chị hỏi Philips 6.2L bên mình giá bao nhiêu vậy?",
+        "Ừ để chị bàn với người nhà đã, mai mốt chị gọi lại nha."
+      ],
+      "call_2": [
+        "Chị gọi lại vụ Philips 6.2L hôm trước nè em. Nhà chị chịu rồi, em lên đơn giao về 58 Nguyễn Thị Thập, Quận 7, TP HCM giúp chị, mà cái này bảo hành bao lâu vậy em?",
+        "Ừ, chị trả tiền mặt khi nhận nha."
+      ]
+    }
+  }
+}

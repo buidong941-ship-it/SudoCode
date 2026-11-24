@@ -1,0 +1,90 @@
+{
+  "scenario_id": "H13-066",
+  "level": "M2",
+  "persona": "khach_da_kenh_fb_hotline",
+  "hard_case": "h13_da_kenh",
+  "customer_phone": "0941183410",
+  "customer_name": "Linh",
+  "honorific": "chị",
+  "notes": "Khách mới, tự để SĐT trong chat Fanpage → hotline nối được, chốt SKU-AF-6L. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-21",
+      "channel": "chat_fanpage",
+      "channel_identity": "fb.linh.523",
+      "customer_goal": "hoi gia qua fanpage, de lai sdt",
+      "customer_turns": [
+        "Shop ơi Philips 6.2L giá bao nhiêu ạ?",
+        "Mình hỏi trước, mai mình gọi tổng đài đặt nha. Sđt mình là 0941183410."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-AF-6L",
+        "price_quoted_vnd": 3990000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 2,
+      "customer_goal": "chot mau da hoi qua fanpage",
+      "customer_turns": [
+        "Alo em, hôm qua chị có nhắn Fanpage hỏi giá một mẫu, có để lại số này rồi đó. Em lên đơn cái mẫu đó giùm chị nha.",
+        "Gửi về 95 Võ Văn Ngân, Thủ Đức, TP HCM, nhận hàng chị trả tiền."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-AF-6L",
+          "price_vnd": 3990000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 3990000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F17p-fanpage-chua-lien-ket-roi-hotline",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N245",
+    "synthetic_customer": true,
+    "address": "95 Võ Văn Ngân, Thủ Đức, TP HCM",
+    "dates": {
+      "call_1": "2026-10-21",
+      "call_2": "2026-10-23"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N245",
+      "p": "SKU-AF-6L",
+      "d1": "2026-10-21",
+      "gap": 2
+    },
+    "template_family": "H13-F17",
+    "group": "da_kenh_danh_tinh",
+    "polarity": "pos",
+    "naturalized": {
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_2": [
+        "Alo em, hôm qua chị có nhắn Fanpage hỏi giá một mẫu, chị để lại số này rồi đó. Lên đơn mẫu đó giúp chị nha.",
+        "Giao về 95 Võ Văn Ngân, Thủ Đức, TP HCM, trả tiền khi nhận."
+      ]
+    }
+  }
+}

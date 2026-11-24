@@ -1,0 +1,109 @@
+{
+  "scenario_id": "H13-035",
+  "level": "M2",
+  "persona": "khach_mua_nhieu_mon",
+  "hard_case": "h13_gio_so_luong",
+  "customer_phone": "0927336033",
+  "customer_name": "Nam",
+  "honorific": "anh",
+  "notes": "Đặt thêm SKU-SN-SOCK (149.000đ) thành đơn mới, địa chỉ cũ. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-08",
+      "customer_goal": "dat hang",
+      "customer_turns": [
+        "Em ơi, anh lấy đôi Urban Classic màu đen, size 41 nghe.",
+        "Gửi về 170 Ngô Quyền, Sơn Trà, Đà Nẵng, nhận hàng anh trả tiền mặt nghe em."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-SN-CAS",
+        "variant_sku": "SKU-SN-CAS-41-DEN",
+        "price_quoted_vnd": 890000,
+        "order_id": "OD600001",
+        "payment": "COD",
+        "address": "170 Ngô Quyền, Sơn Trà, Đà Nẵng"
+      },
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-CAS-41-DEN",
+          "price_vnd": 890000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 890000,
+        "in_stock": true
+      },
+      "expected_outcome": "chot_don"
+    },
+    "call_2": {
+      "days_later": 7,
+      "customer_goal": "dat them phu kien, giao cho cu",
+      "customer_turns": [
+        "Ê em, đôi Urban Classic bữa trước anh đặt rồi á. Giờ anh muốn mua thêm Tất thể thao RunLite (3 đôi), gửi về chỗ cũ giùm anh nghe.",
+        "Nhận hàng rồi trả tiền như lần trước nghe em."
+      ],
+      "must_carry_over": [
+        "address"
+      ],
+      "must_not_ask": [
+        "address",
+        "payment"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-SN-SOCK",
+          "price_vnd": 149000
+        }
+      },
+      "ground_truth_facts": {
+        "price_vnd": 149000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F08-dat-them-phu-kien-sau-don-cu",
+    "instance": 2,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N123",
+    "synthetic_customer": true,
+    "address": "170 Ngô Quyền, Sơn Trà, Đà Nẵng",
+    "dates": {
+      "call_1": "2026-10-08",
+      "call_2": "2026-10-15"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N123",
+      "p": "SKU-SN-CAS-41-DEN",
+      "d1": "2026-10-08",
+      "gap": 7
+    },
+    "template_family": "H13-F08",
+    "group": "gio_so_luong",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi lấy cho anh Urban Classic size 41 màu đen nhé.",
+        "Giao về 170 Ngô Quyền, Sơn Trà, Đà Nẵng, nhận hàng anh trả tiền mặt."
+      ],
+      "call_2": [
+        "Em ơi anh đặt Urban Classic hôm trước rồi đó. Giờ anh muốn mua thêm Tất thể thao RunLite (3 đôi) nữa, gửi về chỗ cũ giúp anh.",
+        "Trả tiền khi nhận như lần trước nha em."
+      ]
+    }
+  }
+}

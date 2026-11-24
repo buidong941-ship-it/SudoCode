@@ -1,0 +1,105 @@
+{
+  "scenario_id": "H13-032",
+  "level": "M2",
+  "persona": "khach_da_kenh_mau_thuan",
+  "hard_case": "h13_sua_rut_yeu_cau",
+  "customer_phone": "0973958226",
+  "customer_name": "Vy",
+  "honorific": "chị",
+  "notes": "Màu SKU-JK-DWN-S-BE hết hàng ngày gọi; khách không nhận màu cũ → không order.create. Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. Phiên bản H13 revised 2026-11-22: draft cart; new color conditional on stock; no order if unavailable.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-11",
+      "customer_goal": "hoi gia bien the",
+      "customer_turns": [
+        "Em ơi Warmly size S màu đen còn không em, giá bao nhiêu thế?",
+        "Ok để chị tính thêm nhé."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-JK-DWN",
+        "variant_sku": "SKU-JK-DWN-S-DEN",
+        "price_quoted_vnd": 1490000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 1490000,
+        "in_stock": true
+      },
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 3,
+      "customer_goal": "doi sang mau het hang, khong lay mau cu",
+      "customer_turns": [
+        "Em để Warmly size S màu đen trong giỏ nháp cho chị trước, chưa lên đơn nhé.",
+        "Ơ khoan, chị thích màu be hơn cơ, size S. Không có màu đó thì chị cũng không lấy màu đen đâu.",
+        "Thôi thế để dịp khác vậy em nhé."
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": null,
+        "must_not_call_tools": [
+          "order.create"
+        ],
+        "must_say_any": [
+          "hết hàng",
+          "hết màu",
+          "không còn hàng",
+          "tạm hết",
+          "đã hết",
+          "không còn màu"
+        ]
+      },
+      "expected_outcome": "tu_choi"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F07n-doi-mau-truoc-khi-du-thong-tin",
+    "instance": 1,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N110",
+    "synthetic_customer": true,
+    "address": "82 Trần Duy Hưng, Cầu Giấy, Hà Nội",
+    "dates": {
+      "call_1": "2026-10-11",
+      "call_2": "2026-10-14"
+    },
+    "choices": {
+      "vi": 1,
+      "cust": "N110",
+      "p": "SKU-JK-DWN-S-DEN",
+      "col": "be",
+      "d1": "2026-10-11",
+      "gap": 3
+    },
+    "template_family": "H13-F07",
+    "group": "sua_rut_yeu_cau",
+    "polarity": "neg",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Cho chị hỏi Warmly size S màu đen còn không, giá nhiêu em?",
+        "Ok để chị tính đã nha."
+      ],
+      "call_2": [
+        "Em ơi chốt Warmly size S màu đen cho chị, địa chỉ 82 Trần Duy Hưng, Cầu Giấy, Hà Nội.",
+        "Khoan, chị muốn màu be cơ, size S. Không có màu đó thì chị không lấy màu đen đâu.",
+        "Thôi vậy hẹn dịp khác em nhé."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "draft cart; new color conditional on stock; no order if unavailable"
+  }
+}

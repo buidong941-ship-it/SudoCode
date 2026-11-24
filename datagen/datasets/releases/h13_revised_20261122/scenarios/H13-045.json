@@ -1,0 +1,102 @@
+{
+  "scenario_id": "H13-045",
+  "level": "M2",
+  "persona": "khach_so_gia",
+  "hard_case": "h13_nhieu_don",
+  "customer_phone": "0967600280",
+  "customer_name": "Quân",
+  "honorific": "anh",
+  "notes": "'Cái rẻ hơn' = SKU-FAN-SEN (590.000đ) so với SKU-FAN-DC1 (2.450.000đ). Bộ H13 (13/11/2026), holdout mới do Claude viết, mô phỏng định dạng BTC, không phải bộ test BTC. Số liệu từ eval/mock_tools.py theo ngày gọi. HR gi? cho call_1 ???c ??i chi?u theo t?ng SKU trong AUDIT/SUPPLEMENTAL_TRUTH.jsonl v? call c? hai s?n ph?m v? evaluator BTC ch? nh?n m?t price_vnd/call.",
+  "calls": {
+    "call_1": {
+      "call_date": "2026-10-19",
+      "customer_goal": "hoi gia hai mau",
+      "customer_turns": [
+        "Em ơi, anh đang phân vân giữa Senko TS16 với DC inverter Panasonic F-409, em báo giá giùm anh cả hai nghen.",
+        "Ờ để anh về bàn lại rồi gọi em."
+      ],
+      "facts_established": {
+        "product_advised": "SKU-FAN-SEN",
+        "price_quoted_vnd": 590000,
+        "other_product": "SKU-FAN-DC1"
+      },
+      "ground_truth_facts": {},
+      "expected_outcome": "hen_goi_lai"
+    },
+    "call_2": {
+      "days_later": 5,
+      "customer_goal": "chon mau re hon trong hai mau da bao",
+      "customer_turns": [
+        "Alo em, anh gọi lại nè, trong hai cái bữa trước lấy cho anh cái rẻ hơn nghen.",
+        "Giao về 85 Lũy Bán Bích, Tân Phú, TP HCM, anh trả tiền mặt."
+      ],
+      "must_carry_over": [
+        "product_advised"
+      ],
+      "must_not_ask": [
+        "product_advised"
+      ],
+      "success_if": {
+        "tool_called": "order.create",
+        "args_match": {
+          "sku": "SKU-FAN-SEN",
+          "price_vnd": 590000
+        },
+        "also_ordered": [
+          "SKU-FAN-SEN"
+        ],
+        "total_match_vnd": 590000
+      },
+      "ground_truth_facts": {
+        "price_vnd": 590000
+      },
+      "expected_outcome": "chot_don"
+    }
+  },
+  "_meta": {
+    "template_id": "H13-F11p-tham-chieu-mau-re-hon",
+    "instance": 0,
+    "seed": 20261113,
+    "split": "holdout",
+    "customer_id": "N162",
+    "synthetic_customer": true,
+    "address": "85 Lũy Bán Bích, Tân Phú, TP HCM",
+    "dates": {
+      "call_1": "2026-10-19",
+      "call_2": "2026-10-24"
+    },
+    "choices": {
+      "vi": 0,
+      "cust": "N162",
+      "a": "SKU-FAN-SEN",
+      "b": "SKU-FAN-DC1",
+      "d1": "2026-10-19",
+      "gap": 5
+    },
+    "template_family": "H13-F11",
+    "group": "nhieu_san_pham_don",
+    "polarity": "pos",
+    "naturalized": {
+      "call_1": [
+        true,
+        true
+      ],
+      "call_2": [
+        true,
+        true
+      ]
+    },
+    "template_turns": {
+      "call_1": [
+        "Em ơi anh đang phân vân Senko TS16 với DC inverter Panasonic F-409, em báo giá giúp anh cả hai.",
+        "Ừ để anh về bàn lại rồi gọi em."
+      ],
+      "call_2": [
+        "Anh gọi lại nè em, lấy cái rẻ hơn trong hai cái hôm trước nha.",
+        "Giao về 85 Lũy Bán Bích, Tân Phú, TP HCM, trả tiền mặt."
+      ]
+    },
+    "fixture_revision": "h13_revised_20261122",
+    "revision_reason": "replace ambiguous scalar call-level price truth with item-level supplemental truth; no agent claims changed"
+  }
+}
