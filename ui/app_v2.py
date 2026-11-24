@@ -100,7 +100,7 @@ BOOT = boot()
 with st.sidebar:
     st.markdown("### SUDO CODE · Telesale")
     if BOOT["ok"]:
-        st.success("Sẵn sàng · " + (E.PROFILE_INFO.get("label") or "").split(",")[0])
+        st.success("Sẵn sàng tiếp nhận cuộc gọi")
     else:
         st.error("Không mở được cuộc gọi B2 — xem cảnh báo")
         for m in BOOT["mismatch"]:
@@ -211,7 +211,7 @@ def feedback_row(eng, row):
         return
     by = st.session_state.get("reviewer", "")
     opened = st.session_state.setdefault("fb_open", {})
-    b1, b2, _ = st.columns([1, 3, 8])
+    b1, b2 = st.columns([1, 2])
     if b1.button("👍", key=f"up-{mid}", disabled=not by, help="nhập tên nhân viên ở thanh bên" if not by else "câu này tốt"):
         eng.feedback(row, 1, "", by)
         done[mid] = 1
@@ -739,23 +739,63 @@ def guidance_flow():
         if bad:
             st.dataframe([{"lúc": f.get("at"), "người": f.get("by"), "chế độ": f.get("mode"), "khách": f.get("customer_text"),
                            "agent": f.get("agent_text"), "ghi chú": f.get("note")} for f in bad[-30:]], width="stretch")
-        st.caption("Bản nháp do trợ lý soạn ngoài UI từ feedback này và dev được phép đọc (tải ui_data.zip ở thanh bên để chuyển "
-                   "feedback), rồi nhập vào đây. Nhập chỉ đưa vào HÀNG CHỜ DUYỆT, chưa tới agent.")
-        files = sorted(f for f in os.listdir(root) if f.startswith("drafts") and f.endswith(".json")) if os.path.isdir(root) else []
-        up = st.file_uploader("Tệp nháp (JSON)", type=["json"], key="g_upload")
-        pick = st.selectbox("Hoặc bản nháp có sẵn trong kho", ["—"] + files, key="g_pick")
-        author = st.text_input("Người / model soạn nháp", "", key="g_author")
-        if st.button("Nhập vào hàng chờ duyệt", type="primary", disabled=not (author.strip() and (up is not None or pick != "—"))):
-            if up is not None:
-                data = up.getvalue()
-                os.makedirs(os.path.join(root, "imports"), exist_ok=True)
-                path = os.path.join(root, "imports", f"{hashlib.sha1(data).hexdigest()[:10]}_{os.path.basename(up.name)}")
-                with open(path, "wb") as fh:
-                    fh.write(data)
+        st.caption("DeepSeek phân tích feedback cùng hội thoại và soạn hướng dẫn có thể áp dụng. Bản hợp lệ vào hàng chờ; "
+                   "bạn cần duyệt, đóng gói và kích hoạt trước khi dùng cho cuộc gọi mới.")
+        if "g_draft_result" in st.session_state:
+            result = st.session_state["g_draft_result"]
+            st.caption("Kết quả lần soạn gần nhất đã hoàn tất")
+            if result.get("drafted"):
+                st.success(f"Đã đưa {result['drafted']} bản nháp vào hàng chờ duyệt.")
             else:
-                path = os.path.join(root, pick)
-            rc, out = run_cmd(["import", "--root", root, "--drafts", path, "--author", author.strip()])
-            (st.success if rc == 0 else st.error)(out[-3000:])
+                st.info("Chưa có bản nháp hợp lệ. Xem kết quả phân tích feedback bên dưới.")
+            st.caption(f"Đã phân loại {result.get('triaged', 0)} mục chưa tạo được hướng dẫn; "
+                       f"{result.get('invalid', 0)} đề xuất không hợp lệ.")
+        key_ready = bool(os.environ.get("DEEPSEEK_API_KEY"))
+        if not bad:
+            st.info("Gửi đánh giá “Cần cải thiện” ở cuộc gọi để có feedback soạn hướng dẫn.")
+        elif not key_ready:
+            st.warning("Cần khóa DeepSeek để soạn hướng dẫn. Thêm DEEPSEEK_API_KEY và khởi động lại UI.")
+        if st.button("Soạn hướng dẫn từ feedback", type="primary", disabled=not (bad and key_ready)):
+            from pathlib import Path
+            args = [sys.executable, os.path.join(E.ROOT, "scripts", "guidance_draft.py"),
+                    "--root", root, "--feedback", E.FEEDBACK, "--skip-drafted"]
+            traces = sorted(str(p) for p in Path(E.TRACES).glob("*.jsonl"))
+            if traces:
+                args += ["--ui-trace", *traces]
+            try:
+                with st.spinner("DeepSeek đang phân tích và soạn hướng dẫn…"):
+                    r = subprocess.run(args, cwd=E.ROOT, capture_output=True, text=True, timeout=1200,
+                                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+                if r.returncode:
+                    st.error("Không soạn được hướng dẫn: " + (r.stderr or r.stdout)[-3000:])
+                else:
+                    st.session_state["g_draft_result"] = json.loads(r.stdout.strip().splitlines()[-1])
+                    st.rerun()
+            except subprocess.TimeoutExpired:
+                st.error("Soạn hướng dẫn quá thời gian chờ; kiểm hàng chờ trước khi thử lại vì có thể đã lưu một phần.")
+            except (ValueError, IndexError):
+                st.error("Không đọc được kết quả soạn nháp; kiểm hàng chờ và nhật ký phân tích bên dưới.")
+        ledger = os.path.join(root, "guidance_triage.jsonl")
+        if os.path.exists(ledger):
+            with st.expander("Kết quả phân tích feedback"):
+                st.json([json.loads(line) for line in open(ledger, encoding="utf-8") if line.strip()][-30:])
+        with st.expander("Nhập bản nháp JSON đã soạn sẵn"):
+            st.caption("Chọn tệp và nhập người soạn để bật nút nhập. Feedback không cần tệp JSON khi dùng nút soạn phía trên.")
+            files = sorted(f for f in os.listdir(root) if f.startswith("drafts") and f.endswith(".json")) if os.path.isdir(root) else []
+            up = st.file_uploader("Tệp nháp (JSON)", type=["json"], key="g_upload")
+            pick = st.selectbox("Hoặc bản nháp có sẵn trong kho", ["—"] + files, key="g_pick")
+            author = st.text_input("Người / model soạn nháp", "", key="g_author")
+            if st.button("Nhập vào hàng chờ duyệt", disabled=not (author.strip() and (up is not None or pick != "—"))):
+                if up is not None:
+                    data = up.getvalue()
+                    os.makedirs(os.path.join(root, "imports"), exist_ok=True)
+                    path = os.path.join(root, "imports", f"{hashlib.sha1(data).hexdigest()[:10]}_{os.path.basename(up.name)}")
+                    with open(path, "wb") as fh:
+                        fh.write(data)
+                else:
+                    path = os.path.join(root, pick)
+                rc, out = run_cmd(["import", "--root", root, "--drafts", path, "--author", author.strip()])
+                (st.success if rc == 0 else st.error)(out[-3000:])
 
     elif step == GSTEPS[1]:
         if not by:

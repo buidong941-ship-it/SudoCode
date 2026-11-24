@@ -201,7 +201,12 @@ def run(a, llm=None):
         from core.llm.deepseek import DeepSeek
         llm = DeepSeek()
     existing = existing_guides(a)
-    items = items_from(a)[: a.limit]
+    items = items_from(a)
+    if getattr(a, "skip_drafted", False):
+        handled = {gid for state in ("pending", "approved") for p in S.list_state(state, a.root)
+                   if p.get("kind") == "planner_guidance" for gid in p.get("source_gaps") or []}
+        items = [it for it in items if it["id"] not in handled]
+    items = items[: a.limit]
     res = {"drafted": [], "triaged": [], "invalid": [], "catalog_code_sha256": cat["code_sha256"]}
     led = os.path.join(S.paths(a.root)["root"], TRIAGE)
     os.makedirs(os.path.dirname(led), exist_ok=True)
@@ -249,6 +254,7 @@ def main(argv=None):
     ap.add_argument("--report")
     ap.add_argument("--existing")
     ap.add_argument("--limit", type=int, default=10)
+    ap.add_argument("--skip-drafted", action="store_true", help="bỏ feedback đã có hướng dẫn chờ duyệt hoặc đã duyệt")
     a = ap.parse_args(argv)
     res = run(a)
     print(json.dumps({k: (len(v) if isinstance(v, list) else v) for k, v in res.items()}, ensure_ascii=False))

@@ -463,8 +463,15 @@ Thanh bên còn có:
 
 ### 5.5. Kiểm thử UI (chạy trên Kaggle CPU, không cần khóa)
 
+Ở tab **Cải tiến → Tiếp nhận & nhập nháp**, sau khi gửi **Cần cải thiện**, bấm **Soạn hướng dẫn từ feedback**.
+DeepSeek dùng feedback cùng trace để phân loại và tạo bản nháp hợp lệ trong hàng chờ. Khóa `DEEPSEEK_API_KEY`
+phải có trong môi trường UI. Xem kết quả phân tích ngay bên dưới nếu chưa có nháp, rồi sang **Duyệt từng hướng dẫn**.
+Sau khi duyệt, đóng gói và kích hoạt để áp dụng cho cuộc gọi mới. Mục **Nhập bản nháp JSON đã soạn sẵn** là lựa chọn
+thủ công; cần chọn tệp và điền người soạn mới bật nút nhập.
+
 ```bash
 python tests/ui_dashboard_check.py  # dashboard mới: mật khẩu, 5 tab, gọi lại, feedback, biểu đồ report
+python tests/ui_feedback_flow_check.py  # feedback → DeepSeek giả → nháp thật, chưa duyệt/kích hoạt
 python tests/ui_v2_check.py         # luồng UI v2 dùng chung với dashboard
 python tests/ui_password_check.py   # cổng mật khẩu
 python tests/ui_b2_check.py         # khởi động B2, namespace, nạp / đổi / quay lui gói FAQ
