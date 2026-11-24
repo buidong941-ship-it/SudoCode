@@ -72,3 +72,12 @@ datagen/datasets/releases/*/naturalize/*.py
 # Downloaded weights, not model source/configuration.
 *.safetensors
 *.gguf
+
+# 24/11/2026: candidate cũ chỉ lưu ở máy (code đã chốt vào harness/ + core/); chỉ commit candidate v6p15 vì bộ kiểm CPU cần
+candidates/*
+!candidates/h13_v6p15_btc_tools_20261124/
+candidates/h13_v6p15_btc_tools_20261124/full_h13_*/
+# Bản H13 gốc chưa chuẩn hóa UTF-8 (đã thay bằng h13_revised_20261122_utf8)
+datagen/datasets/releases/h13_revised_20261122/
+# Bản sao lưu cục bộ
+*.bak
