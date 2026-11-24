@@ -29,7 +29,7 @@ os.chdir(ROOT)
 tmp = tempfile.mkdtemp(prefix="b2_round_f_")
 os.environ["DATABASE_URL"] = "sqlite:///" + os.path.join(tmp, "v.db").replace("\\", "/")
 os.environ["TOOL_TRANSPORT"] = "direct"
-os.environ.setdefault("RUN_PROFILE", "local")
+os.environ["RUN_PROFILE"] = "ci"  # profile rỗng: mỗi bộ kiểm tự ghim cờ của nó, cờ chạy thật trong local/kaggle.env không lọt vào
 os.environ.setdefault("RAG_MODE", "bm25")
 os.environ["LLM_CACHE"] = "off"
 
