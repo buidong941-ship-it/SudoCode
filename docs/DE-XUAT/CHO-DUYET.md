@@ -1324,3 +1324,21 @@ Hệ quả: R0 FAQ (`c5r0-full-1117`) chỉ còn là lịch sử; khóa dev92 d�
 - Giữ R0 làm mốc luồng agent sau phép đo D6. Quyết định này không tự bật gói guidance R1 và không đổi model phục vụ khách.
 - Cơ sở: R1 từ nháp Flash đã duyệt đạt 87/92 so với R0 86/92, nhưng hỏi lặp và guardrail tăng. Pro chẩn đoán nguyên nhân tốt hơn ở mẫu so sánh mù 33 feedback; Flash nhanh hơn, song nhiều nháp bị loại. Vì vậy nháp Flash không được áp dụng tự động.
 - Xem `BAO-CAO-R0R1-UI7C-2026-11-19.md` và `BAO-CAO-PRO-UI7C-2026-11-19.md`.
+
+## 24/11 — Độ trễ TTFT và guardrail nội bộ (v6p15, H13)
+- Báo cáo: `docs/DE-XUAT/BAO-CAO-TTFT-GUARDRAIL-V6P15-2026-11-24.md`. TTFT p50 3,14 s / p95 5,39 s (BTC: p95 ≤ 3 s), 56% lượt > 3 s; bộ hiểu DeepSeek khoảng 1,9 s / lượt, LLM compose khoảng 1,4 s ở 26% lượt, S3 khoảng 1 s+.
+- Guardrail nội bộ: 10/346 lượt, chỉ phát hiện (không sinh lại, câu vẫn gửi); 9 báo nhầm, 1 lỗi thật (S3 đọc `warranty_months`).
+
+| # | Quyết định | Trạng thái |
+|---|---|---|
+| DL01 | Ghi token + cache của mọi lời gọi LLM vào trace (chẩn đoán) | **chờ người dùng** |
+| DL02 | Bỏ LLM compose khi không có câu chính sách / thuộc tính cần chọn | **chờ người dùng** |
+| DL03 | Chạy S3 `doc_answer` song song khi bộ hiểu báo câu hỏi chính sách / thông số | **chờ người dùng** |
+| DL04 | Streaming theo khối câu (BTC cho phép) | **chờ người dùng** |
+| DL05 | Bộ hiểu: chèn danh mục tên mẫu có điều kiện; rút gọn prompt / output sau DL01 | **chờ người dùng** |
+| DL06 | Lượt 1 khách quay lại: gửi câu chào Call Brief trước khi bộ hiểu xong | **chờ người dùng** |
+| DL07 | S3 bỏ câu chứa backtick (định danh code) khỏi ứng viên | **chờ người dùng** |
+| DL08 | Guardrail: không báo lộ giá nội bộ khi trùng `final_price_vnd` | **chờ người dùng** (sửa code có regex) |
+| DL09 | Guardrail: bỏ kiểm % giảm ở câu goal KM hết hạn | **chờ người dùng** (sửa code có regex) |
+| DL10 | Guardrail: bỏ câu / khối lỗi thật trước khi gửi | **chờ người dùng** |
+
