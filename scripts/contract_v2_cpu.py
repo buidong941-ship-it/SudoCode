@@ -9,12 +9,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
 out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-LEGACY = ['jev1108_check', 'jev1108_extractor_check', 'jev1108_observed_check', 'jev1108_identity_check', 'llm_extract_check',
-          'question_detection_check', 'coverage_check', 'cert_v2_check', 'planner_rules_check', 'fixes_1106_check',
+LEGACY = ['jev1108_observed_check', 'llm_extract_check', 'coverage_check', 'planner_rules_check', 'fixes_1106_check',
           # 10/11 (bàn giao FINAL G1–G3): kết quả tool / bảo toàn / chính sách / projection / COD + các check chạm cùng đường
-          # planner_semantic_check không vào danh sách: file chưa từng commit, gọi planner_table._semantic_plan đã bị bỏ trước G0
           'outcome_contract_check', 'jev1108_results_check', 'planner_table_d51_check',
-          'planner_llm_check', 'planner_b345_check', 'improve_hook_check']
+          'planner_b345_check', 'improve_hook_check']
 results = []
 
 

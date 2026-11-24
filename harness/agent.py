@@ -128,6 +128,7 @@ REFUSE_INTERNAL_OK_RX = lexrx.rx("cues", "REFUSE_INTERNAL_OK_RX")
 REFUSE_INTERNAL_SENT = "Dạ, các mức giá nội bộ của shop được bảo mật, em không thể cung cấp ạ."
 # Ý định router có thể dẫn tới tool ghi (order.create / order.update / schedule.callback): chờ trích slot xong mới lập kế hoạch
 WRITE_INTENTS = ("place_order", "order_change", "callback")
+GATED_REQUESTS = {"place_order", "change_order_address", "exchange", "return", "callback"}
 OTHER_PII_RX = lexrx.rx("cues", "OTHER_PII_RX")
 
 
@@ -308,7 +309,7 @@ class CallSession:
             from core.config import check_arch
             check_arch(settings)                 # K08: cấu hình mâu thuẫn bị từ chối, không lặng lẽ chạy hai bộ hiểu
         from harness import planner_variants
-        # 12/11: chủ sở hữu tiến trình dựng MỘT lần cho session (b1 | b2_jev | b3_workflow); đổi biến thể = session mới
+        # 12/11: chủ sở hữu tiến trình dựng MỘT lần cho session (b1 | b2_jev); đổi biến thể = session mới
         self.planner = planner_variants.make(planner_variant, decider=planner_decider)
         self.planner_loop = None
         self.tools = ToolBox(today)
@@ -552,10 +553,7 @@ class CallSession:
         text = p["text"]
         truncated = truncated or len(text) > MAX_CUSTOMER_CHARS     # chuẩn hóa teencode có thể làm câu dài thêm
         text = text[:MAX_CUSTOMER_CHARS]
-        from harness import request_gate
         target = settings.arch == "target"
-        # K08: cấu hình đích KHÔNG khởi động cổng D68 (bộ hiểu thứ hai); config.check_arch từ chối REQUESTS_BACKEND khi ARCH=target
-        req_fut = None if target else request_gate.start(next((h["text"] for h in reversed(self.history) if h["role"] == "agent"), ""), text)
         self.req_turn, self.req_blocked = None, []
         t_perceive = time.perf_counter()
         # L1: router chỉ cần lời khách + lịch sử + tóm tắt phiên trước, không cần slot → gọi song song với bước trích slot.
@@ -705,7 +703,7 @@ class CallSession:
         if pending is not None and extractor.customer_slots_finish(pending, slots, settings.extractor_timeout_s if wait_full else 0) is not None:
             pending = None
         t_req0 = time.perf_counter()
-        self.req_turn = request_gate.finish(req_fut)
+        self.req_turn = None
         if self.u_turn is not None:
             # yêu cầu lấy từ bộ hiểu thống nhất; câu mơ hồ không mở yêu cầu ghi mới; lỗi API → không yêu cầu nào (không ghi)
             amb = (self.u_turn.get("ambiguity") or {}).get("level") == "needs_clarification"
@@ -715,7 +713,7 @@ class CallSession:
         if target:
             self.req_turn = None          # đích: quyền ghi do request_state (bản ghi có target/điều kiện/status), không còn tập tên
         elif self.req_turn and not self.req_turn.get("fallback"):
-            self.open_requests |= set(self.req_turn["requests"]) & request_gate.GATED
+            self.open_requests |= set(self.req_turn["requests"]) & GATED_REQUESTS
         # 1b (06/11): planner chỉ còn bảng quyết định (harness/planner_rules.json). _plan if-else cũ đã bỏ
         # (bản cuối ở commit ce171ac); bảng chỉ có nhánh cũ từng trùng trace 100 % với nó (D50).
         if self.u_turn is not None and self.u_turn.get("error") and not truncated:
@@ -1228,50 +1226,6 @@ class CallSession:
     def _why(self, branch, reason=""):
         """B7: ghi nhánh planner đã đi qua và lý do, để phân tích lỗi và làm feedback."""
         self.plan_why.append({"branch": branch, "reason": reason} if reason else {"branch": branch})
-
-    def _llm_fallback(self, text, facts):
-        """B-H: LLM đề xuất goal trong danh sách đóng; code kiểm điều kiện rồi mới thực thi. Ghi cả đề xuất lẫn quyết định."""
-        from harness import planner_llm
-        state = {"focus": self.focus, "turn_no": self.turn_no,
-                 "has_orders": bool(self.orders_created or (self.brief or {}).get("orders") or self.known.get("order_id"))}
-        recent = [f"{h['role']}: {h['text']}" for h in self.history[-4:]]
-        s = planner_llm.suggest(text, recent, state)
-        goals, why = self._apply_llm_goal(s.get("goal"), text, facts)
-        self.llm_plan = {**{k: s.get(k) for k in ("goal", "confidence", "backend", "fallback", "ms", "abstain")},
-                         "accepted": bool(goals), "reason": why}
-        if goals:
-            self._why(f"llm_{s['backend']}", f"{s['goal']} ({why})")
-        return goals
-
-    def _apply_llm_goal(self, g, text, facts):
-        """Code kiểm điều kiện cho goal LLM chọn. → (goals, lý do). Không goal nào tạo / sửa đơn."""
-        if not g:
-            return [], "abstain"
-        if g == "quote":
-            if not self.focus:
-                return [], "từ chối: chưa có sản phẩm đang tư vấn"
-            q = self._quote(self._resolve_variant(self.focus, text), "advised")
-            if not q.get("final_price_vnd"):
-                return [], "từ chối: tool không trả giá"
-            facts["quote"] = q
-            return ["quote"], "giá từ pricing.get_quote"
-        if g == "order_status":
-            goals = self._order_status(facts)
-            return (goals, "order.status") if facts.get("orders") else ([], "từ chối: không có đơn")
-        if g == "policy_answer":
-            hits = knowledge.search(text, k=2)
-            if not hits:
-                return [], "từ chối: không có tài liệu khớp"
-            facts["policy"] = [{"chunk_id": h["chunk_id"], "text": h["text"][:600]} for h in hits]
-            return ["policy_answer"], "knowledge.search"
-        if g == "defer_ack":
-            self.outcome = self.outcome or "hen_goi_lai"
-            return ["defer_ack"], "ok"
-        if g == "ask_product":
-            return (["ask_product"], "ok") if not self.focus else ([], "từ chối: đã có sản phẩm")
-        if g in ("ask_repeat", "closing"):
-            return [g], "ok"
-        return [], f"từ chối: goal {g} không nằm trong danh sách được phép"
 
     def _order_status(self, facts):
         c = self.customer or {}
@@ -2237,7 +2191,7 @@ class CallSession:
         facts["update"] = public_view(r)
         return ["order_updated"]
 
-    # D68 (10/11): cổng yêu cầu — DeepSeek flash quyết định khách có yêu cầu thao tác ghi không (harness/request_gate.py)
+    # Quyền ghi: đích theo request_state; UNDERSTANDING=deepseek ngoài đích theo tập yêu cầu bộ hiểu cấp (cổng D68 đã xóa 24/11)
     def _req_ok(self, *kinds, target=None, total=None, **kw):
         if settings.arch == "target":
             # đích: chỉ yêu cầu còn hiệu lực, ĐÚNG loại (kinds[0], không cấp chéo đổi/trả), đúng đối tượng + revision, đủ điều kiện
@@ -2249,9 +2203,8 @@ class CallSession:
             elif settings.jev_write_gate:
                 self._why("request_allowed", f"{kinds[0]}: {r['id']}, target={r.get('target')}")
             return r
-        from harness import request_gate
         r = getattr(self, "req_turn", None)
-        if not request_gate.controls() or r is None or r.get("fallback"):
+        if settings.understanding != "deepseek" or r is None or r.get("fallback"):
             return True                       # tắt, hoặc lỗi/quá hạn API ở lượt này → theo rules như R0
         if self.open_requests & set(kinds):
             return True

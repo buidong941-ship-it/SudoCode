@@ -101,14 +101,14 @@ class Settings:
     # A6: khi Jev không chọn slot address/payment mà luật đã cắt được giá trị:
     # accept = theo Jev (cũ) | qwen = để Qwen làm trọng tài | rules = giữ giá trị của luật
     jev_drop_policy: str = field(default_factory=lambda: _env("JEV_DROP_POLICY", "qwen").lower())
-    # D18–D21: phiên bản chứng chỉ luật (harness/rule_confidence.py). 1 = hành vi cũ (mặc định tới khi D21 đạt điều kiện);
+    # D18–D21: phiên bản chứng chỉ luật (rule_confidence đã xóa 24/11; chỉ còn giá trị 1, xem _check_removed). 1 = hành vi cũ (mặc định tới khi D21 đạt điều kiện);
     # 2 = CERT v2 (NEG/QUES, sửa bug m2, ghép câu hỏi–trả lời, khớp bản có dấu, theo từng slot, thêm slot) + phủ định trong luật
     extractor_cert_version: int = field(default_factory=lambda: int(_env("EXTRACTOR_CERT_VERSION", "1")))
     # D16/D27: cờ CHỈ DÙNG KHI ĐO các bước nới CERT v2, cộng dồn, cách nhau dấu phẩy (blocker,budget). Rỗng = không nới (mặc định)
     cert_v2_relax: str = field(default_factory=lambda: _env("CERT_V2_RELAX", "").lower())
     # Mục E: thư mục improve/ có approved/ để agent nạp (harness/improve_hook.py). Rỗng = tắt (mặc định, cấu hình đo vòng 0)
     improve_dir: str = field(default_factory=lambda: _env("IMPROVE_DIR", ""))
-    # B-H: planner hybrid có giới hạn (harness/planner_llm.py) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
+    # B-H: planner LLM dự phòng (planner_llm đã xóa 24/11; chỉ còn rules, xem _check_removed) — rules = tắt; jev = Jev chính, Qwen dự phòng; qwen = chỉ Qwen
     planner_backend: str = field(default_factory=lambda: _env("PLANNER_BACKEND", "rules").lower())
     # Bộ chọn hành động của planner. rules giữ đường bảng hiện tại để làm đối chứng A/B.
     jev_simulated: bool = field(default_factory=lambda: _env("JEV_SIMULATED", "0") == "1")
@@ -118,7 +118,7 @@ class Settings:
     # action ghi dữ liệu; kiểm cam kết "đã làm" (harness/commitments.json); xác nhận ngắn chỉ hiệu lực khi có việc đang chờ;
     # (đối soát tạo đơn theo SKU/ngày đã bỏ 10/11, FINAL G1). D59 duyệt 10/11: mặc định BẬT; CONTRACT_V2=0 = hành vi cũ.
     contract_v2: bool = field(default_factory=lambda: _env("CONTRACT_V2", "1") == "1")
-    planner_selector: str = field(default_factory=lambda: _check_choice("PLANNER_SELECTOR", "rules", {"rules", "qwen", "jev"}))
+    planner_selector: str = field(default_factory=lambda: _check_choice("PLANNER_SELECTOR", "rules", {"rules"}))
     planner_jev_min_conf: float = field(default_factory=lambda: float(_env("PLANNER_JEV_MIN_CONF", "0.6")))
     # D50 (PLAN-2026-11-05-PLANNER-TABLE): planner đọc bảng quyết định harness/planner_rules.json.
     # 1b (06/11): _plan if-else cũ đã bỏ, bảng là đường duy nhất; PLANNER_TABLE=0 không còn nghĩa → báo lỗi (xem _check_removed).
@@ -128,7 +128,7 @@ class Settings:
     # L1 (05/11): gọi router song song với bước trích slot (router không cần slot). D58: mặc định BẬT; =0 = nối tiếp như cũ (trace trùng, tests/latency_parallel_check.py).
     # Chỉ song song ở lượt không đọc SĐT và không đang hỏi danh tính (định danh có thể đổi tóm tắt phiên trước).
     parallel_router: bool = field(default_factory=lambda: _env("PARALLEL_ROUTER", "1") not in ("0", "off", "false"))
-    # D68 (người dùng duyệt 10/11): DeepSeek flash quyết định khách có yêu cầu thao tác ghi hay không (harness/request_gate.py).
+    # D68 (người dùng duyệt 10/11): DeepSeek flash quyết định khách có yêu cầu thao tác ghi hay không (request_gate đã xóa 24/11; REQUESTS_BACKEND phải rỗng, xem _check_removed).
     # Rỗng = tắt (agent y hệt R0). REQUESTS_GATE=control (chặn tool ghi) | shadow (chỉ ghi trace).
     requests_backend: str = field(default_factory=lambda: _env("REQUESTS_BACKEND", ""))
     requests_gate: str = field(default_factory=lambda: _env("REQUESTS_GATE", "control"))
@@ -143,9 +143,9 @@ class Settings:
     # không cổng D68. Rỗng = R0/TG cũ (snapshot đối chứng). Cấu hình mâu thuẫn bị từ chối ở check_arch().
     arch: str = field(default_factory=lambda: _check_choice("ARCH", "", {"", "target"}))
     # 12/11 (THIET-KE-B1-B2-JEV-B3-WORKFLOW): chủ sở hữu tiến trình nghiệp vụ trên cấu hình đích. b1 = bảng hiện tại (đối chứng,
-    # mặc định); b2_jev = Jev chọn từng bước (observe → decide → execute → observe); b3_workflow = workflow có guard theo từng
-    # yêu cầu. Factory dựng planner MỘT lần khi mở session (harness/planner_variants.py); đổi biến thể = run/session mới.
-    planner_variant: str = field(default_factory=lambda: _check_choice("PLANNER_VARIANT", "b1", {"b1", "b2_jev", "b3_workflow"}))
+    # mặc định); b2_jev = Jev chọn từng bước (observe → decide → execute → observe). b3_workflow đã bỏ 24/11.
+    # Factory dựng planner MỘT lần khi mở session (harness/planner_variants.py); đổi biến thể = run/session mới.
+    planner_variant: str = field(default_factory=lambda: _check_choice("PLANNER_VARIANT", "b1", {"b1", "b2_jev"}))
     # Ngân sách hữu hạn của vòng lập kế hoạch B2 (mục 4.4). Ghi vào <out>.config.json; áp dụng như nhau giữa các lần đo.
     # Cách đếm (v3, 12/11): MỘT quyết định = một lần gọi bộ quyết định Jev (kể cả lần bị validator / chống lặp từ chối);
     # tool call = mọi lời gọi ToolBox trong vòng (kể cả bên trong commit / answer_ask, kể cả lời gọi lỗi); trần tool kiểm TRƯỚC
@@ -273,6 +273,19 @@ def _check_removed():
     if _env("PLANNER_TABLE", "1").lower() in ("0", "off", "false"):
         raise ValueError("PLANNER_TABLE=0 không còn được hỗ trợ (_plan cũ đã bỏ 06/11). "
                          "Muốn planner như trước D51: PLANNER_SKIP_SINCE=D51")
+    # 24/11: module của các đường này đã xóa (CERT rule_confidence, Jev hybrid, extractor tách riêng, question classifier,
+    # planner LLM dự phòng, selector Jev/Qwen, cổng D68, B3 workflow)
+    off = lambda k: _env(k, "0").lower() in ("0", "off", "false")
+    removed = {"PLANNER_SELECTOR": _env("PLANNER_SELECTOR", "rules").lower() == "rules",
+               "PLANNER_BACKEND": _env("PLANNER_BACKEND", "rules").lower() == "rules",
+               "PLANNER_VARIANT": _env("PLANNER_VARIANT", "b1") != "b3_workflow",
+               "REQUESTS_BACKEND": not _env("REQUESTS_BACKEND", ""),
+               "EXTRACTOR_CONFIDENCE_GATE": off("EXTRACTOR_CONFIDENCE_GATE"), "EXTRACTOR_JEV_HYBRID": off("EXTRACTOR_JEV_HYBRID"),
+               "EXTRACTOR_NO_JEV": off("EXTRACTOR_NO_JEV"), "QUESTION_CLF": off("QUESTION_CLF"),
+               "EXTRACTOR_CERT_VERSION": _env("EXTRACTOR_CERT_VERSION", "1") == "1"}
+    bad = [k for k, ok in removed.items() if not ok]
+    if bad:
+        raise ValueError(f"{', '.join(bad)}: giá trị này chọn đường cũ đã xóa 24/11; bỏ biến hoặc để mặc định")
 
 
 # Cờ legacy chỉ còn ý nghĩa trên R0 / TG cũ. Trên ARCH=target chúng KHÔNG được đọc (hợp đồng: audit đích không gọi CERT /
@@ -282,7 +295,7 @@ TARGET_IGNORED_FLAGS = ("EXTRACTOR_CONFIDENCE_GATE", "EXTRACTOR_CERT_VERSION", "
                         "PLANNER_BACKEND", "PARALLEL_ROUTER")
 
 
-PLANNER_VARIANTS = ("b1", "b2_jev", "b3_workflow")
+PLANNER_VARIANTS = ("b1", "b2_jev")
 
 
 def check_variant(variant, s=None):
@@ -309,8 +322,6 @@ def check_variant(variant, s=None):
         raise ValueError("GUIDANCE_CONTEXT_K ≤ 3, GUIDANCE_FETCH_K ≤ 15, GUIDANCE_MAX_TOKENS ≤ 800 (thiết kế 17/11)")
     if s.b2_two_tier and not (s.b2tt_max_tool_calls > 0 and s.b2tt_max_decisions > 0):
         raise ValueError("B2_TWO_TIER=1 cần B2TT_MAX_TOOL_CALLS / B2TT_MAX_DECISIONS > 0")
-    if variant == "b3_workflow" and s.b3_max_steps <= 0:
-        raise ValueError("PLANNER_VARIANT=b3_workflow cần PLANNER_B3_MAX_STEPS > 0")
 
 
 def check_arch(s=None):

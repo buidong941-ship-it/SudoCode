@@ -1,4 +1,4 @@
-"""Kiểm các sửa lỗi do C5 làm lộ (02/11): D23 (giữ claim của luật khi chuyển câu sang Qwen)."""
+"""Kiểm các sửa lỗi do C5 làm lộ (02/11): D22, D31, D32. D23 (Jev hybrid) bỏ cùng module 24/11."""
 
 import os
 import sys
@@ -6,61 +6,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from harness import extractor, jev_hybrid, llm_extract
-
-TEXT = "Dạ máy giá 7.690.000đ, đang có ưu đãi Giảm 300.000đ ạ."
-QWEN_REPLY = {"sentences": [{"i": 0, "ask": "none", "confirm": False, "facts": [],
-                             "numbers": [{"span": "7.690.000đ", "role": "gia_niem_yet"},
-                                         {"span": "300.000đ", "role": "so_tien_giam"}]}]}
-
-
-def _hybrid():
-    return (patch.object(extractor.settings, "extractor_backend", "hybrid"),
-            patch.object(extractor.settings, "extractor_confidence_gate", False),
-            patch.object(extractor.settings, "extractor_jev_hybrid", True),
-            patch.object(extractor.settings, "agent_claim_backend", "current"),
-            patch.object(extractor.settings, "extract_logprobs", False),
-            patch.object(jev_hybrid, "labels", return_value={"gia_ban", "so_tien_giam"}),
-            patch.object(llm_extract, "_call", return_value=(QWEN_REPLY, None)))
-
-
-def _money(claims):
-    return sorted((c["field"], c["value"]) for c in claims if c["field"] in llm_extract.MONEY_FIELDS)
-
-
-def check_d23():
-    rules = extractor.agent_claims(TEXT)
-    assert ("price_vnd", 7690000) in _money(rules), rules
-
-    # Nhánh chính: Jev bỏ câu (2 số tiền) → Qwen gán gia_niem_yet → luật phải thắng.
-    p = _hybrid()
-    with p[0], p[1], p[2], p[3], p[4], p[5], p[6] as qwen, \
-         patch("harness.question_classifiers.jev_slots.classify_agent_questions", return_value=[]):
-        meta = {}
-        _, claims = extractor.analyze_agent(TEXT, {}, meta)
-        assert qwen.call_count == 1, "câu mơ hồ phải được gửi Qwen"
-        assert _money(claims) == [("price_vnd", 7690000)], claims
-
-    # Nhánh dự phòng: Jev lỗi khi phân loại câu hỏi → gọi lại Qwen trên toàn bộ câu chưa chắc.
-    def jev_q_error(text, known, meta):
-        meta["jev_slot_errors"] = ["timeout"]
-        return []
-
-    p = _hybrid()
-    with p[0], p[1], p[2], p[3], p[4], p[5], p[6], \
-         patch("harness.question_classifiers.jev_slots.classify_agent_questions", side_effect=jev_q_error):
-        _, claims = extractor.analyze_agent(TEXT, {}, {})
-        assert _money(claims) == [("price_vnd", 7690000)], claims
-
-    # Qwen lỗi → vẫn còn claim của luật (trước đây mất hết).
-    p = _hybrid()
-    with p[0], p[1], p[2], p[3], p[4], p[5], \
-         patch.object(llm_extract, "_call", side_effect=RuntimeError("down")), \
-         patch("harness.question_classifiers.jev_slots.classify_agent_questions", return_value=[]):
-        _, claims = extractor.analyze_agent(TEXT, {}, {})
-        assert _money(claims) == [("price_vnd", 7690000)], claims
-    print("D23 OK")
-
+from harness import extractor
 
 def _session_promos(*results):
     from harness.agent import CallSession
@@ -150,7 +96,6 @@ def check_d31_d32():
 
 
 def run():
-    check_d23()
     check_d22()
     check_d31_d32()
     print("C5 fixes checks OK")

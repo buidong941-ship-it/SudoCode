@@ -341,9 +341,8 @@ with Ctx():
     ok("G05", "same SKU again: no order write", writes(row), [])
 
 # ================================================================== G06: dòng chung sau khi B2 dừng
-ok("G06", "B2 post-stop allowlist = R24a, R24b, R25, R35 (no E07 / R36); B3 empty",
-   (sorted(planner_variants.B2Jev.post_stop_rows), sorted(planner_variants.B3Workflow.post_stop_rows)),
-   (["R24a", "R24b", "R25", "R35"], []))
+ok("G06", "B2 post-stop allowlist = R24a, R24b, R25, R35 (no E07 / R36)",
+   sorted(planner_variants.B2Jev.post_stop_rows), ["R24a", "R24b", "R25", "R35"])
 with Ctx():
     d = Script("answer_ask:price", "finish")
     s = session("g06a", decider=Script("answer_ask:price", "finish"))

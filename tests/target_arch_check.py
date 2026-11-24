@@ -341,12 +341,9 @@ with Ctx(), patch.dict(mt.TOOLS, {"order.create": flaky_create}):
     ok("E", "no automatic re-create after unresolved", "order.create" in names(row), False)
 
 # ================================================================== C: không CERT / cascade / bộ hiểu thứ hai, kể cả khi bật cờ legacy
-LEGACY = ["harness.rule_confidence.customer", "harness.rule_confidence.empty", "harness.rule_confidence.question",
-          "harness.rule_confidence.customer_v2", "harness.rule_confidence.empty_v2", "harness.jev_hybrid.labels",
-          "harness.jev_hybrid.customer", "harness.jev_hybrid.claims", "harness.extractor.analyze_agent",
-          "harness.extractor.customer_slots_start", "harness.extractor.customer_slots", "harness.extractor_separate.analyze",
-          "harness.stance.filter_claims", "harness.request_gate._understand", "harness.request_gate.start",
-          "harness.planner_decision.decide", "harness.question_classifiers.jev_slots.classify_agent_questions",
+# 24/11: rule_confidence / jev_hybrid / extractor_separate / request_gate / planner_decision đã xóa khỏi code
+LEGACY = ["harness.extractor.analyze_agent", "harness.extractor.customer_slots_start", "harness.extractor.customer_slots",
+          "harness.stance.filter_claims", "harness.question_classifiers.jev_slots.classify_agent_questions",
           "harness.llm_extract.agent", "core.llm.router.Router.route", "harness.agent.order_qty"]
 legacy_on = dict(extractor_confidence_gate=True, extractor_jev_hybrid=True, extractor_cert_version=2, question_clf=True,
                  strip_questions=True)

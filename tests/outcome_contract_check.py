@@ -198,7 +198,7 @@ for v2 in (False, True):
         ok("G3-cod", f"v2={v2} choice", extractor.customer_slots("Anh lấy COD nhé.", "2026-10-15").get("payment"), "COD")
 
 # ------------------------------------------------------------------ G4+ (10/11): nguyên nhân chung của các ca rules còn trượt
-from harness import planner_table, jev_hybrid  # noqa: E402
+from harness import planner_table  # noqa: E402
 
 with patch.object(settings, "goal_contract", True):
     # chuyển máy (R04 terminal) không được nuốt lời từ chối giá nội bộ
@@ -221,12 +221,6 @@ with patch.object(settings, "goal_contract", True):
     s.known = {"variant_sku": var["variant_sku"], "size": str(other["size"])}
     ok("G4-variant", "known size differs → not reused", s._resolve_variant(parent["sku"], "Chốt đúng mẫu đó nha em") == var["variant_sku"], False)
 
-# slot là đối số tool ghi (lịch gọi lại) mà Jev bỏ → không nhận ngay, theo JEV_DROP_POLICY (qwen: kiểm lại bằng đường Qwen)
-with patch.object(jev_hybrid, "labels", return_value=set()), patch.object(settings, "jev_drop_policy", "qwen"):
-    meta = {}
-    got = jev_hybrid.customer("Mai 17 giờ em gọi lại giúp chị nhé.", {"callback_requested": "2026-10-16T17:00"}, meta)
-    ok("G4-jev", "dropped callback slot rechecked, not discarded", (got, meta.get("jev_dropped_rule_slots")), (None, ["callback_requested"]))
-    ok("G4-jev", "non-write slot still judged by Jev", jev_hybrid.customer("Cỡ 42 được không em?", {"size": "42"}, {}), {})
 ok("G4-wait", "write intents exist in router", set(agent.WRITE_INTENTS) <= set(json.load(open(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness", "lexicon", "router.json"), encoding="utf-8"))["intents"]), True)
 
@@ -287,24 +281,6 @@ ok("C3-field", "plain Vietnamese not flagged", any("tên trường" in p for p i
 cb = {"callback": {"callback_at": "2026-10-23T17:00", "ddmm": "23/10", "weekday": "thứ sáu"}}
 ok("C3-callback", "time without date flagged", any("ngày hẹn" in x for x in coverage_content("Dạ em gọi lại lúc 17 giờ ạ.", ["callback_scheduled"], cb)), True)
 ok("C3-callback", "date + time ok", [x for x in coverage_content("Dạ em gọi lại 17 giờ ngày 23/10 ạ.", ["callback_scheduled"], cb) if "hẹn" in x], [])
-
-# cụm 4: Jev trả rỗng nhưng CERT không chứng nhận câu rỗng và câu có dấu hiệu slot → vẫn hỏi Qwen (V3-059/062 holdout)
-from harness import extractor as X, llm_extract as LX  # noqa: E402
-addr_text = "Địa chỉ nhà anh là 164 Nguyễn Văn Cừ, Long Biên, Hà Nội, giao mấy ngày tới vậy?"
-with patch.object(settings, "extractor_backend", "hybrid"), patch.object(settings, "extractor_confidence_gate", True),         patch.object(settings, "extractor_jev_hybrid", True), patch.object(settings, "extractor_no_jev", False),         patch.object(settings, "extractor_async", False), patch.object(jev_hybrid, "labels", return_value=set()),         patch.object(LX, "customer_slots", side_effect=lambda text, today, rules, mode, meta=None, context=None: {**rules, "address": "164 Nguyễn Văn Cừ, Long Biên, Hà Nội"}):
-    meta = {}
-    got = X.customer_slots(addr_text, "2026-10-15", meta=meta)
-    # 10/11: quy tắc override đã bỏ theo quyết định người dùng → nhãn rỗng của Jev được nhận, Qwen không được gọi
-    ok("C4-jev-empty", "Jev empty label accepted (override rule removed)", (got.get("address"), meta.get("jev_empty_overridden")), (None, None))
-
-# cụm 4: slot lịch gọi lại (đối số tool ghi) cần luật + model cùng thấy; Jev bỏ thì Qwen phải tự xác nhận
-CB = "2026-10-16T17:00"
-def _route(text, rules, qwen_adds):
-    with patch.object(settings, "extractor_backend", "hybrid"), patch.object(settings, "extractor_confidence_gate", False),             patch.object(settings, "extractor_jev_hybrid", True), patch.object(settings, "extractor_no_jev", False),             patch.object(settings, "extractor_async", False), patch.object(settings, "jev_drop_policy", "qwen"),             patch.object(jev_hybrid, "labels", return_value=set()), patch.object(X, "customer_slots_rules", return_value=dict(rules)),             patch.object(LX, "customer_slots", side_effect=lambda text, today, r, mode, meta=None, context=None: {**r, **qwen_adds}):
-        return X.customer_slots(text, "2026-10-15", meta={})
-ok("C4-callback", "rules + Qwen agree → kept (V3-155)", _route("Mai 17 giờ em gọi lại giúp chị nhé.", {"callback_requested": CB}, {"callback_requested": CB}).get("callback_requested"), CB)
-ok("C4-callback", "Jev dropped, Qwen does not confirm → not kept", "callback_requested" in _route("Mai 17 giờ em gọi lại giúp chị nhé.", {"callback_requested": CB}, {}), False)
-ok("C4-callback", "Qwen only (rules none) → not kept (RT-11)", "callback_requested" in _route("Ok để anh tính thêm, mai mốt anh gọi lại.", {}, {"callback_requested": CB}), False)
 
 # ------------------------------------------------------------------ kết quả
 summary = {"passed": PASS[0], "failed": len(FAIL), "failures": [{"group": g, "case": n, "got": repr(a), "want": repr(b)} for g, n, a, b in FAIL]}

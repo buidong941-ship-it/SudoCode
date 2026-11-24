@@ -7,7 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
 out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-checks = ['jev1108_check', 'jev1108_extractor_check', 'jev1108_observed_check', 'jev1108_results_check', 'jev1108_identity_check', 'llm_extract_check', 'question_detection_check', 'coverage_check', 'cert_v2_check', 'planner_rules_check']
+checks = ['jev1108_observed_check', 'jev1108_results_check', 'llm_extract_check', 'coverage_check', 'planner_rules_check']
 results = []
 for name in checks:
     env = dict(os.environ)

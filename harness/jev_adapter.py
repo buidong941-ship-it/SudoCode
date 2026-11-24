@@ -64,7 +64,7 @@ def questions(text, known_values, meta=None):
                 out.append({'slot': slot, 'type': kind, 'text': sentence})
         except Exception as exc:
             errors.append(type(exc).__name__)
-            out.extend(agent_questions(sentence, known_values, use_classifier=False))
+            out.extend(agent_questions(sentence, known_values))
     meta.update(simulated=True, question_backend='qwen_simulated_jev', jev_slot_requests=0, jev_slot_ms=0,
                 simulated_slot_requests=len(_sentences(text)), jev_slot_errors=errors)
     return out

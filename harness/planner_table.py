@@ -949,8 +949,7 @@ def h_fallback(c, row):                                                         
         garbled = s.input_mode == "asr_transcript" and c.route.get("confidence", 1) < 0.6
         closing = bool(A.CLOSING_RX.search(c.f))
         prior = s._ask_prior_contact(c.f) if s.turn_no == 1 else []
-        llm = [] if prior or settings.planner_backend == "rules" or (s.turn_no == 1 and not c.asking) \
-            else s._llm_fallback(c.text, c.facts)
+        llm = []
     if prior or llm:
         c.goals += prior or llm
     elif s.turn_no == 1:
@@ -1252,13 +1251,6 @@ def plan(s, text, slots, route, rows=None, owner=None):
     _prepare_pre(c)
     if owner is not None:
         return _plan_owned(c, rows, owner)
-    if settings.planner_selector != "rules":
-        from harness.planner_executor import run
-        _prepare(c)
-        run(c)
-        out = _finish(c)
-        s.table_prev_goals = list(out[0])
-        return out
     pre = [r for r in rows if r.get("stage") == "pre"]
     done_groups = set()
     for row in pre + [None] + [r for r in rows if r.get("stage") != "pre"]:

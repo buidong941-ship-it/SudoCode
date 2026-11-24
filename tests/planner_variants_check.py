@@ -1,4 +1,4 @@
-"""E0 (Kaggle CPU) cho ba biến thể chủ sở hữu tiến trình (THIET-KE-B1-B2-JEV-B3-WORKFLOW-2026-11-12, mục 7).
+"""E0 (Kaggle CPU) cho biến thể chủ sở hữu tiến trình (B3 đã xóa 24/11; V07, V09, V14 và nhánh b3 của V22 bỏ theo) (THIET-KE-B1-B2-JEV-B3-WORKFLOW-2026-11-12, mục 7).
 
 Không gọi API thật: DeepSeek = phản hồi đóng gói theo hợp đồng v2 (như planner_target_matrix_check); Jev planner = bộ quyết định
 CÓ KỊCH BẢN (hàm của state/options) để kiểm WIRING, guard, ngân sách, trace. Tool = mock BTC thật (direct), memory SQLite tạm.
@@ -186,7 +186,7 @@ def adaptive_buyer(state, opts):
 
 # ================================================================== V01: switch
 with Ctx():
-    for v in ("b1", "b2_jev", "b3_workflow"):
+    for v in ("b1", "b2_jev"):
         ok("V01", f"factory builds {v}", planner_variants.make(v).name, v)
     rows = planner_table.load_rows()
     try:
@@ -203,7 +203,6 @@ with Ctx():
             except ValueError:
                 return True
     ok("V01", "b2 without ARCH=target rejected", rejected("b2_jev", arch=""), True)
-    ok("V01", "b3 + legacy PLANNER_SELECTOR rejected", rejected("b3_workflow", planner_selector="jev"), True)
     ok("V01", "b2 + PLANNER_BACKEND fallback rejected", rejected("b2_jev", planner_backend="qwen"), True)
     ok("V01", "b2 with zero budget rejected", rejected("b2_jev", b2_max_decisions=0), True)
     ok("V01", "unknown variant rejected", rejected("b4", arch="target"), True)
@@ -304,34 +303,12 @@ with Ctx():
     ok("V06", "same products as created order → ask additional, no second write",
        (created_skus(row), "ask_additional_order" in row["goals"]), ([], True))
 
-# ================================================================== V07: B3 workflow
-with Ctx():
-    s = session("v07a", "b3_workflow")
-    say(s, "Samsung AX40 giá bao nhiêu em?", PRICE_Q)
-    row = say(s, "Ok chốt Samsung AX40 cho anh", resp(intent="place_order", requests=[req("place_order", "chốt Samsung AX40", "P1")]))
-    ag = [a["progress"] for a in loop(row).get("agenda", []) if a["progress"] != "order_requested"]
-    ok("V07", "B3 derives missing evidence, reads it, then executes", (ag[:2], created_skus(row)),
-       (["missing_evidence", "executed"], [[B_OK]]))
-    names = [t["name"] for t in row["tool_calls"]]
-    ok("V07", "evidence read before write", names.index("inventory.check") < names.index("order.create"), True)
-    s = session("v07b", "b3_workflow")
-    say(s, "Xiaomi Smart 4 Pro còn không em?", resp(intent="product_inquiry", asks=["stock"], asks_question=True))
-    row = say(s, "Lấy cái Xiaomi Smart 4 Pro cho anh", resp(intent="place_order", requests=[req("place_order", "Lấy cái Xiaomi Smart 4 Pro", "P1")]))
-    ok("V07", "B3 out of stock → no write, out_of_stock told", (created_skus(row), "out_of_stock" in row["goals"]), ([], True))
-    if "out_of_stock" not in row["goals"]:
-        print("  DIAG goals", row["goals"], "table", row["planner"]["table"], "branches", row["planner"]["branches"][-6:])
-        print("  DIAG loop", json.dumps(loop(row), ensure_ascii=False, default=str)[:2500])
-        print("  DIAG reqs", json.dumps(row["request_state"], ensure_ascii=False, default=str)[:1200])
-    s = session("v07c", "b3_workflow")
-    row = say(s, "Samsung AX40 giá bao nhiêu em?", PRICE_Q)
-    ok("V07", "B3 pure question → quote, no write", (created_skus(row), "quote" in row["goals"]), ([], True))
-
 # ================================================================== V08: can thiệp — quyền quyết định tiến trình đã chuyển
 def broken(c, row):
     c.s.table_row_used = True             # dấu phụ (không qua goal_contract) để biết dòng bảng place_order đã chạy
 
 
-for variant, want_order in (("b1", False), ("b2_jev", True), ("b3_workflow", True)):
+for variant, want_order in (("b1", False), ("b2_jev", True)):
     with Ctx(), patch.dict(planner_table.HANDLERS, {"place_order": broken}):
         s = session(f"v08{variant}", variant, Script(*[adaptive_buyer] * 4) if variant == "b2_jev" else None)
         say(s, "Samsung AX40 giá bao nhiêu em?", PRICE_Q)
@@ -340,19 +317,6 @@ for variant, want_order in (("b1", False), ("b2_jev", True), ("b3_workflow", Tru
         row = say(s, "Ok chốt Samsung AX40 cho anh", resp(intent="place_order", requests=[req("place_order", "chốt Samsung AX40", "P1")]))
         ok("V08", f"{variant}: table place_order handler {'not ' if want_order else ''}the owner",
            (bool(created_skus(row)), bool(getattr(s, "table_row_used", False))), (want_order, not want_order))
-
-# ================================================================== V09: B3 nhiều yêu cầu / điều kiện
-with Ctx():
-    s = session("v09a", "b3_workflow")
-    say(s, "AirPure X với AirPure Y giá sao em?", PRICE_Q)
-    row = say(s, "Lấy AirPure X, lấy luôn AirPure Y", resp(intent="place_order", requests=[req("place_order", "Lấy AirPure X", "P1"),
-                                                                                          req("place_order", "lấy luôn AirPure Y", "P2")]))
-    ok("V09", "two requests same turn → ask, not merged", (created_skus(row), "ask_multi_request" in row["goals"]), ([], True))
-    s = session("v09b", "b3_workflow")
-    say(s, "Xiaomi Smart 4 Pro còn không em?", resp(intent="product_inquiry", asks=["stock"], asks_question=True))
-    row = say(s, "Khi nào có hàng thì lấy Xiaomi Smart 4 Pro", resp(intent="place_order",
-              requests=[req("place_order", "thì lấy Xiaomi Smart 4 Pro", "P1", {"type": "stock", "span": "Khi nào có hàng"})]))
-    ok("V09", "stock condition unmet → no write", created_skus(row), [])
 
 # ================================================================== V10: cách ly
 with Ctx():
@@ -479,23 +443,13 @@ with Ctx():
         print("  DIAG13 steps", json.dumps(loop(row).get("steps"), ensure_ascii=False, default=str)[:2500])
         print("  DIAG13 stop", loop(row).get("stop"))
 
-# V14: B3 cùng luồng — workflow tự đọc đơn / hạn / kho biến thể rồi ghi
-with Ctx():
-    s = session("v14", "b3_workflow")
-    oid = mk_order(s, "SKU-JK-WND-S-BE")
-    row = say(s, "Đổi giúp chị sang size M nhé", resp(intent="order_change", observations=[{"slot": "size", "span": "size M", "stance": "chosen"}],
-                                                       requests=[req("exchange", "Đổi giúp chị sang size M")]))
-    ag = [a["next"] for a in loop(row)["agenda"] if a["progress"] == "missing_evidence"]
-    ok("V14", "B3 derives missing evidence step by step", ag, ["read_order", f"check_window:{oid}", "read_stock:V1"])
-    ok("V14", "B3 exchange written once", ops(row, True), [(oid, "exchange_size", "SKU-JK-WND-M-BE")])
-
 # V15: can thiệp — vô hiệu executor đổi/trả/địa chỉ của B1 → B1 không làm được, B2/B3 vẫn làm (không có chuỗi B1 ẩn)
 def dead_exec(self, *a, **k):
     self.b1_exec_used = True
     return ["contract_error"]
 
 
-for variant, want in (("b1", False), ("b2_jev", True), ("b3_workflow", True)):
+for variant, want in (("b1", False), ("b2_jev", True)):
     with Ctx(), patch.object(agent.CallSession, "_plan_order_change_target", dead_exec), \
             patch.object(agent.CallSession, "_plan_address_change_target", dead_exec):
         s = session(f"v15{variant}", variant, Script())
@@ -508,7 +462,7 @@ for variant, want in (("b1", False), ("b2_jev", True), ("b3_workflow", True)):
            (bool(calls(row, "order.update")), bool(getattr(s, "b1_exec_used", False))), (want, not want))
 
 # V16 (holdout mục 1): hỏi tiền hoàn sau khi ĐỔI sang mẫu rẻ hơn → số tiền chênh của lần đổi, không phải giá cả đơn
-for variant in ("b1", "b2_jev", "b3_workflow"):
+for variant in ("b1", "b2_jev"):
     with Ctx():
         s = session(f"v16{variant}", variant, Script())
         oid = mk_order(s, "SKU-SS-AX40")
@@ -526,7 +480,7 @@ for variant in ("b1", "b2_jev", "b3_workflow"):
            (money in row["agent_text"], "6.490.000" in row["agent_text"]), (True, False))
 
 # V17 (holdout mục 2): lựa chọn mới CHỨA sản phẩm đã có trong đơn vừa tạo → hỏi, không tạo đơn trùng
-for variant in ("b1", "b2_jev", "b3_workflow"):
+for variant in ("b1", "b2_jev"):
     with Ctx():
         s = session(f"v17{variant}", variant, Script())
         if variant == "b2_jev":
@@ -720,11 +674,6 @@ for name, text, write in COND_CASES:
         if not write:
             ok("V22", "b2 above: reply states current total over customer's limit; request stays conditional",
                ("condition_unmet" in row["goals"], [i["status"] for i in row["request_state"]["items"]][-1]), (True, "conditional"))
-    with Ctx():
-        s = session(f"v22b3{name}", "b3_workflow")
-        say(s, "Samsung AX40 giá bao nhiêu em?", PRICE_Q)
-        row = say(s, text, rq)
-        ok("V22", f"b3 {name}: write only when condition met ({write})", bool(created_skus(row)), write)
 
 with Ctx():
     s = session("v22halt", "b2_jev", Script())

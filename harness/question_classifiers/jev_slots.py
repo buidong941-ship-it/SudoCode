@@ -72,7 +72,7 @@ def classify_agent_questions(text, known_values, meta=None):
                 out.append({"slot": slot, "type": kind, "text": sentence})
         except Exception as exc:
             errors.append(type(exc).__name__ + ":" + str(exc)[:40])
-            out.extend(agent_questions(sentence, known_values, use_classifier=False))
+            out.extend(agent_questions(sentence, known_values))
     meta["jev_slot_requests"] = requests
     meta["jev_slot_ms"] = round((time.perf_counter() - start) * 1000, 2)
     meta["jev_slot_errors"] = errors

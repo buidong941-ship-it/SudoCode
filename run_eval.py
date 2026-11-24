@@ -174,8 +174,8 @@ def main():
     ap.add_argument("--only", nargs="*", help="chỉ chạy các scenario_id này")
     ap.add_argument("--transport", default=settings.tool_transport, choices=["mcp", "direct"],
                     help="mcp = tool + bộ nhớ qua MCP server (mặc định); direct = gọi hàm trực tiếp (để so sánh)")
-    ap.add_argument("--planner-variant", default=settings.planner_variant, choices=["b1", "b2_jev", "b3_workflow"],
-                    help="chủ sở hữu tiến trình trên ARCH=target (12/11): b1 bảng | b2_jev Jev từng bước | b3_workflow; một job = một biến thể")
+    ap.add_argument("--planner-variant", default=settings.planner_variant, choices=["b1", "b2_jev"],
+                    help="chủ sở hữu tiến trình trên ARCH=target (12/11): b1 bảng | b2_jev Jev từng bước; một job = một biến thể")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="in khối từng lượt ra màn hình và ghi log mức DEBUG (đủ tham số/kết quả tool, HTTP status) vào <out>.log")
     ap.add_argument("--log-level", default=os.environ.get("LOG_LEVEL", "INFO"), choices=["DEBUG", "INFO", "WARNING", "ERROR"],
