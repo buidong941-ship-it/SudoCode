@@ -2,7 +2,6 @@
 
     python -m streamlit run ui/dashboard.py --theme.base=light
 """
-import base64
 from pathlib import Path
 import runpy
 import sys
@@ -11,16 +10,6 @@ import streamlit as st
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-
-
-@st.cache_data
-def stylesheet():
-    fonts = []
-    for weight, filename in ((400, "BeVietnamPro-Regular.ttf"), (600, "BeVietnamPro-SemiBold.ttf")):
-        data = base64.b64encode((HERE / "assets/fonts" / filename).read_bytes()).decode("ascii")
-        fonts.append(f'@font-face {{font-family:"Be Vietnam Pro";font-style:normal;font-weight:{weight};'
-                     f'font-display:swap;src:url(data:font/ttf;base64,{data}) format("truetype");}}')
-    return "\n".join(fonts) + (HERE / "assets/dashboard.css").read_text(encoding="utf-8")
 
 
 def report_comparison(report, engine):
@@ -49,32 +38,27 @@ def report_comparison(report, engine):
             y=alt.Y("metric:N", title=None, sort=order, axis=alt.Axis(labelLimit=260)),
             yOffset=alt.YOffset("series:N", sort=["Hệ thống (full)", "Baseline"]),
             color=alt.Color("series:N", title=None,
-                            scale=alt.Scale(domain=series_names, range=["#007C83", "#A6BDC8"][:len(series_names)])),
+                            scale=alt.Scale(domain=series_names, range=["#1760A5", "#A1ADB9"][:len(series_names)])),
             tooltip=[alt.Tooltip("metric:N", title="Chỉ số"), alt.Tooltip("series:N", title="Cấu hình"),
                      alt.Tooltip("value:Q", title="Tỷ lệ (%)", format=".1f")],
         ).properties(height=240).configure(
-            font="Be Vietnam Pro", background="transparent"
+            font="Segoe UI, system-ui, sans-serif", background="transparent"
         ).configure_view(stroke=None).configure_axis(
-            labelColor="#536D7A", titleColor="#536D7A", gridColor="#E6EEF2", domain=False,
+            labelColor="#4D5E70", titleColor="#4D5E70", gridColor="#E1E6EC", domain=False,
             labelFontSize=11, titleFontSize=11, labelPadding=10, titlePadding=14, ticks=False,
         ).configure_legend(
-            orient="top", labelColor="#20313D", labelFontSize=12, symbolType="square", padding=0,
+            orient="top", labelColor="#253447", labelFontSize=12, symbolType="square", padding=0,
         )
         st.altair_chart(chart, use_container_width=True, theme=None)
 
 
 st.set_page_config(page_title="SUDO CODE | Bàn làm việc telesale", page_icon="💬", layout="wide",
-                   initial_sidebar_state="expanded")
-st.html("<style>" + stylesheet() + "</style>")
+                   initial_sidebar_state="auto")
+st.html("<style>" + (HERE / "assets/dashboard.css").read_text(encoding="utf-8") + "</style>")
 with st.container(key="workspace_heading"):
     st.html('''<header class="workspace-heading">
-      <div class="workspace-heading__copy">
-        <h1>Bàn làm việc telesale</h1>
-        <p>Hội thoại được tiếp nối, ngữ cảnh được giữ lại.</p>
-      </div>
-      <div class="conversation-mark" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
+      <h1>Bàn làm việc telesale</h1>
+      <p>Tư vấn, theo dõi cuộc gọi và xem lịch sử khách hàng.</p>
     </header>''')
 
 # shortcut: tái dùng script v2 đang khóa hash; khi v2 có hàm render công khai thì gọi trực tiếp.
@@ -82,10 +66,8 @@ workspace = runpy.run_path(str(HERE / "app_v2.py"))
 if not workspace["get_engine"]().calls:
     with workspace["tab_call"]:
         st.html('''<section class="call-empty">
-          <div class="call-empty__signal" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div><h2>Mở cuộc gọi để bắt đầu tư vấn</h2>
-            <p>Chọn khách hàng và kênh liên hệ ở phần thiết lập phía trên.
-            Khi khách quay lại, Call Brief sẽ giúp bạn tiếp nối câu chuyện.</p></div>
+          <h2>Chưa có cuộc gọi</h2>
+          <p>Chọn số điện thoại và kênh liên hệ trong phần Thiết lập cuộc gọi.</p>
         </section>''')
 if "rep" in workspace:
     with workspace["tab_metrics"]:
